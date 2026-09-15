@@ -10,6 +10,9 @@ const timerToggleText = document.getElementById('timerToggleText');
 const btnTimerRestart = document.getElementById('btnTimerRestart');
 const btnFinishMatch = document.getElementById('btnFinishMatch');
 const btnScoreReset = document.getElementById('btnScoreReset');
+const btnMuteToggle = document.getElementById('btnMuteToggle');
+const muteIcon = document.getElementById('muteIcon');
+const muteText = document.getElementById('muteText');
 
 // Elementos DOM - Lado A
 const nameA = document.getElementById('nameA');
@@ -140,12 +143,37 @@ socket.on('timer:tick', (timer) => {
   timerDisplay.textContent = formatTime(timer.seconds);
 });
 
+// Controle de Mudo
+function updateMuteUI() {
+  if (!window.sound) return;
+  if (window.sound.muted) {
+    muteIcon.textContent = '🔇';
+    muteText.textContent = 'Mudo';
+    btnMuteToggle.style.opacity = '0.6';
+  } else {
+    muteIcon.textContent = '🔊';
+    muteText.textContent = 'Som';
+    btnMuteToggle.style.opacity = '1';
+  }
+}
+
+if (btnMuteToggle) {
+  updateMuteUI();
+  btnMuteToggle.addEventListener('click', () => {
+    if (window.sound) {
+      window.sound.toggleMute();
+      updateMuteUI();
+    }
+  });
+}
+
 // Reprodução de áudio
 socket.on('sound:play', ({ type }) => {
   if (!window.sound) return;
   if (type === 'whistle') window.sound.playWhistle();
   if (type === 'whistle_final') window.sound.playFinalWhistle();
-  if (type === 'point') window.sound.playPointSound();
+  if (type === 'point_add') window.sound.playPointAdd();
+  if (type === 'point_sub') window.sound.playPointSub();
 });
 
 // Ações do Lado A

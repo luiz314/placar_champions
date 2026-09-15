@@ -46,14 +46,20 @@ io.on('connection', (socket) => {
   socket.on('point:add', (team) => {
     if (team === 'A') gameState.scoreA += 1;
     if (team === 'B') gameState.scoreB += 1;
-    io.emit('sound:play', { type: 'point' });
+    io.emit('sound:play', { type: 'point_add' });
     broadcastState();
   });
 
   // Diminuir ponto
   socket.on('point:sub', (team) => {
-    if (team === 'A' && gameState.scoreA > 0) gameState.scoreA -= 1;
-    if (team === 'B' && gameState.scoreB > 0) gameState.scoreB -= 1;
+    if (team === 'A' && gameState.scoreA > 0) {
+      gameState.scoreA -= 1;
+      io.emit('sound:play', { type: 'point_sub' });
+    }
+    if (team === 'B' && gameState.scoreB > 0) {
+      gameState.scoreB -= 1;
+      io.emit('sound:play', { type: 'point_sub' });
+    }
     broadcastState();
   });
 

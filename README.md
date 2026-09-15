@@ -17,10 +17,15 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
   - Nome editável diretamente na tela.
 - ⏱️ **Cronômetro com Som de Apito**:
   - Exibição de minutos e segundos (`MM:SS`).
-  - Botão **▶ Iniciar / ⏸ Pausar** que **toca apito oficial de árbitro** ao ser iniciado!
+  - Botão **▶ Iniciar / ⏸ Pausar** que toca apito oficial de árbitro ao ser iniciado!
   - Botão **↺ Reiniciar** (zera o tempo).
+- 🔊 **Efeitos Sonoros & Controle de Mudo**:
+  - 🔔 **Som ao Adicionar Ponto**: Tom alegre e sutil ao pontuar (+1).
+  - 🔉 **Som ao Diminuir Ponto**: Tom grave e discreto ao corrigir a pontuação (-1).
+  - 📢 **Apito de Árbitro**: Ao iniciar o cronômetro ou encerrar a partida.
+  - 🔇 **Botão de Mudo**: Botão **🔊 Som / 🔇 Mudo** no cabeçalho para ativar ou desativar todo o áudio com um clique.
 - 🏁 **Encerrar Partida & Histórico de Resultados**:
-  - Botão para finalizar a partida atual com apito final.
+  - Botão para finalizar a partida atual com apito final duplo.
   - Salva automaticamente no **Histórico de Partidas**: número da partida, horário, duração total, placar final e vencedor com troféu 🏆.
   - Prepara o placar e cronômetro para o início do próximo jogo.
   - Botão para limpar o histórico quando desejar.
