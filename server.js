@@ -46,21 +46,25 @@ io.on('connection', (socket) => {
   socket.on('point:add', (team) => {
     if (team === 'A') gameState.scoreA += 1;
     if (team === 'B') gameState.scoreB += 1;
-    io.emit('sound:play', { type: 'point_add' });
+    socket.broadcast.emit('sound:play', { type: 'point_add' });
     broadcastState();
   });
 
   // Diminuir ponto
   socket.on('point:sub', (team) => {
+    let changed = false;
     if (team === 'A' && gameState.scoreA > 0) {
       gameState.scoreA -= 1;
-      io.emit('sound:play', { type: 'point_sub' });
+      changed = true;
     }
     if (team === 'B' && gameState.scoreB > 0) {
       gameState.scoreB -= 1;
-      io.emit('sound:play', { type: 'point_sub' });
+      changed = true;
     }
-    broadcastState();
+    if (changed) {
+      socket.broadcast.emit('sound:play', { type: 'point_sub' });
+      broadcastState();
+    }
   });
 
   // Resetar placar atual
@@ -75,8 +79,8 @@ io.on('connection', (socket) => {
     const wasRunning = gameState.timer.running;
     gameState.timer.running = !wasRunning;
     if (!wasRunning) {
-      // Toca apito ao iniciar o cronômetro
-      io.emit('sound:play', { type: 'whistle' });
+      // Toca apito para outros espectadores
+      socket.broadcast.emit('sound:play', { type: 'whistle' });
     }
     broadcastState();
   });
@@ -89,7 +93,6 @@ io.on('connection', (socket) => {
 
   // Encerrar Partida e salvar no Histórico
   socket.on('match:finish', () => {
-    // Registra a partida concluída
     let winner = 'Empate';
     if (gameState.scoreA > gameState.scoreB) winner = gameState.nameA;
     else if (gameState.scoreB > gameState.scoreA) winner = gameState.nameB;
@@ -106,16 +109,14 @@ io.on('connection', (socket) => {
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
-    gameState.matchHistory.unshift(matchRecord); // Adiciona no início da lista
+    gameState.matchHistory.unshift(matchRecord);
 
-    // Reseta pontos e cronômetro para a próxima partida
     gameState.scoreA = 0;
     gameState.scoreB = 0;
     gameState.timer.running = false;
     gameState.timer.seconds = 0;
 
-    // Dispara apito longo / final
-    io.emit('sound:play', { type: 'whistle_final' });
+    socket.broadcast.emit('sound:play', { type: 'whistle_final' });
     broadcastState();
   });
 

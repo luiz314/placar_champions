@@ -180,8 +180,16 @@ socket.on('sound:play', ({ type }) => {
 });
 
 // Ações do Lado A
-function addPointA() { socket.emit('point:add', 'A'); }
-function subPointA() { socket.emit('point:sub', 'A'); }
+function addPointA() {
+  if (window.sound) window.sound.playPointAdd();
+  socket.emit('point:add', 'A');
+}
+
+function subPointA() {
+  const current = parseInt(scoreDigitA.textContent) || 0;
+  if (current > 0 && window.sound) window.sound.playPointSub();
+  socket.emit('point:sub', 'A');
+}
 
 btnAddA.addEventListener('click', addPointA);
 clickAreaA.addEventListener('click', addPointA);
@@ -192,8 +200,16 @@ nameA.addEventListener('change', () => {
 });
 
 // Ações do Lado B
-function addPointB() { socket.emit('point:add', 'B'); }
-function subPointB() { socket.emit('point:sub', 'B'); }
+function addPointB() {
+  if (window.sound) window.sound.playPointAdd();
+  socket.emit('point:add', 'B');
+}
+
+function subPointB() {
+  const current = parseInt(scoreDigitB.textContent) || 0;
+  if (current > 0 && window.sound) window.sound.playPointSub();
+  socket.emit('point:sub', 'B');
+}
 
 btnAddB.addEventListener('click', addPointB);
 clickAreaB.addEventListener('click', addPointB);
@@ -205,6 +221,9 @@ nameB.addEventListener('change', () => {
 
 // Ações do Cronômetro
 btnTimerToggle.addEventListener('click', () => {
+  if (!btnTimerToggle.classList.contains('running') && window.sound) {
+    window.sound.playWhistle();
+  }
   socket.emit('timer:toggle');
 });
 
@@ -221,6 +240,7 @@ btnFinishMatch.addEventListener('click', () => {
   } else {
     if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico?')) return;
   }
+  if (window.sound) window.sound.playFinalWhistle();
   socket.emit('match:finish');
 });
 

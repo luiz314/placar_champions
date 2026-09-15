@@ -1,18 +1,26 @@
-// Sistema de Efeitos Sonoros com Controle de Mudo (Web Audio API)
+// Sistema de Efeitos Sonoros Ultra-Resiliente (Web Audio API)
+// Não trava ou para de funcionar por inatividade do navegador
 class ScoreboardSound {
   constructor() {
     this.ctx = null;
     this.muted = localStorage.getItem('placar_muted') === 'true';
   }
 
-  init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
+  getContext() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+
+    try {
+      if (!this.ctx || this.ctx.state === 'closed') {
+        this.ctx = new AudioCtx();
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    } catch (e) {
+      console.warn('Erro ao inicializar AudioContext:', e);
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+    return this.ctx;
   }
 
   toggleMute() {
@@ -24,17 +32,17 @@ class ScoreboardSound {
   // Apito Fox 40 de Árbitro
   playWhistle(duration = 0.5) {
     if (this.muted) return;
-    this.init();
-    if (!this.ctx) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
 
     try {
-      const now = this.ctx.currentTime;
-      const osc1 = this.ctx.createOscillator();
-      const osc2 = this.ctx.createOscillator();
-      const lfo = this.ctx.createOscillator();
-      const lfoGain = this.ctx.createGain();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
 
       osc1.type = 'sawtooth';
       osc1.frequency.setValueAtTime(2600, now);
@@ -59,7 +67,7 @@ class ScoreboardSound {
       osc1.connect(gain);
       osc2.connect(gain);
       gain.connect(filter);
-      filter.connect(this.ctx.destination);
+      filter.connect(ctx.destination);
 
       lfo.start(now);
       osc1.start(now);
@@ -68,6 +76,17 @@ class ScoreboardSound {
       lfo.stop(now + duration);
       osc1.stop(now + duration);
       osc2.stop(now + duration);
+
+      // Limpeza de nós de áudio após tocar
+      setTimeout(() => {
+        try {
+          osc1.disconnect();
+          osc2.disconnect();
+          lfo.disconnect();
+          gain.disconnect();
+          filter.disconnect();
+        } catch (_) {}
+      }, (duration + 0.1) * 1000);
     } catch (e) {
       console.warn('Erro ao tocar apito:', e);
     }
@@ -85,26 +104,33 @@ class ScoreboardSound {
   // Som simples e alegre ao Adicionar Ponto (+1)
   playPointAdd() {
     if (this.muted) return;
-    this.init();
-    if (!this.ctx) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
 
     try {
-      const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(659.25, now); // E5
       osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08); // B5
 
-      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.setValueAtTime(0.25, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.12);
+
+      setTimeout(() => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch (_) {}
+      }, 200);
     } catch (e) {
       console.warn('Erro som ponto add:', e);
     }
@@ -113,26 +139,33 @@ class ScoreboardSound {
   // Som sutil e suave ao Diminuir Ponto (-1)
   playPointSub() {
     if (this.muted) return;
-    this.init();
-    if (!this.ctx) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
 
     try {
-      const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(329.63, now); // E4
       osc.frequency.exponentialRampToValueAtTime(220.00, now + 0.08); // A3
 
-      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.setValueAtTime(0.2, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.1);
+
+      setTimeout(() => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch (_) {}
+      }, 200);
     } catch (e) {
       console.warn('Erro som ponto sub:', e);
     }
@@ -141,7 +174,11 @@ class ScoreboardSound {
 
 window.sound = new ScoreboardSound();
 
-// Inicializa áudio no primeiro clique do usuário
-document.addEventListener('click', () => {
-  window.sound.init();
-}, { once: true });
+// Mantém o contexto de áudio sempre ativo e desperto a cada toque ou clique
+['click', 'pointerdown', 'keydown', 'touchstart'].forEach((eventType) => {
+  window.addEventListener(eventType, () => {
+    if (window.sound) {
+      window.sound.getContext();
+    }
+  }, { passive: true });
+});
