@@ -236,13 +236,22 @@ socket.on('sound:play', ({ type }) => {
   if (type === 'point_sub') window.sound.playPointSub();
 });
 
+// Feedback tátil para dispositivos touch (smartphones e tablets)
+function triggerHaptic() {
+  if (navigator && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate(25); } catch (_) {}
+  }
+}
+
 // Ações do Lado A
 function addPointA() {
+  triggerHaptic();
   if (window.sound) window.sound.playPointAdd();
   socket.emit('point:add', 'A');
 }
 
 function subPointA() {
+  triggerHaptic();
   const current = parseInt(scoreDigitA.textContent) || 0;
   if (current > 0 && window.sound) window.sound.playPointSub();
   socket.emit('point:sub', 'A');
@@ -258,11 +267,13 @@ nameA.addEventListener('change', () => {
 
 // Ações do Lado B
 function addPointB() {
+  triggerHaptic();
   if (window.sound) window.sound.playPointAdd();
   socket.emit('point:add', 'B');
 }
 
 function subPointB() {
+  triggerHaptic();
   const current = parseInt(scoreDigitB.textContent) || 0;
   if (current > 0 && window.sound) window.sound.playPointSub();
   socket.emit('point:sub', 'B');
@@ -278,6 +289,7 @@ nameB.addEventListener('change', () => {
 
 // Ações do Cronômetro
 btnTimerToggle.addEventListener('click', () => {
+  triggerHaptic();
   if (!btnTimerToggle.classList.contains('running') && window.sound) {
     window.sound.playWhistle();
   }

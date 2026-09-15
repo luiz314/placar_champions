@@ -410,47 +410,74 @@ body {
   background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.2), transparent);
 }
 
-/* RODAPÉ COM DICAS */
-.app-footer {
-  padding: 16px;
-  text-align: center;
-  color: #64748b;
-  font-size: 0.85rem;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  flex-wrap: wrap;
+/* ============================================================
+   OTIMIZAÇÃO PARA TABLETS E SMARTPHONES (TOUCH-FRIENDLY)
+   ============================================================ */
+button,
+.btn,
+.btn-point-add,
+.btn-point-sub,
+.score-number-box,
+.menu-item {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.kbd-badge {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #e2e8f0;
-  font-size: 0.8rem;
-  font-family: monospace;
+.score-number-box {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease-out;
+}
+
+.score-number-box:active {
+  transform: scale(0.96);
+}
+
+.btn-point-add {
+  min-height: 56px;
+}
+
+.btn-point-sub {
+  min-height: 44px;
 }
 
 /* ============================================================
-   RESPONSIVIDADE
+   RESPONSIVIDADE (TABLET / SMARTPHONE)
    ============================================================ */
 @media (max-width: 900px) {
+  .scoreboard-main {
+    padding: 12px;
+  }
+
   .scoreboard-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
 
   .versus-divider {
     display: none;
   }
 
+  .team-card {
+    padding: 24px 16px;
+    border-radius: 20px;
+  }
+
   .score-digit {
-    font-size: 7.5rem;
+    font-size: 8rem;
   }
 
   .timer-container {
     width: 100%;
+    padding: 10px 14px;
+    gap: 12px;
+  }
+
+  .timer-controls {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 

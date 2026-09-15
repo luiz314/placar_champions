@@ -25,6 +25,11 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
   - 📜 **Histórico das Partidas**: Abre uma janela modal moderna com a listagem de todos os jogos anteriores, duração, placar e vencedor com troféu 🏆.
   - 🔊 **Som (Ativado / Mudo)**: Controle com um clique para silenciar ou ativar todos os efeitos sonoros.
   - ⛶ **Tela Cheia**: Expande o placar para exibição em TVs e telões.
+- 📱 **100% Touch-Friendly (Tablets & Smartphones)**:
+  - Botões grandes com áreas de toque ampliadas e sem atraso de toque (*zero tap lag* com `touch-action: manipulation`).
+  - Toque direto no número gigante do placar para somar pontos.
+  - Feedback tátil com vibração instantânea nos aparelhos móveis compatíveis.
+  - Interface responsiva limpa sem barras ou legendas desnecessárias no rodapé.
 - ⚡ **Sincronização em Tempo Real**:
   - Sincronização automática via WebSockets (Socket.io) entre todos os celulares ou computadores conectados.
 
