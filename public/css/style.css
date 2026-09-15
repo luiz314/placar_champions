@@ -455,7 +455,111 @@ body {
 }
 
 /* ============================================================
-   BOTÃO ENCERRAR PARTIDA E SEÇÃO DE HISTÓRICO
+   HEADER TOP ROW & MENU DROPDOWN
+   ============================================================ */
+.header-top-row {
+  width: 100%;
+  max-width: 1400px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.menu-container {
+  position: relative;
+}
+
+.btn-menu {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-menu:hover,
+.btn-menu.active {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  min-width: 260px;
+  padding: 8px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 200;
+  animation: menuFadeIn 0.18s ease-out;
+}
+
+.menu-dropdown.show {
+  display: flex;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #f8fafc;
+  font-family: var(--font-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.menu-item-icon {
+  font-size: 1.15rem;
+  width: 24px;
+  text-align: center;
+}
+
+.menu-item-text {
+  flex: 1;
+}
+
+.menu-badge {
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* ============================================================
+   BOTÃO ENCERRAR PARTIDA E MODAL DE HISTÓRICO
    ============================================================ */
 .btn-finish-match {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
@@ -469,46 +573,98 @@ body {
   background: linear-gradient(135deg, #4f46e5, #4338ca);
 }
 
-.history-section {
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto 40px;
-  padding: 0 24px;
+/* BACKDROP E MODAL DE HISTÓRICO */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
 }
 
-.history-card-box {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
+.modal-backdrop.show {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.history-modal {
+  background: #0d1322;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 24px;
-  border: 1px solid var(--bg-card-border);
-  padding: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 780px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  animation: modalScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.history-header {
+@keyframes modalScale {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.history-modal-header {
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.8);
 }
 
-.history-title {
-  font-size: 1.2rem;
+.history-modal-title {
+  font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.history-modal-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 2px 8px;
+  line-height: 1;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .btn-clear-history {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-muted, #94a3b8);
-  font-size: 0.8rem;
-  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 14px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
@@ -520,26 +676,32 @@ body {
   color: #fca5a5;
 }
 
+.history-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
 .history-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .history-item {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, border-color 0.2s;
 }
 
 .history-item:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .history-item-top {
@@ -574,7 +736,7 @@ body {
 
 .history-score-digits {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   letter-spacing: 2px;
 }
 
@@ -585,7 +747,7 @@ body {
   align-items: center;
   gap: 6px;
   color: #4ade80;
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(34, 197, 94, 0.12);
   padding: 4px 10px;
   border-radius: 8px;
   align-self: flex-start;
@@ -594,7 +756,7 @@ body {
 .history-empty {
   text-align: center;
   color: #64748b;
-  padding: 30px;
-  font-size: 0.95rem;
+  padding: 40px 20px;
+  font-size: 1rem;
 }
 

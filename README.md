@@ -19,21 +19,12 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
   - Exibição de minutos e segundos (`MM:SS`).
   - Botão **▶ Iniciar / ⏸ Pausar** que toca apito oficial de árbitro ao ser iniciado!
   - Botão **↺ Reiniciar** (zera o tempo).
-- 🔊 **Efeitos Sonoros & Controle de Mudo**:
-  - 🔔 **Som ao Adicionar Ponto**: Tom alegre e sutil ao pontuar (+1).
-  - 🔉 **Som ao Diminuir Ponto**: Tom grave e discreto ao corrigir a pontuação (-1).
-  - 📢 **Apito de Árbitro**: Ao iniciar o cronômetro ou encerrar a partida.
-  - 🔇 **Botão de Mudo**: Botão **🔊 Som / 🔇 Mudo** no cabeçalho para ativar ou desativar todo o áudio com um clique.
-- ⛶ **Modo Tela Cheia**:
-  - Botão **⛶ Tela Cheia** na barra de ferramentas para expandir a visão limpa em TVs e monitores.
-  - Atalho rápido pela tecla `F`.
-- 🏁 **Encerrar Partida & Histórico de Resultados**:
-  - Botão para finalizar a partida atual com apito final duplo.
-  - Salva automaticamente no **Histórico de Partidas**: número da partida, horário, duração total, placar final e vencedor com troféu 🏆.
-  - Prepara o placar e cronômetro para o início do próximo jogo.
-  - Botão para limpar o histórico quando desejar.
-- ⚠️ **Zerar Placar Atual**:
-  - Reseta os pontos sem gravar no histórico.
+  - Botão **🏁 Encerrar Partida** (salva o placar final e prepara o próximo jogo).
+  - Botão **⚠️ Zerar Placar** (zera a contagem atual).
+- ☰ **Menu Superior Dropdown**:
+  - 📜 **Histórico das Partidas**: Abre uma janela modal moderna com a listagem de todos os jogos anteriores, duração, placar e vencedor com troféu 🏆.
+  - 🔊 **Som (Ativado / Mudo)**: Controle com um clique para silenciar ou ativar todos os efeitos sonoros.
+  - ⛶ **Tela Cheia**: Expande o placar para exibição em TVs e telões.
 - ⚡ **Sincronização em Tempo Real**:
   - Sincronização automática via WebSockets (Socket.io) entre todos os celulares ou computadores conectados.
 
@@ -45,6 +36,8 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
 - `2` ou `B`: +1 Ponto para o **Lado B (Vermelho)**
 - `Espaço`: Iniciar / Pausar o **Cronômetro** (com apito)
 - `F`: Alternar **Tela Cheia**
+- `H`: Abrir / Fechar **Histórico de Partidas**
+- `Esc`: Fechar Janelas e Menus abertos
 
 ---
 

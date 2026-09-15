@@ -9,13 +9,40 @@
 </head>
 <body>
 
-  <!-- BARRA SUPERIOR COM CRONÔMETRO E CONTROLES GERAIS -->
+  <!-- BARRA SUPERIOR COM MENU E CRONÔMETRO -->
   <header class="app-header">
-    <div class="title-area">
-      <span style="font-size: 1.5rem;">🏐</span>
-      <h1 class="app-title">Placar de Vôlei</h1>
+    <div class="header-top-row">
+      <div class="title-area">
+        <span style="font-size: 1.5rem;">🏐</span>
+        <h1 class="app-title">Placar de Vôlei</h1>
+      </div>
+
+      <!-- MENU SUPERIOR -->
+      <div class="menu-container">
+        <button class="btn btn-menu" id="btnMenuToggle" title="Abrir Menu">
+          <span>☰</span>
+          <span>Menu</span>
+        </button>
+
+        <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item" id="menuItemHistory">
+            <span class="menu-item-icon">📜</span>
+            <span class="menu-item-text">Histórico das Partidas</span>
+            <span class="menu-badge" id="menuHistoryBadge">0</span>
+          </button>
+          <button class="menu-item" id="menuItemMute">
+            <span class="menu-item-icon" id="menuMuteIcon">🔊</span>
+            <span class="menu-item-text" id="menuMuteText">Som: Ativado</span>
+          </button>
+          <button class="menu-item" id="menuItemFullscreen">
+            <span class="menu-item-icon" id="menuFullscreenIcon">⛶</span>
+            <span class="menu-item-text" id="menuFullscreenText">Tela Cheia</span>
+          </button>
+        </div>
+      </div>
     </div>
 
+    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA -->
     <div class="timer-container">
       <div class="timer-box">
         <span class="timer-dot" id="timerDot"></span>
@@ -36,19 +63,11 @@
         <button class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
           <span>⚠️ Zerar Placar</span>
         </button>
-        <button class="btn" id="btnMuteToggle" title="Ativar / Desativar Efeitos Sonoros">
-          <span id="muteIcon">🔊</span>
-          <span id="muteText">Som</span>
-        </button>
-        <button class="btn" id="btnFullscreen" title="Alternar Modo Tela Cheia">
-          <span id="fullscreenIcon">⛶</span>
-          <span id="fullscreenText">Tela Cheia</span>
-        </button>
       </div>
     </div>
   </header>
 
-  <!-- CORPO PRINCIPAL DO PLACAR -->
+  <!-- CORPO PRINCIPAL DO PLACAR (VISUAL 100% LIMPO) -->
   <main class="scoreboard-main">
     <div class="scoreboard-grid">
 
@@ -98,21 +117,26 @@
     </div>
   </main>
 
-  <!-- SEÇÃO DE HISTÓRICO DE PARTIDAS -->
-  <section class="history-section">
-    <div class="history-card-box">
-      <div class="history-header">
-        <div class="history-title">
+  <!-- MODAL DE HISTÓRICO DE PARTIDAS (ABERTO PELO MENU) -->
+  <div class="modal-backdrop" id="historyModalBackdrop">
+    <div class="history-modal">
+      <div class="history-modal-header">
+        <div class="history-modal-title">
           <span>📜 Histórico de Partidas</span>
-          <span id="historyCountBadge">0</span>
+          <span class="history-modal-badge" id="historyCountBadge">0</span>
         </div>
-        <button class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
+          <button class="btn-close-modal" id="btnCloseHistoryModal" title="Fechar">&times;</button>
+        </div>
       </div>
-      <div class="history-list" id="historyList">
-        <div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para salvar o placar atual.</div>
+      <div class="history-modal-body">
+        <div class="history-list" id="historyList">
+          <div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para salvar o placar atual.</div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- RODAPÉ COM ATALHOS -->
   <footer class="app-footer">
@@ -120,6 +144,7 @@
     <span><span class="kbd-badge">2</span> ou <span class="kbd-badge">B</span>: +1 Ponto Lado B</span>
     <span><span class="kbd-badge">Espaço</span>: Iniciar/Pausar Cronômetro (Apito)</span>
     <span><span class="kbd-badge">F</span>: Tela Cheia</span>
+    <span><span class="kbd-badge">H</span>: Ver Histórico</span>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>

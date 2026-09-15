@@ -1,7 +1,7 @@
-// Script do Placar, Cronômetro e Histórico
+// Script do Placar, Cronômetro, Menu e Histórico
 const socket = io();
 
-// Elementos DOM - Cronômetro e Ações Gerais
+// Elementos DOM - Cronômetro e Partida
 const timerDisplay = document.getElementById('timerDisplay');
 const timerDot = document.getElementById('timerDot');
 const btnTimerToggle = document.getElementById('btnTimerToggle');
@@ -10,12 +10,25 @@ const timerToggleText = document.getElementById('timerToggleText');
 const btnTimerRestart = document.getElementById('btnTimerRestart');
 const btnFinishMatch = document.getElementById('btnFinishMatch');
 const btnScoreReset = document.getElementById('btnScoreReset');
-const btnMuteToggle = document.getElementById('btnMuteToggle');
-const muteIcon = document.getElementById('muteIcon');
-const muteText = document.getElementById('muteText');
-const btnFullscreen = document.getElementById('btnFullscreen');
-const fullscreenIcon = document.getElementById('fullscreenIcon');
-const fullscreenText = document.getElementById('fullscreenText');
+
+// Elementos DOM - Menu Superior
+const btnMenuToggle = document.getElementById('btnMenuToggle');
+const menuDropdown = document.getElementById('menuDropdown');
+const menuItemHistory = document.getElementById('menuItemHistory');
+const menuHistoryBadge = document.getElementById('menuHistoryBadge');
+const menuItemMute = document.getElementById('menuItemMute');
+const menuMuteIcon = document.getElementById('menuMuteIcon');
+const menuMuteText = document.getElementById('menuMuteText');
+const menuItemFullscreen = document.getElementById('menuItemFullscreen');
+const menuFullscreenIcon = document.getElementById('menuFullscreenIcon');
+const menuFullscreenText = document.getElementById('menuFullscreenText');
+
+// Elementos DOM - Modal de Histórico
+const historyModalBackdrop = document.getElementById('historyModalBackdrop');
+const btnCloseHistoryModal = document.getElementById('btnCloseHistoryModal');
+const historyList = document.getElementById('historyList');
+const historyCountBadge = document.getElementById('historyCountBadge');
+const btnClearHistory = document.getElementById('btnClearHistory');
 
 // Elementos DOM - Lado A
 const nameA = document.getElementById('nameA');
@@ -30,11 +43,6 @@ const scoreDigitB = document.getElementById('scoreDigitB');
 const clickAreaB = document.getElementById('clickAreaB');
 const btnAddB = document.getElementById('btnAddB');
 const btnSubB = document.getElementById('btnSubB');
-
-// Elementos DOM - Histórico
-const historyList = document.getElementById('historyList');
-const historyCountBadge = document.getElementById('historyCountBadge');
-const btnClearHistory = document.getElementById('btnClearHistory');
 
 let previousScoreA = 0;
 let previousScoreB = 0;
@@ -60,21 +68,21 @@ function updateTimerUI(timer) {
   }
 }
 
+// Renderização do Histórico no Modal
 function renderHistory(history) {
-  if (!historyCountBadge || !historyList) return;
+  const count = history ? history.length : 0;
+  if (historyCountBadge) historyCountBadge.textContent = count;
+  if (menuHistoryBadge) menuHistoryBadge.textContent = count;
 
-  historyCountBadge.textContent = history.length;
+  if (!historyList) return;
 
   if (!history || history.length === 0) {
-    historyList.innerHTML = '<div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para salvar o placar atual.</div>';
+    historyList.innerHTML = '<div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para registrar o placar.</div>';
     return;
   }
 
   let html = '';
   history.forEach((match) => {
-    const isWinnerA = match.winner === match.nameA;
-    const isWinnerB = match.winner === match.nameB;
-
     html += `
       <div class="history-item">
         <div class="history-item-top">
@@ -87,7 +95,7 @@ function renderHistory(history) {
           </div>
           <div class="history-score-digits">
             <span style="color: #60a5fa">${match.scoreA}</span>
-            <span style="color: #64748b; font-size: 1.1rem; margin: 0 6px;">x</span>
+            <span style="color: #64748b; font-size: 1.1rem; margin: 0 8px;">x</span>
             <span style="color: #f87171">${match.scoreB}</span>
           </div>
           <div class="history-team team-b">
@@ -105,16 +113,93 @@ function renderHistory(history) {
   historyList.innerHTML = html;
 }
 
-function updateState(state) {
-  // Atualiza Nomes se o campo não estiver em foco
-  if (document.activeElement !== nameA) {
-    nameA.value = state.nameA;
-  }
-  if (document.activeElement !== nameB) {
-    nameB.value = state.nameB;
-  }
+// Controle do Modal de Histórico
+function openHistoryModal() {
+  if (historyModalBackdrop) historyModalBackdrop.classList.add('show');
+  if (menuDropdown) menuDropdown.classList.remove('show');
+}
 
-  // Animação de pontuação no Lado A
+function closeHistoryModal() {
+  if (historyModalBackdrop) historyModalBackdrop.classList.remove('show');
+}
+
+if (menuItemHistory) menuItemHistory.addEventListener('click', openHistoryModal);
+if (btnCloseHistoryModal) btnCloseHistoryModal.addEventListener('click', closeHistoryModal);
+
+if (historyModalBackdrop) {
+  historyModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === historyModalBackdrop) closeHistoryModal();
+  });
+}
+
+// Controle do Menu Dropdown
+if (btnMenuToggle && menuDropdown) {
+  btnMenuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuDropdown.classList.toggle('show');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!menuDropdown.contains(e.target) && e.target !== btnMenuToggle) {
+      menuDropdown.classList.remove('show');
+    }
+  });
+}
+
+// Controle de Mudo
+function updateMuteUI() {
+  if (!window.sound) return;
+  if (window.sound.muted) {
+    if (menuMuteIcon) menuMuteIcon.textContent = '🔇';
+    if (menuMuteText) menuMuteText.textContent = 'Som: Mudo';
+  } else {
+    if (menuMuteIcon) menuMuteIcon.textContent = '🔊';
+    if (menuMuteText) menuMuteText.textContent = 'Som: Ativado';
+  }
+}
+
+if (menuItemMute) {
+  updateMuteUI();
+  menuItemMute.addEventListener('click', () => {
+    if (window.sound) {
+      window.sound.toggleMute();
+      updateMuteUI();
+    }
+  });
+}
+
+// Controle de Tela Cheia
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.warn('Erro ao entrar em tela cheia:', err);
+    });
+  } else {
+    document.exitFullscreen().catch((err) => {
+      console.warn('Erro ao sair de tela cheia:', err);
+    });
+  }
+}
+
+function updateFullscreenUI() {
+  const isFull = !!document.fullscreenElement;
+  if (menuFullscreenIcon) menuFullscreenIcon.textContent = isFull ? '🗗' : '⛶';
+  if (menuFullscreenText) menuFullscreenText.textContent = isFull ? 'Sair da Tela Cheia' : 'Tela Cheia';
+}
+
+if (menuItemFullscreen) {
+  menuItemFullscreen.addEventListener('click', () => {
+    toggleFullscreen();
+    if (menuDropdown) menuDropdown.classList.remove('show');
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenUI);
+}
+
+function updateState(state) {
+  if (document.activeElement !== nameA) nameA.value = state.nameA;
+  if (document.activeElement !== nameB) nameB.value = state.nameB;
+
+  // Animação Lado A
   if (previousScoreA !== state.scoreA) {
     scoreDigitA.classList.add('pop');
     setTimeout(() => scoreDigitA.classList.remove('pop'), 150);
@@ -122,7 +207,7 @@ function updateState(state) {
   scoreDigitA.textContent = state.scoreA;
   previousScoreA = state.scoreA;
 
-  // Animação de pontuação no Lado B
+  // Animação Lado B
   if (previousScoreB !== state.scoreB) {
     scoreDigitB.classList.add('pop');
     setTimeout(() => scoreDigitB.classList.remove('pop'), 150);
@@ -133,11 +218,11 @@ function updateState(state) {
   // Cronômetro
   updateTimerUI(state.timer);
 
-  // Histórico de Partidas
+  // Histórico
   renderHistory(state.matchHistory || []);
 }
 
-// Ouvir atualizações do servidor
+// Socket.io listeners
 socket.on('state:update', (state) => {
   updateState(state);
 });
@@ -146,31 +231,6 @@ socket.on('timer:tick', (timer) => {
   timerDisplay.textContent = formatTime(timer.seconds);
 });
 
-// Controle de Mudo
-function updateMuteUI() {
-  if (!window.sound) return;
-  if (window.sound.muted) {
-    muteIcon.textContent = '🔇';
-    muteText.textContent = 'Mudo';
-    btnMuteToggle.style.opacity = '0.6';
-  } else {
-    muteIcon.textContent = '🔊';
-    muteText.textContent = 'Som';
-    btnMuteToggle.style.opacity = '1';
-  }
-}
-
-if (btnMuteToggle) {
-  updateMuteUI();
-  btnMuteToggle.addEventListener('click', () => {
-    if (window.sound) {
-      window.sound.toggleMute();
-      updateMuteUI();
-    }
-  });
-}
-
-// Reprodução de áudio
 socket.on('sound:play', ({ type }) => {
   if (!window.sound) return;
   if (type === 'whistle') window.sound.playWhistle();
@@ -258,30 +318,6 @@ btnScoreReset.addEventListener('click', () => {
   }
 });
 
-// Controle de Tela Cheia
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch((err) => {
-      console.warn('Erro ao entrar em tela cheia:', err);
-    });
-  } else {
-    document.exitFullscreen().catch((err) => {
-      console.warn('Erro ao sair de tela cheia:', err);
-    });
-  }
-}
-
-function updateFullscreenUI() {
-  const isFull = !!document.fullscreenElement;
-  if (fullscreenIcon) fullscreenIcon.textContent = isFull ? '🗗' : '⛶';
-  if (fullscreenText) fullscreenText.textContent = isFull ? 'Sair' : 'Tela Cheia';
-}
-
-if (btnFullscreen) {
-  btnFullscreen.addEventListener('click', toggleFullscreen);
-  document.addEventListener('fullscreenchange', updateFullscreenUI);
-}
-
 // Atalhos de teclado
 document.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -299,5 +335,15 @@ document.addEventListener('keydown', (e) => {
   } else if (key === 'f') {
     e.preventDefault();
     toggleFullscreen();
+  } else if (key === 'h') {
+    e.preventDefault();
+    if (historyModalBackdrop && historyModalBackdrop.classList.contains('show')) {
+      closeHistoryModal();
+    } else {
+      openHistoryModal();
+    }
+  } else if (e.key === 'Escape') {
+    closeHistoryModal();
+    if (menuDropdown) menuDropdown.classList.remove('show');
   }
 });
