@@ -10,6 +10,9 @@ const timerToggleText = document.getElementById('timerToggleText');
 const btnTimerRestart = document.getElementById('btnTimerRestart');
 const btnFinishMatch = document.getElementById('btnFinishMatch');
 const btnScoreReset = document.getElementById('btnScoreReset');
+const btnFullscreen = document.getElementById('btnFullscreen');
+const fullscreenIcon = document.getElementById('fullscreenIcon');
+const fullscreenText = document.getElementById('fullscreenText');
 
 // Elementos DOM - Menu Superior
 const btnMenuToggle = document.getElementById('btnMenuToggle');
@@ -19,9 +22,6 @@ const menuHistoryBadge = document.getElementById('menuHistoryBadge');
 const menuItemMute = document.getElementById('menuItemMute');
 const menuMuteIcon = document.getElementById('menuMuteIcon');
 const menuMuteText = document.getElementById('menuMuteText');
-const menuItemFullscreen = document.getElementById('menuItemFullscreen');
-const menuFullscreenIcon = document.getElementById('menuFullscreenIcon');
-const menuFullscreenText = document.getElementById('menuFullscreenText');
 
 // Elementos DOM - Modal de Histórico
 const historyModalBackdrop = document.getElementById('historyModalBackdrop');
@@ -183,15 +183,12 @@ function toggleFullscreen() {
 
 function updateFullscreenUI() {
   const isFull = !!document.fullscreenElement;
-  if (menuFullscreenIcon) menuFullscreenIcon.textContent = isFull ? '🗗' : '⛶';
-  if (menuFullscreenText) menuFullscreenText.textContent = isFull ? 'Sair da Tela Cheia' : 'Tela Cheia';
+  if (fullscreenIcon) fullscreenIcon.textContent = isFull ? '🗗' : '⛶';
+  if (fullscreenText) fullscreenText.textContent = isFull ? 'Sair' : 'Tela Cheia';
 }
 
-if (menuItemFullscreen) {
-  menuItemFullscreen.addEventListener('click', () => {
-    toggleFullscreen();
-    if (menuDropdown) menuDropdown.classList.remove('show');
-  });
+if (btnFullscreen) {
+  btnFullscreen.addEventListener('click', toggleFullscreen);
   document.addEventListener('fullscreenchange', updateFullscreenUI);
 }
 
