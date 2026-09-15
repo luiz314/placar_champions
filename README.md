@@ -1,7 +1,7 @@
 # 🏐 Placar de Vôlei Online
 
 Aplicação web direta, moderna e em tempo real para controle de placar de vôlei.
-Construída para ser hospedada no **Railway** e versionada no **GitHub**.
+Hospedada no **Railway** e sincronizada no **GitHub**.
 
 ---
 
@@ -9,20 +9,25 @@ Construída para ser hospedada no **Railway** e versionada no **GitHub**.
 
 - 🔵 **Lado A (Azul)**:
   - Pontuação gigante estilo LED esportivo.
-  - Botão **▲ +1 Ponto** e **▼ -1 Ponto**.
+  - Botões **▲ +1 PONTO** e **▼ -1 Ponto** (ou clique direto no número).
   - Nome editável diretamente na tela.
 - 🔴 **Lado B (Vermelho)**:
   - Pontuação gigante estilo LED esportivo.
-  - Botão **▲ +1 Ponto** e **▼ -1 Ponto**.
+  - Botões **▲ +1 PONTO** e **▼ -1 Ponto** (ou clique direto no número).
   - Nome editável diretamente na tela.
-- ⏱️ **Cronômetro**:
+- ⏱️ **Cronômetro com Som de Apito**:
   - Exibição de minutos e segundos (`MM:SS`).
-  - Botão **▶ Iniciar / ⏸ Pausar**.
+  - Botão **▶ Iniciar / ⏸ Pausar** que **toca apito oficial de árbitro** ao ser iniciado!
   - Botão **↺ Reiniciar** (zera o tempo).
-- ⚠️ **Zerar Placar Geral**:
-  - Botão direto para resetar a pontuação de ambas as equipes para `0 x 0`.
+- 🏁 **Encerrar Partida & Histórico de Resultados**:
+  - Botão para finalizar a partida atual com apito final.
+  - Salva automaticamente no **Histórico de Partidas**: número da partida, horário, duração total, placar final e vencedor com troféu 🏆.
+  - Prepara o placar e cronômetro para o início do próximo jogo.
+  - Botão para limpar o histórico quando desejar.
+- ⚠️ **Zerar Placar Atual**:
+  - Reseta os pontos sem gravar no histórico.
 - ⚡ **Sincronização em Tempo Real**:
-  - Usa WebSockets (Socket.io) para sincronizar instantaneamente entre qualquer celular ou computador conectado.
+  - Sincronização automática via WebSockets (Socket.io) entre todos os celulares ou computadores conectados.
 
 ---
 
@@ -30,7 +35,7 @@ Construída para ser hospedada no **Railway** e versionada no **GitHub**.
 
 - `1` ou `A`: +1 Ponto para o **Lado A (Azul)**
 - `2` ou `B`: +1 Ponto para o **Lado B (Vermelho)**
-- `Espaço`: Iniciar / Pausar o **Cronômetro**
+- `Espaço`: Iniciar / Pausar o **Cronômetro** (com apito)
 
 ---
 
@@ -48,19 +53,7 @@ Construída para ser hospedada no **Railway** e versionada no **GitHub**.
 
 ---
 
-## ☁️ Como Hospedar no Railway
+## ☁️ Repositório & Deploy no Railway
 
-1. **Suba para o GitHub:**
-   ```bash
-   git add .
-   git commit -m "feat: placar de volei direto com cronometro e reset"
-   git branch -M main
-   git remote add origin https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
-   git push -u origin main
-   ```
-2. **Conecte no Railway:**
-   - Acesse [railway.app](https://railway.app/).
-   - Clique em **New Project** > **Deploy from GitHub repo**.
-   - Selecione este repositório.
-   - Na aba **Settings** > **Networking**, clique em **Generate Domain**.
-   - Pronto! Seu placar estará online em um link seguro `https://seu-placar.up.railway.app`.
+- **Repositório GitHub:** [https://github.com/luiz314/placar_champions](https://github.com/luiz314/placar_champions)
+- Conecte o repositório no [railway.app](https://railway.app/) para deploy automático em nuvem com zero-config.

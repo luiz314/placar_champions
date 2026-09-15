@@ -23,12 +23,15 @@
       </div>
 
       <div class="timer-controls">
-        <button class="btn btn-timer-toggle" id="btnTimerToggle">
+        <button class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar (Toca apito ao iniciar)">
           <span id="timerToggleIcon">▶</span>
           <span id="timerToggleText">Iniciar</span>
         </button>
         <button class="btn" id="btnTimerRestart" title="Zerar e reiniciar o cronômetro">
           <span>↺ Reiniciar</span>
+        </button>
+        <button class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+          <span>🏁 Encerrar Partida</span>
         </button>
         <button class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
           <span>⚠️ Zerar Placar</span>
@@ -87,14 +90,31 @@
     </div>
   </main>
 
+  <!-- SEÇÃO DE HISTÓRICO DE PARTIDAS -->
+  <section class="history-section">
+    <div class="history-card-box">
+      <div class="history-header">
+        <div class="history-title">
+          <span>📜 Histórico de Partidas</span>
+          <span id="historyCountBadge">0</span>
+        </div>
+        <button class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para salvar o placar atual.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- RODAPÉ COM ATALHOS -->
   <footer class="app-footer">
     <span><span class="kbd-badge">1</span> ou <span class="kbd-badge">A</span>: +1 Ponto Lado A</span>
     <span><span class="kbd-badge">2</span> ou <span class="kbd-badge">B</span>: +1 Ponto Lado B</span>
-    <span><span class="kbd-badge">Espaço</span>: Iniciar/Pausar Cronômetro</span>
+    <span><span class="kbd-badge">Espaço</span>: Iniciar/Pausar Cronômetro (Apito)</span>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/audio.js"></script>
   <script src="/js/scoreboard.js"></script>
 </body>
 </html>

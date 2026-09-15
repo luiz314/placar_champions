@@ -453,3 +453,148 @@ body {
     width: 100%;
   }
 }
+
+/* ============================================================
+   BOTÃO ENCERRAR PARTIDA E SEÇÃO DE HISTÓRICO
+   ============================================================ */
+.btn-finish-match {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: #818cf8;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.35);
+}
+
+.btn-finish-match:hover {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+}
+
+.history-section {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto 40px;
+  padding: 0 24px;
+}
+
+.history-card-box {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  border: 1px solid var(--bg-card-border);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.history-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-clear-history {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-clear-history:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.history-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s;
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.history-item-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.history-item-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.history-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-team.team-a {
+  color: #60a5fa;
+}
+
+.history-team.team-b {
+  color: #f87171;
+}
+
+.history-score-digits {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+}
+
+.history-winner-tag {
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 4px 10px;
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+.history-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 30px;
+  font-size: 0.95rem;
+}
+

@@ -1,13 +1,14 @@
-// Script do Placar e Cronômetro
+// Script do Placar, Cronômetro e Histórico
 const socket = io();
 
-// Elementos DOM - Cronômetro
+// Elementos DOM - Cronômetro e Ações Gerais
 const timerDisplay = document.getElementById('timerDisplay');
 const timerDot = document.getElementById('timerDot');
 const btnTimerToggle = document.getElementById('btnTimerToggle');
 const timerToggleIcon = document.getElementById('timerToggleIcon');
 const timerToggleText = document.getElementById('timerToggleText');
 const btnTimerRestart = document.getElementById('btnTimerRestart');
+const btnFinishMatch = document.getElementById('btnFinishMatch');
 const btnScoreReset = document.getElementById('btnScoreReset');
 
 // Elementos DOM - Lado A
@@ -23,6 +24,11 @@ const scoreDigitB = document.getElementById('scoreDigitB');
 const clickAreaB = document.getElementById('clickAreaB');
 const btnAddB = document.getElementById('btnAddB');
 const btnSubB = document.getElementById('btnSubB');
+
+// Elementos DOM - Histórico
+const historyList = document.getElementById('historyList');
+const historyCountBadge = document.getElementById('historyCountBadge');
+const btnClearHistory = document.getElementById('btnClearHistory');
 
 let previousScoreA = 0;
 let previousScoreB = 0;
@@ -46,6 +52,51 @@ function updateTimerUI(timer) {
     timerToggleIcon.textContent = '▶';
     timerToggleText.textContent = 'Iniciar';
   }
+}
+
+function renderHistory(history) {
+  if (!historyCountBadge || !historyList) return;
+
+  historyCountBadge.textContent = history.length;
+
+  if (!history || history.length === 0) {
+    historyList.innerHTML = '<div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para salvar o placar atual.</div>';
+    return;
+  }
+
+  let html = '';
+  history.forEach((match) => {
+    const isWinnerA = match.winner === match.nameA;
+    const isWinnerB = match.winner === match.nameB;
+
+    html += `
+      <div class="history-item">
+        <div class="history-item-top">
+          <span>Partida #${match.matchNumber} &bull; ${match.time}</span>
+          <span>⏱️ Duração: ${formatTime(match.durationSeconds)}</span>
+        </div>
+        <div class="history-item-score">
+          <div class="history-team team-a">
+            <span>${match.nameA}</span>
+          </div>
+          <div class="history-score-digits">
+            <span style="color: #60a5fa">${match.scoreA}</span>
+            <span style="color: #64748b; font-size: 1.1rem; margin: 0 6px;">x</span>
+            <span style="color: #f87171">${match.scoreB}</span>
+          </div>
+          <div class="history-team team-b">
+            <span>${match.nameB}</span>
+          </div>
+        </div>
+        <div class="history-winner-tag">
+          <span>🏆 Vencedor:</span>
+          <strong>${match.winner}</strong>
+        </div>
+      </div>
+    `;
+  });
+
+  historyList.innerHTML = html;
 }
 
 function updateState(state) {
@@ -75,6 +126,9 @@ function updateState(state) {
 
   // Cronômetro
   updateTimerUI(state.timer);
+
+  // Histórico de Partidas
+  renderHistory(state.matchHistory || []);
 }
 
 // Ouvir atualizações do servidor
@@ -84,6 +138,14 @@ socket.on('state:update', (state) => {
 
 socket.on('timer:tick', (timer) => {
   timerDisplay.textContent = formatTime(timer.seconds);
+});
+
+// Reprodução de áudio
+socket.on('sound:play', ({ type }) => {
+  if (!window.sound) return;
+  if (type === 'whistle') window.sound.playWhistle();
+  if (type === 'whistle_final') window.sound.playFinalWhistle();
+  if (type === 'point') window.sound.playPointSound();
 });
 
 // Ações do Lado A
@@ -119,9 +181,28 @@ btnTimerRestart.addEventListener('click', () => {
   socket.emit('timer:restart');
 });
 
+// Encerrar Partida
+btnFinishMatch.addEventListener('click', () => {
+  const currentPtsA = parseInt(scoreDigitA.textContent) || 0;
+  const currentPtsB = parseInt(scoreDigitB.textContent) || 0;
+  if (currentPtsA === 0 && currentPtsB === 0) {
+    if (!confirm('O placar ainda está em 0 x 0. Deseja encerrar mesmo assim?')) return;
+  } else {
+    if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico?')) return;
+  }
+  socket.emit('match:finish');
+});
+
+// Limpar Histórico
+btnClearHistory.addEventListener('click', () => {
+  if (confirm('Deseja realmente apagar todo o histórico de partidas?')) {
+    socket.emit('history:clear');
+  }
+});
+
 // Resetar Placar Geral
 btnScoreReset.addEventListener('click', () => {
-  if (confirm('Deseja zerar o placar das duas equipes?')) {
+  if (confirm('Deseja zerar o placar atual das duas equipes sem salvar no histórico?')) {
     socket.emit('score:reset');
   }
 });

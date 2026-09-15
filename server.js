@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Estado simplificado: Lado A (Azul), Lado B (Vermelho) e Cronômetro
+// Estado da aplicação: Lado A, Lado B, Cronômetro e Histórico de Partidas
 let gameState = {
   scoreA: 0,
   nameA: 'LADO A',
@@ -22,7 +22,8 @@ let gameState = {
   timer: {
     seconds: 0,
     running: false
-  }
+  },
+  matchHistory: []
 };
 
 function broadcastState() {
@@ -56,7 +57,7 @@ io.on('connection', (socket) => {
     broadcastState();
   });
 
-  // Resetar placar geral
+  // Resetar placar atual
   socket.on('score:reset', () => {
     gameState.scoreA = 0;
     gameState.scoreB = 0;
@@ -65,7 +66,12 @@ io.on('connection', (socket) => {
 
   // Cronômetro: Iniciar / Pausar
   socket.on('timer:toggle', () => {
-    gameState.timer.running = !gameState.timer.running;
+    const wasRunning = gameState.timer.running;
+    gameState.timer.running = !wasRunning;
+    if (!wasRunning) {
+      // Toca apito ao iniciar o cronômetro
+      io.emit('sound:play', { type: 'whistle' });
+    }
     broadcastState();
   });
 
@@ -75,7 +81,45 @@ io.on('connection', (socket) => {
     broadcastState();
   });
 
-  // Atualizar nomes (opcional)
+  // Encerrar Partida e salvar no Histórico
+  socket.on('match:finish', () => {
+    // Registra a partida concluída
+    let winner = 'Empate';
+    if (gameState.scoreA > gameState.scoreB) winner = gameState.nameA;
+    else if (gameState.scoreB > gameState.scoreA) winner = gameState.nameB;
+
+    const matchRecord = {
+      id: Date.now(),
+      matchNumber: gameState.matchHistory.length + 1,
+      nameA: gameState.nameA,
+      scoreA: gameState.scoreA,
+      nameB: gameState.nameB,
+      scoreB: gameState.scoreB,
+      winner: winner,
+      durationSeconds: gameState.timer.seconds,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    gameState.matchHistory.unshift(matchRecord); // Adiciona no início da lista
+
+    // Reseta pontos e cronômetro para a próxima partida
+    gameState.scoreA = 0;
+    gameState.scoreB = 0;
+    gameState.timer.running = false;
+    gameState.timer.seconds = 0;
+
+    // Dispara apito longo / final
+    io.emit('sound:play', { type: 'whistle_final' });
+    broadcastState();
+  });
+
+  // Limpar histórico de partidas
+  socket.on('history:clear', () => {
+    gameState.matchHistory = [];
+    broadcastState();
+  });
+
+  // Atualizar nomes das equipes
   socket.on('name:update', ({ team, name }) => {
     if (team === 'A') gameState.nameA = name.trim() || 'LADO A';
     if (team === 'B') gameState.nameB = name.trim() || 'LADO B';
