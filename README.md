@@ -24,6 +24,9 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
   - 🔉 **Som ao Diminuir Ponto**: Tom grave e discreto ao corrigir a pontuação (-1).
   - 📢 **Apito de Árbitro**: Ao iniciar o cronômetro ou encerrar a partida.
   - 🔇 **Botão de Mudo**: Botão **🔊 Som / 🔇 Mudo** no cabeçalho para ativar ou desativar todo o áudio com um clique.
+- ⛶ **Modo Tela Cheia**:
+  - Botão **⛶ Tela Cheia** na barra de ferramentas para expandir a visão limpa em TVs e monitores.
+  - Atalho rápido pela tecla `F`.
 - 🏁 **Encerrar Partida & Histórico de Resultados**:
   - Botão para finalizar a partida atual com apito final duplo.
   - Salva automaticamente no **Histórico de Partidas**: número da partida, horário, duração total, placar final e vencedor com troféu 🏆.
@@ -41,6 +44,7 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
 - `1` ou `A`: +1 Ponto para o **Lado A (Azul)**
 - `2` ou `B`: +1 Ponto para o **Lado B (Vermelho)**
 - `Espaço`: Iniciar / Pausar o **Cronômetro** (com apito)
+- `F`: Alternar **Tela Cheia**
 
 ---
 

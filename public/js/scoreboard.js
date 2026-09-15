@@ -13,6 +13,9 @@ const btnScoreReset = document.getElementById('btnScoreReset');
 const btnMuteToggle = document.getElementById('btnMuteToggle');
 const muteIcon = document.getElementById('muteIcon');
 const muteText = document.getElementById('muteText');
+const btnFullscreen = document.getElementById('btnFullscreen');
+const fullscreenIcon = document.getElementById('fullscreenIcon');
+const fullscreenText = document.getElementById('fullscreenText');
 
 // Elementos DOM - Lado A
 const nameA = document.getElementById('nameA');
@@ -235,6 +238,30 @@ btnScoreReset.addEventListener('click', () => {
   }
 });
 
+// Controle de Tela Cheia
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.warn('Erro ao entrar em tela cheia:', err);
+    });
+  } else {
+    document.exitFullscreen().catch((err) => {
+      console.warn('Erro ao sair de tela cheia:', err);
+    });
+  }
+}
+
+function updateFullscreenUI() {
+  const isFull = !!document.fullscreenElement;
+  if (fullscreenIcon) fullscreenIcon.textContent = isFull ? '🗗' : '⛶';
+  if (fullscreenText) fullscreenText.textContent = isFull ? 'Sair' : 'Tela Cheia';
+}
+
+if (btnFullscreen) {
+  btnFullscreen.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', updateFullscreenUI);
+}
+
 // Atalhos de teclado
 document.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -249,5 +276,8 @@ document.addEventListener('keydown', (e) => {
   } else if (e.code === 'Space') {
     e.preventDefault();
     socket.emit('timer:toggle');
+  } else if (key === 'f') {
+    e.preventDefault();
+    toggleFullscreen();
   }
 });
