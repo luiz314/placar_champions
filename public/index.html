@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placar de Vôlei Oficial Online</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
+</head>
+<body>
+
+  <!-- HEADER COM CRONÔMETRO -->
+  <header class="scoreboard-header">
+    <div class="brand">
+      <div class="brand-icon">🏐</div>
+      <div>
+        <h1 class="brand-title">Placar de Vôlei</h1>
+        <div class="brand-subtitle">Tempo Real &middot; Oficial</div>
+      </div>
+    </div>
+
+    <!-- CRONÔMETRO CENTRAL DA PARTIDA -->
+    <div class="timer-widget" id="timerWidget">
+      <div class="timer-label">
+        <span class="timer-status-dot" id="timerDot"></span>
+        <span id="timerStatusText">CRONÔMETRO</span>
+      </div>
+      <div class="timer-display" id="timerDisplay">00:00</div>
+    </div>
+
+    <!-- AÇÕES RÁPIDAS (TELA CHEIA, SOM, ABRIR CONTROLE) -->
+    <div class="header-actions">
+      <button class="action-btn" id="btnSoundToggle" title="Ativar/Desativar Som">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button class="action-btn" id="btnFullscreen" title="Modo Tela Cheia">
+        <span>⛶ Tela Cheia</span>
+      </button>
+      <a href="/control" target="_blank" class="action-btn btn-control-link" title="Abrir Mesa de Controle em outra aba ou celular">
+        <span>⚙️ Mesa de Controle</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- BANNER DE STATUS DE JOGO (SET POINT / MATCH POINT) -->
+  <div class="status-banner" id="statusBanner"></div>
+
+  <!-- CONTEÚDO PRINCIPAL DO PLACAR -->
+  <main class="scoreboard-container">
+    <div class="scoreboard-grid" id="scoreboardGrid">
+
+      <!-- TIME ESQUERDA (PODE SER A OU B CONFORME QUADRA) -->
+      <section class="team-card team-a" id="leftCard">
+        <div class="team-header">
+          <div class="team-badge-wrapper">
+            <span class="team-tag" id="leftTeamTag">TIME A</span>
+            <h2 class="team-name" id="leftTeamName">LADO A</h2>
+          </div>
+          <div class="serve-indicator" id="leftServeIndicator">
+            <span class="serve-ball">🏐</span>
+            <span>SAQUE</span>
+          </div>
+        </div>
+
+        <div class="score-box">
+          <span class="score-digit" id="leftScoreDigit">0</span>
+        </div>
+
+        <div class="team-footer">
+          <div class="sets-won-container">
+            <span class="sets-label">Sets Vencidos</span>
+            <div class="sets-dots" id="leftSetsDots">
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+            </div>
+          </div>
+
+          <div class="timeouts-container">
+            <span class="timeouts-label">Tempos (30s)</span>
+            <div class="timeout-pills" id="leftTimeoutPills">
+              <div class="timeout-pill"></div>
+              <div class="timeout-pill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLUNA CENTRAL COM INFOS DO SET E INVERSÃO -->
+      <section class="center-column">
+        <div class="set-badge-box">
+          <div class="current-set-title" id="currentSetTitle">SET 1 / 5</div>
+          <div class="current-set-target" id="currentSetTarget">ATÉ 25 PONTOS</div>
+        </div>
+
+        <div class="court-swap-badge" id="courtSwapBadge" style="display: none;">
+          <span>⇄ Quadra Invertida</span>
+        </div>
+      </section>
+
+      <!-- TIME DIREITA (PODE SER B OU A CONFORME QUADRA) -->
+      <section class="team-card team-b" id="rightCard">
+        <div class="team-header">
+          <div class="team-badge-wrapper">
+            <span class="team-tag" id="rightTeamTag">TIME B</span>
+            <h2 class="team-name" id="rightTeamName">LADO B</h2>
+          </div>
+          <div class="serve-indicator" id="rightServeIndicator">
+            <span class="serve-ball">🏐</span>
+            <span>SAQUE</span>
+          </div>
+        </div>
+
+        <div class="score-box">
+          <span class="score-digit" id="rightScoreDigit">0</span>
+        </div>
+
+        <div class="team-footer">
+          <div class="sets-won-container">
+            <span class="sets-label">Sets Vencidos</span>
+            <div class="sets-dots" id="rightSetsDots">
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+            </div>
+          </div>
+
+          <div class="timeouts-container">
+            <span class="timeouts-label">Tempos (30s)</span>
+            <div class="timeout-pills" id="rightTimeoutPills">
+              <div class="timeout-pill"></div>
+              <div class="timeout-pill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- BARRA INFERIOR DE HISTÓRICO DOS SETS ANTERIORES -->
+    <section class="set-history-bar" id="setHistoryBar"></section>
+  </main>
+
+  <!-- MODAL DE TEMPO TÉCNICO (30S) -->
+  <div class="modal-overlay" id="timeoutModal">
+    <div class="timeout-card">
+      <div class="timeout-header">⏱️ Pedido de Tempo Técnico</div>
+      <div class="timeout-team-title" id="timeoutTeamTitle">LADO A</div>
+      <div class="timeout-countdown-box">
+        <span class="timeout-countdown-number" id="timeoutCountdownNumber">30</span>
+      </div>
+      <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        Contagem regressiva oficial de 30 segundos
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE VITÓRIA / FIM DE PARTIDA -->
+  <div class="modal-overlay" id="victoryModal">
+    <div class="victory-card">
+      <div class="victory-trophy">🏆</div>
+      <div class="victory-title">FIM DE PARTIDA</div>
+      <div class="victory-team-name" id="victoryTeamName">LADO A</div>
+      <div style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 24px;">
+        VENCEDOR DA PARTIDA
+      </div>
+    </div>
+  </div>
+
+  <!-- BIBLIOTECAS E SCRIPTS -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/audio.js"></script>
+  <script src="/js/scoreboard.js"></script>
+</body>
+</html>

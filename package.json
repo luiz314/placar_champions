@@ -1,0 +1,25 @@
+{
+  "name": "placar-volei-online",
+  "version": "1.0.0",
+  "description": "Placar de Vôlei Online em tempo real com cronômetro para Railway e GitHub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "volleyball",
+    "scoreboard",
+    "placar",
+    "volei",
+    "realtime",
+    "socketio",
+    "railway"
+  ],
+  "author": "Luiz",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesa de Controle - Placar de Vôlei</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body style="background: #080b11;">
+
+  <div class="control-container">
+
+    <!-- CABEÇALHO DO PAINEL -->
+    <header class="control-top-bar">
+      <div>
+        <h1 class="control-title">⚙️ Mesa de Operação / Árbitro</h1>
+        <div style="font-size: 0.85rem; color: #4ade80; display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block;"></span>
+          Sincronizado em tempo real com o Telão
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <a href="/" target="_blank" class="action-btn" title="Visualizar Telão">
+          <span>📺 Ver Telão</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- CRONÔMETRO RÁPIDO DO OPERADOR -->
+    <section class="general-controls-card" style="padding: 16px 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: gap: 16px;">
+      <div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 1.5px;">Cronômetro da Partida</div>
+        <div id="controlTimerDisplay" style="font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; color: #fff;">00:00</div>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="btnTimerToggle" class="btn-generic btn-timer-action" style="min-width: 130px;">
+          <span id="timerToggleIcon">▶</span> <span id="timerToggleText">Iniciar</span>
+        </button>
+        <button id="btnTimerReset" class="btn-generic">
+          <span>↺ Zerar</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- PAINEL DOS TIMES (TIME A & TIME B) -->
+    <div class="control-actions-grid">
+
+      <!-- OPERAÇÃO TIME A (AZUL) -->
+      <section class="team-control-panel panel-a" id="controlPanelA">
+        <div class="panel-header">
+          <input type="text" id="nameInputA" class="team-name-input" value="LADO A" placeholder="Nome Time A" maxlength="20">
+          <span style="font-weight: 800; font-size: 0.85rem; color: #60a5fa;" id="setsWonDisplayA">Sets: 0</span>
+        </div>
+
+        <div class="panel-score-display">
+          <span class="control-score-number" id="controlScoreA">0</span>
+        </div>
+
+        <button id="btnAddA" class="btn-point-add">
+          <span>+1 PONTO</span>
+        </button>
+
+        <button id="btnSubA" class="btn-point-sub">
+          <span>-1 Corrigir Ponto</span>
+        </button>
+
+        <div class="panel-sub-controls">
+          <button id="btnServeA" class="btn-serve-toggle">
+            <span>🏐 Saque</span>
+          </button>
+          <button id="btnTimeoutA" class="btn-timeout-call">
+            <span id="timeoutTextA">⏱️ Pedir Tempo (2)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- OPERAÇÃO TIME B (VERMELHO) -->
+      <section class="team-control-panel panel-b" id="controlPanelB">
+        <div class="panel-header">
+          <input type="text" id="nameInputB" class="team-name-input" value="LADO B" placeholder="Nome Time B" maxlength="20">
+          <span style="font-weight: 800; font-size: 0.85rem; color: #f87171;" id="setsWonDisplayB">Sets: 0</span>
+        </div>
+
+        <div class="panel-score-display">
+          <span class="control-score-number" id="controlScoreB">0</span>
+        </div>
+
+        <button id="btnAddB" class="btn-point-add" style="background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);">
+          <span>+1 PONTO</span>
+        </button>
+
+        <button id="btnSubB" class="btn-point-sub">
+          <span>-1 Corrigir Ponto</span>
+        </button>
+
+        <div class="panel-sub-controls">
+          <button id="btnServeB" class="btn-serve-toggle">
+            <span>🏐 Saque</span>
+          </button>
+          <button id="btnTimeoutB" class="btn-timeout-call">
+            <span id="timeoutTextB">⏱️ Pedir Tempo (2)</span>
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- AÇÕES GERAIS DA QUADRA E PARTIDA -->
+    <section class="general-controls-card">
+      <div class="controls-section-title">Controles da Quadra & Jogo</div>
+      <div class="btn-group-grid">
+        <button id="btnSwapCourt" class="btn-generic btn-swap-sides">
+          <span>⇄ Inverter Lados da Quadra</span>
+        </button>
+        <button id="btnManualFinishSet" class="btn-generic" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.35); color: #818cf8;">
+          <span>🏁 Finalizar Set Atual</span>
+        </button>
+        <button id="btnUndoSet" class="btn-generic">
+          <span>↩ Desfazer Último Set</span>
+        </button>
+        <button id="btnCancelTimeout" class="btn-generic" style="color: #fbbf24;">
+          <span>✕ Fechar Tempo Técnico</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- SONS DE QUADRA & CONFIGURAÇÕES -->
+    <section class="general-controls-card">
+      <div class="controls-section-title">Efeitos Sonoros & Configurações</div>
+      <div class="btn-group-grid">
+        <button id="btnSoundWhistle" class="btn-generic">
+          <span>📢 Apito de Árbitro</span>
+        </button>
+        <button id="btnSoundBuzzer" class="btn-generic">
+          <span>🚨 Buzina de Estádio</span>
+        </button>
+        <button id="btnToggleSetsMode" class="btn-generic">
+          <span id="setsModeText">Config: Melhor de 5 Sets</span>
+        </button>
+        <button id="btnResetMatch" class="btn-generic btn-danger">
+          <span>⚠️ Reiniciar Partida</span>
+        </button>
+      </div>
+
+      <!-- DICAS DE ATALHOS DE TECLADO -->
+      <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap;">
+        <span><strong>Atalhos de teclado:</strong></span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">1</kbd> +1 Time A</span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">2</kbd> +1 Time B</span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Espaço</kbd> Iniciar/Pausar Cronômetro</span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">T</kbd> Inverter Lados</span>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/audio.js"></script>
+  <script src="/js/control.js"></script>
+</body>
+</html>
