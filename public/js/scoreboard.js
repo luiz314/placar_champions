@@ -22,6 +22,9 @@ const menuHistoryBadge = document.getElementById('menuHistoryBadge');
 const menuItemMute = document.getElementById('menuItemMute');
 const menuMuteIcon = document.getElementById('menuMuteIcon');
 const menuMuteText = document.getElementById('menuMuteText');
+const menuItemWakeLock = document.getElementById('menuItemWakeLock');
+const menuWakeLockIcon = document.getElementById('menuWakeLockIcon');
+const menuWakeLockText = document.getElementById('menuWakeLockText');
 
 // Elementos DOM - Modal de Histórico
 const historyModalBackdrop = document.getElementById('historyModalBackdrop');
@@ -167,6 +170,87 @@ if (menuItemMute) {
     }
   });
 }
+
+// Gerenciamento de Screen Wake Lock (Manter a tela ligada no tablet/celular)
+let wakeLockSentinel = null;
+let wakeLockEnabled = localStorage.getItem('placar_wakelock') !== 'false'; // Padrão: ativado
+
+async function requestWakeLock() {
+  if (!wakeLockEnabled) return;
+  if ('wakeLock' in navigator) {
+    try {
+      if (!wakeLockSentinel || wakeLockSentinel.released) {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        wakeLockSentinel.addEventListener('release', () => {
+          updateWakeLockUI();
+        });
+      }
+    } catch (err) {
+      console.warn('Wake Lock request:', err);
+    }
+  }
+  updateWakeLockUI();
+}
+
+async function releaseWakeLock() {
+  if (wakeLockSentinel) {
+    try {
+      await wakeLockSentinel.release();
+    } catch (_) {}
+    wakeLockSentinel = null;
+  }
+  updateWakeLockUI();
+}
+
+function updateWakeLockUI() {
+  if (!menuWakeLockText || !menuWakeLockIcon) return;
+  if (!('wakeLock' in navigator)) {
+    menuWakeLockIcon.textContent = '⚠️';
+    menuWakeLockText.textContent = 'Tela Sempre Ativa: Não Suportado';
+    return;
+  }
+
+  const isActive = wakeLockSentinel && !wakeLockSentinel.released;
+  if (wakeLockEnabled) {
+    menuWakeLockIcon.textContent = isActive ? '💡' : '🟡';
+    menuWakeLockText.textContent = isActive ? 'Tela Sempre Ativa: Ligada' : 'Tela Ativa: Em Espera';
+  } else {
+    menuWakeLockIcon.textContent = '🔌';
+    menuWakeLockText.textContent = 'Tela Sempre Ativa: Desligada';
+  }
+}
+
+if (menuItemWakeLock) {
+  updateWakeLockUI();
+  menuItemWakeLock.addEventListener('click', async () => {
+    wakeLockEnabled = !wakeLockEnabled;
+    localStorage.setItem('placar_wakelock', wakeLockEnabled);
+    if (wakeLockEnabled) {
+      await requestWakeLock();
+    } else {
+      await releaseWakeLock();
+    }
+  });
+}
+
+// Reativa o Wake Lock automaticamente quando o usuário volta para a aba
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && wakeLockEnabled) {
+    requestWakeLock();
+  }
+});
+
+// Reativa na primeira interação com o display
+['click', 'pointerdown', 'touchstart'].forEach((evt) => {
+  window.addEventListener(evt, () => {
+    if (wakeLockEnabled && (!wakeLockSentinel || wakeLockSentinel.released)) {
+      requestWakeLock();
+    }
+  }, { passive: true });
+});
+
+// Inicialização imediata do Wake Lock
+requestWakeLock();
 
 // Controle de Tela Cheia
 function toggleFullscreen() {

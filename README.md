@@ -24,7 +24,8 @@ Hospedada no **Railway** e sincronizada no **GitHub**.
 - ☰ **Menu Superior Dropdown**:
   - 📜 **Histórico das Partidas**: Abre uma janela modal moderna com a listagem de todos os jogos anteriores, duração, placar e vencedor com troféu 🏆.
   - 🔊 **Som (Ativado / Mudo)**: Controle com um clique para silenciar ou ativar todos os efeitos sonoros.
-  - ⛶ **Tela Cheia**: Expande o placar para exibição em TVs e telões.
+  - 💡 **Tela Sempre Ativa (Screen Wake Lock API)**: Mantém a tela do celular ou tablet permanentemente acesa durante toda a partida, impedindo que o aparelho bloqueie ou apague a tela por inatividade!
+- ⛶ **Tela Cheia**: Expande o placar na barra superior para exibição sem bordas em TVs e telões.
 - 📱 **100% Touch-Friendly (Tablets & Smartphones)**:
   - Botões grandes com áreas de toque ampliadas e sem atraso de toque (*zero tap lag* com `touch-action: manipulation`).
   - Toque direto no número gigante do placar para somar pontos.
