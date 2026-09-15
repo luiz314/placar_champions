@@ -1,0 +1,11 @@
+{
+  "scoreA": 0,
+  "nameA": "LADO A",
+  "scoreB": 0,
+  "nameB": "LADO B",
+  "timer": {
+    "seconds": 0,
+    "running": false
+  },
+  "matchHistory": []
+}

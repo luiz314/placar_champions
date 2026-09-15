@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Placar de Vôlei Online</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
@@ -19,22 +19,22 @@
 
       <!-- MENU SUPERIOR -->
       <div class="menu-container">
-        <button class="btn btn-menu" id="btnMenuToggle" title="Abrir Menu">
+        <button type="button" class="btn btn-menu" id="btnMenuToggle" title="Abrir Menu">
           <span>☰</span>
           <span>Menu</span>
         </button>
 
         <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item" id="menuItemHistory">
+          <button type="button" class="menu-item" id="menuItemHistory">
             <span class="menu-item-icon">📜</span>
             <span class="menu-item-text">Histórico das Partidas</span>
             <span class="menu-badge" id="menuHistoryBadge">0</span>
           </button>
-          <button class="menu-item" id="menuItemMute">
+          <button type="button" class="menu-item" id="menuItemMute">
             <span class="menu-item-icon" id="menuMuteIcon">🔊</span>
             <span class="menu-item-text" id="menuMuteText">Som: Ativado</span>
           </button>
-          <button class="menu-item" id="menuItemWakeLock">
+          <button type="button" class="menu-item" id="menuItemWakeLock">
             <span class="menu-item-icon" id="menuWakeLockIcon">💡</span>
             <span class="menu-item-text" id="menuWakeLockText">Tela Sempre Ativa: Ligada</span>
           </button>
@@ -50,20 +50,20 @@
       </div>
 
       <div class="timer-controls">
-        <button class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar (Toca apito ao iniciar)">
+        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar (Toca apito ao iniciar)">
           <span id="timerToggleIcon">▶</span>
           <span id="timerToggleText">Iniciar</span>
         </button>
-        <button class="btn" id="btnTimerRestart" title="Zerar e reiniciar o cronômetro">
+        <button type="button" class="btn" id="btnTimerRestart" title="Zerar e reiniciar o cronômetro">
           <span>↺ Reiniciar</span>
         </button>
-        <button class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+        <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
           <span>🏁 Encerrar Partida</span>
         </button>
-        <button class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
+        <button type="button" class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
           <span>⚠️ Zerar Placar</span>
         </button>
-        <button class="btn" id="btnFullscreen" title="Alternar Modo Tela Cheia">
+        <button type="button" class="btn" id="btnFullscreen" title="Alternar Modo Tela Cheia">
           <span id="fullscreenIcon">⛶</span>
           <span id="fullscreenText">Tela Cheia</span>
         </button>
@@ -84,10 +84,10 @@
         </div>
 
         <div class="team-btn-group">
-          <button class="btn-point-add" id="btnAddA">
+          <button type="button" class="btn-point-add" id="btnAddA">
             <span>▲ +1 PONTO</span>
           </button>
-          <button class="btn-point-sub" id="btnSubA">
+          <button type="button" class="btn-point-sub" id="btnSubA">
             <span>▼ -1 Ponto</span>
           </button>
         </div>
@@ -109,10 +109,10 @@
         </div>
 
         <div class="team-btn-group">
-          <button class="btn-point-add" id="btnAddB">
+          <button type="button" class="btn-point-add" id="btnAddB">
             <span>▲ +1 PONTO</span>
           </button>
-          <button class="btn-point-sub" id="btnSubB">
+          <button type="button" class="btn-point-sub" id="btnSubB">
             <span>▼ -1 Ponto</span>
           </button>
         </div>
@@ -130,8 +130,8 @@
           <span class="history-modal-badge" id="historyCountBadge">0</span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <button class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
-          <button class="btn-close-modal" id="btnCloseHistoryModal" title="Fechar">&times;</button>
+          <button type="button" class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
+          <button type="button" class="btn-close-modal" id="btnCloseHistoryModal" title="Fechar">&times;</button>
         </div>
       </div>
       <div class="history-modal-body">

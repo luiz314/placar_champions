@@ -47,6 +47,15 @@ const clickAreaB = document.getElementById('clickAreaB');
 const btnAddB = document.getElementById('btnAddB');
 const btnSubB = document.getElementById('btnSubB');
 
+// Restaura imediatamente do cache local para evitar qualquer reset visual ao abrir
+try {
+  const cached = JSON.parse(localStorage.getItem('placar_last_state') || '{}');
+  if (cached.scoreA !== undefined && scoreDigitA) scoreDigitA.textContent = cached.scoreA;
+  if (cached.scoreB !== undefined && scoreDigitB) scoreDigitB.textContent = cached.scoreB;
+  if (cached.nameA && nameA) nameA.value = cached.nameA;
+  if (cached.nameB && nameB) nameB.value = cached.nameB;
+} catch (_) {}
+
 let previousScoreA = 0;
 let previousScoreB = 0;
 
@@ -301,6 +310,16 @@ function updateState(state) {
 
   // Histórico
   renderHistory(state.matchHistory || []);
+
+  // Backup em cache local para proteção total contra reset
+  try {
+    localStorage.setItem('placar_last_state', JSON.stringify({
+      scoreA: state.scoreA,
+      scoreB: state.scoreB,
+      nameA: state.nameA,
+      nameB: state.nameB
+    }));
+  } catch (_) {}
 }
 
 // Socket.io listeners
@@ -348,6 +367,12 @@ btnSubA.addEventListener('click', subPointA);
 nameA.addEventListener('change', () => {
   socket.emit('name:update', { team: 'A', name: nameA.value });
 });
+nameA.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    nameA.blur();
+  }
+});
 
 // Ações do Lado B
 function addPointB() {
@@ -369,6 +394,12 @@ btnSubB.addEventListener('click', subPointB);
 
 nameB.addEventListener('change', () => {
   socket.emit('name:update', { team: 'B', name: nameB.value });
+});
+nameB.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    nameB.blur();
+  }
 });
 
 // Ações do Cronômetro
