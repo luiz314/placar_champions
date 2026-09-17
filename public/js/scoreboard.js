@@ -1,5 +1,18 @@
-// Script do Placar, Cronômetro, Menu e Histórico
+// Script do Placar Multi-Sessões, Cronômetro, Salas e Monetização
 const socket = io();
+
+// Estado da Sessão Atual
+let currentRoomId = null;
+
+// Elementos DOM - Cabeçalho e Salas
+const roomPill = document.getElementById('roomPill');
+const currentRoomCodeDisplay = document.getElementById('currentRoomCodeDisplay');
+const btnHeaderNewSession = document.getElementById('btnHeaderNewSession');
+const btnShareModal = document.getElementById('btnShareModal');
+const btnTvMode = document.getElementById('btnTvMode');
+const tvModeIcon = document.getElementById('tvModeIcon');
+const tvModeText = document.getElementById('tvModeText');
+const btnExitTvMode = document.getElementById('btnExitTvMode');
 
 // Elementos DOM - Cronômetro e Partida
 const timerDisplay = document.getElementById('timerDisplay');
@@ -17,6 +30,7 @@ const fullscreenText = document.getElementById('fullscreenText');
 // Elementos DOM - Menu Superior
 const btnMenuToggle = document.getElementById('btnMenuToggle');
 const menuDropdown = document.getElementById('menuDropdown');
+const menuItemChangeRoom = document.getElementById('menuItemChangeRoom');
 const menuItemHistory = document.getElementById('menuItemHistory');
 const menuHistoryBadge = document.getElementById('menuHistoryBadge');
 const menuItemMute = document.getElementById('menuItemMute');
@@ -25,13 +39,62 @@ const menuMuteText = document.getElementById('menuMuteText');
 const menuItemWakeLock = document.getElementById('menuItemWakeLock');
 const menuWakeLockIcon = document.getElementById('menuWakeLockIcon');
 const menuWakeLockText = document.getElementById('menuWakeLockText');
+const menuItemPro = document.getElementById('menuItemPro');
 
-// Elementos DOM - Modal de Histórico
+// Indicador de cadeado na sala ativa
+const roomPillLock = document.getElementById('roomPillLock');
+
+// Elementos DOM - Modais de Sala e Senha
+const roomSelectionModal = document.getElementById('roomSelectionModal');
+const btnCloseRoomModal = document.getElementById('btnCloseRoomModal');
+const btnCreateNewRoom = document.getElementById('btnCreateNewRoom');
+const joinRoomForm = document.getElementById('joinRoomForm');
+const inputRoomCode = document.getElementById('inputRoomCode');
+const joinRoomError = document.getElementById('joinRoomError');
+
+// Opção de Criar Sala com Senha
+const toggleCreatePassword = document.getElementById('toggleCreatePassword');
+const createPasswordBox = document.getElementById('createPasswordBox');
+const inputCreatePassword = document.getElementById('inputCreatePassword');
+const btnToggleCreateEye = document.getElementById('btnToggleCreateEye');
+
+// Modal de Desbloqueio por Senha
+const passwordPromptModal = document.getElementById('passwordPromptModal');
+const passwordPromptRoomCode = document.getElementById('passwordPromptRoomCode');
+const passwordPromptForm = document.getElementById('passwordPromptForm');
+const inputPromptPassword = document.getElementById('inputPromptPassword');
+const passwordPromptError = document.getElementById('passwordPromptError');
+const btnSubmitPassword = document.getElementById('btnSubmitPassword');
+const btnCancelPassword = document.getElementById('btnCancelPassword');
+const btnClosePasswordModal = document.getElementById('btnClosePasswordModal');
+const btnTogglePromptEye = document.getElementById('btnTogglePromptEye');
+
+// Modal de Compartilhamento
+const shareModalBackdrop = document.getElementById('shareModalBackdrop');
+const btnCloseShareModal = document.getElementById('btnCloseShareModal');
+const qrCodeImage = document.getElementById('qrCodeImage');
+const shareModalRoomCode = document.getElementById('shareModalRoomCode');
+const shareModalLockBadge = document.getElementById('shareModalLockBadge');
+const sharePasswordAlertTip = document.getElementById('sharePasswordAlertTip');
+const shareUrlInput = document.getElementById('shareUrlInput');
+const btnCopyShareUrl = document.getElementById('btnCopyShareUrl');
+const copyBtnIcon = document.getElementById('copyBtnIcon');
+const copyBtnText = document.getElementById('copyBtnText');
+const btnShareWhatsapp = document.getElementById('btnShareWhatsapp');
+
+let lastRoomState = null;
+let pendingJoinRoomId = null;
+
 const historyModalBackdrop = document.getElementById('historyModalBackdrop');
 const btnCloseHistoryModal = document.getElementById('btnCloseHistoryModal');
 const historyList = document.getElementById('historyList');
 const historyCountBadge = document.getElementById('historyCountBadge');
 const btnClearHistory = document.getElementById('btnClearHistory');
+
+const proModalBackdrop = document.getElementById('proModalBackdrop');
+const btnCloseProModal = document.getElementById('btnCloseProModal');
+const btnAdCta = document.getElementById('btnAdCta');
+const btnContactPro = document.getElementById('btnContactPro');
 
 // Elementos DOM - Lado A
 const nameA = document.getElementById('nameA');
@@ -47,17 +110,18 @@ const clickAreaB = document.getElementById('clickAreaB');
 const btnAddB = document.getElementById('btnAddB');
 const btnSubB = document.getElementById('btnSubB');
 
-// Restaura imediatamente do cache local para evitar qualquer reset visual ao abrir
-try {
-  const cached = JSON.parse(localStorage.getItem('placar_last_state') || '{}');
-  if (cached.scoreA !== undefined && scoreDigitA) scoreDigitA.textContent = cached.scoreA;
-  if (cached.scoreB !== undefined && scoreDigitB) scoreDigitB.textContent = cached.scoreB;
-  if (cached.nameA && nameA) nameA.value = cached.nameA;
-  if (cached.nameB && nameB) nameB.value = cached.nameB;
-} catch (_) {}
-
 let previousScoreA = 0;
 let previousScoreB = 0;
+
+// Utilitário de formatação de código: 123456 -> "123 456"
+function formatRoomCode(code) {
+  if (!code) return '------';
+  const clean = String(code).replace(/\D/g, '');
+  if (clean.length === 6) {
+    return `${clean.slice(0, 3)} ${clean.slice(3)}`;
+  }
+  return clean;
+}
 
 function formatTime(totalSeconds) {
   const mins = Math.floor(totalSeconds / 60);
@@ -89,7 +153,7 @@ function renderHistory(history) {
   if (!historyList) return;
 
   if (!history || history.length === 0) {
-    historyList.innerHTML = '<div class="history-empty">Nenhuma partida finalizada ainda. Use "Encerrar Partida" para registrar o placar.</div>';
+    historyList.innerHTML = '<div class="history-empty">Nenhuma partida finalizada ainda nesta sessão. Use "Encerrar Partida" para registrar o placar.</div>';
     return;
   }
 
@@ -125,7 +189,464 @@ function renderHistory(history) {
   historyList.innerHTML = html;
 }
 
-// Controle do Modal de Histórico
+// Atualização de Estado Completo da Sala
+function updateState(state) {
+  lastRoomState = state;
+  if (state.roomId) {
+    currentRoomId = state.roomId;
+    localStorage.setItem('placar_current_room', state.roomId);
+    if (currentRoomCodeDisplay) {
+      currentRoomCodeDisplay.textContent = formatRoomCode(state.roomId);
+    }
+  }
+
+  // Exibe ou oculta ícone de cadeado na sala ativa
+  if (roomPillLock) {
+    roomPillLock.style.display = state.hasPassword ? 'inline-block' : 'none';
+  }
+
+  if (document.activeElement !== nameA) nameA.value = state.nameA;
+  if (document.activeElement !== nameB) nameB.value = state.nameB;
+
+  // Animação Lado A
+  if (previousScoreA !== state.scoreA) {
+    scoreDigitA.classList.add('pop');
+    setTimeout(() => scoreDigitA.classList.remove('pop'), 150);
+  }
+  scoreDigitA.textContent = state.scoreA;
+  previousScoreA = state.scoreA;
+
+  // Animação Lado B
+  if (previousScoreB !== state.scoreB) {
+    scoreDigitB.classList.add('pop');
+    setTimeout(() => scoreDigitB.classList.remove('pop'), 150);
+  }
+  scoreDigitB.textContent = state.scoreB;
+  previousScoreB = state.scoreB;
+
+  // Cronômetro
+  if (state.timer) {
+    updateTimerUI(state.timer);
+  }
+
+  // Histórico
+  renderHistory(state.matchHistory || []);
+}
+
+// ============================================================
+// GERENCIAMENTO DE SESSÕES / SALAS (6 DÍGITOS E SENHA)
+// ============================================================
+
+// Utilitários de Senha na Sessão do Navegador
+function getSavedRoomPassword(roomId) {
+  try {
+    return sessionStorage.getItem(`placar_pwd_${roomId}`) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function saveRoomPassword(roomId, password) {
+  try {
+    if (password) {
+      sessionStorage.setItem(`placar_pwd_${roomId}`, password);
+    }
+  } catch (e) {}
+}
+
+function openRoomModal() {
+  if (roomSelectionModal) {
+    joinRoomError.textContent = '';
+    inputRoomCode.value = '';
+    if (toggleCreatePassword) toggleCreatePassword.checked = false;
+    if (createPasswordBox) createPasswordBox.style.display = 'none';
+    if (inputCreatePassword) {
+      inputCreatePassword.value = '';
+      inputCreatePassword.type = 'password';
+    }
+    if (btnToggleCreateEye) btnToggleCreateEye.textContent = '👁️';
+    if (btnCloseRoomModal) {
+      btnCloseRoomModal.style.display = currentRoomId ? 'block' : 'none';
+    }
+    roomSelectionModal.classList.add('show');
+  }
+  if (menuDropdown) menuDropdown.classList.remove('show');
+}
+
+function closeRoomModal() {
+  if (roomSelectionModal) {
+    roomSelectionModal.classList.remove('show');
+  }
+}
+
+if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', openRoomModal);
+if (btnCloseRoomModal) btnCloseRoomModal.addEventListener('click', closeRoomModal);
+
+if (roomSelectionModal) {
+  roomSelectionModal.addEventListener('click', (e) => {
+    if (e.target === roomSelectionModal && currentRoomId) {
+      closeRoomModal();
+    }
+  });
+}
+
+function openPasswordPrompt(roomId, initialError = '') {
+  pendingJoinRoomId = roomId;
+  if (passwordPromptRoomCode) {
+    passwordPromptRoomCode.textContent = formatRoomCode(roomId);
+  }
+  if (passwordPromptError) {
+    passwordPromptError.textContent = initialError || '';
+  }
+  if (inputPromptPassword) {
+    inputPromptPassword.value = '';
+    inputPromptPassword.type = 'password';
+  }
+  if (btnTogglePromptEye) btnTogglePromptEye.textContent = '👁️';
+  closeRoomModal();
+  if (passwordPromptModal) {
+    passwordPromptModal.classList.add('show');
+    setTimeout(() => {
+      if (inputPromptPassword) inputPromptPassword.focus();
+    }, 100);
+  }
+}
+
+function closePasswordPrompt() {
+  if (passwordPromptModal) {
+    passwordPromptModal.classList.remove('show');
+  }
+  pendingJoinRoomId = null;
+}
+
+// Alternar visualização da senha (olho)
+if (btnToggleCreateEye && inputCreatePassword) {
+  btnToggleCreateEye.addEventListener('click', () => {
+    const isPass = inputCreatePassword.type === 'password';
+    inputCreatePassword.type = isPass ? 'text' : 'password';
+    btnToggleCreateEye.textContent = isPass ? '🙈' : '👁️';
+  });
+}
+
+if (btnTogglePromptEye && inputPromptPassword) {
+  btnTogglePromptEye.addEventListener('click', () => {
+    const isPass = inputPromptPassword.type === 'password';
+    inputPromptPassword.type = isPass ? 'text' : 'password';
+    btnTogglePromptEye.textContent = isPass ? '🙈' : '👁️';
+  });
+}
+
+// Alternar campo de senha ao criar nova sala
+if (toggleCreatePassword) {
+  toggleCreatePassword.addEventListener('change', () => {
+    if (toggleCreatePassword.checked) {
+      createPasswordBox.style.display = 'flex';
+      setTimeout(() => {
+        if (inputCreatePassword) inputCreatePassword.focus();
+      }, 50);
+    } else {
+      createPasswordBox.style.display = 'none';
+      if (inputCreatePassword) inputCreatePassword.value = '';
+    }
+  });
+}
+
+// Formatação automática do input de 6 dígitos no modal (ex: 123 456)
+if (inputRoomCode) {
+  inputRoomCode.addEventListener('input', (e) => {
+    let val = e.target.value.replace(/\D/g, '').slice(0, 6);
+    if (val.length > 3) {
+      val = `${val.slice(0, 3)} ${val.slice(3)}`;
+    }
+    e.target.value = val;
+    if (joinRoomError) joinRoomError.textContent = '';
+  });
+}
+
+// Criar nova sala com opção de senha
+if (btnCreateNewRoom) {
+  btnCreateNewRoom.addEventListener('click', () => {
+    let passwordToSet = null;
+    if (toggleCreatePassword && toggleCreatePassword.checked) {
+      const typed = inputCreatePassword ? inputCreatePassword.value.trim() : '';
+      if (!typed) {
+        alert('Por favor, digite uma senha para proteger a sala ou desmarque a opção.');
+        if (inputCreatePassword) inputCreatePassword.focus();
+        return;
+      }
+      passwordToSet = typed;
+    }
+
+    btnCreateNewRoom.disabled = true;
+    socket.emit('room:create', { password: passwordToSet }, (res) => {
+      btnCreateNewRoom.disabled = false;
+      if (res && res.success) {
+        currentRoomId = res.roomId;
+        if (passwordToSet) {
+          saveRoomPassword(res.roomId, passwordToSet);
+        }
+        localStorage.setItem('placar_current_room', res.roomId);
+        updateUrlWithRoom(res.roomId);
+        updateState(res.state);
+        closeRoomModal();
+        openShareModal();
+      } else {
+        alert('Erro ao criar sala. Tente novamente.');
+      }
+    });
+  });
+}
+
+// Entrar com código de 6 dígitos
+if (joinRoomForm) {
+  joinRoomForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const clean = inputRoomCode.value.replace(/\D/g, '');
+    if (clean.length !== 6) {
+      if (joinRoomError) joinRoomError.textContent = 'Digite os 6 números do código da sala.';
+      return;
+    }
+
+    const btnSubmit = document.getElementById('btnSubmitJoin');
+    if (btnSubmit) btnSubmit.disabled = true;
+
+    const savedPwd = getSavedRoomPassword(clean);
+
+    socket.emit('room:join', { roomId: clean, password: savedPwd }, (res) => {
+      if (btnSubmit) btnSubmit.disabled = false;
+      if (res && res.success) {
+        currentRoomId = res.roomId;
+        localStorage.setItem('placar_current_room', res.roomId);
+        updateUrlWithRoom(res.roomId);
+        updateState(res.state);
+        closeRoomModal();
+      } else if (res && res.requiresPassword) {
+        openPasswordPrompt(clean, res.error);
+      } else {
+        if (joinRoomError) {
+          joinRoomError.textContent = (res && res.error) || 'Sala não encontrada. Verifique o código.';
+        }
+      }
+    });
+  });
+}
+
+// Envio do formulário de solicitação de senha (quando a sala tem senha)
+if (passwordPromptForm) {
+  passwordPromptForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!pendingJoinRoomId) return;
+
+    const enteredPassword = inputPromptPassword ? inputPromptPassword.value.trim() : '';
+    if (!enteredPassword) {
+      if (passwordPromptError) passwordPromptError.textContent = 'Por favor, digite a senha da sala.';
+      return;
+    }
+
+    if (btnSubmitPassword) btnSubmitPassword.disabled = true;
+    if (passwordPromptError) passwordPromptError.textContent = 'Verificando senha...';
+
+    const targetRoom = pendingJoinRoomId;
+    socket.emit('room:join', { roomId: targetRoom, password: enteredPassword }, (res) => {
+      if (btnSubmitPassword) btnSubmitPassword.disabled = false;
+
+      if (res && res.success) {
+        saveRoomPassword(targetRoom, enteredPassword);
+        currentRoomId = res.roomId;
+        localStorage.setItem('placar_current_room', res.roomId);
+        updateUrlWithRoom(res.roomId);
+        updateState(res.state);
+        closePasswordPrompt();
+      } else {
+        if (passwordPromptError) {
+          passwordPromptError.textContent = (res && res.error) || 'Senha incorreta. Tente novamente.';
+        }
+        if (inputPromptPassword) {
+          inputPromptPassword.select();
+          inputPromptPassword.focus();
+        }
+      }
+    });
+  });
+}
+
+if (btnCancelPassword) {
+  btnCancelPassword.addEventListener('click', () => {
+    closePasswordPrompt();
+    openRoomModal();
+  });
+}
+
+if (btnClosePasswordModal) {
+  btnClosePasswordModal.addEventListener('click', () => {
+    closePasswordPrompt();
+    openRoomModal();
+  });
+}
+
+function updateUrlWithRoom(roomId) {
+  const url = new URL(window.location);
+  url.searchParams.set('sala', roomId);
+  window.history.replaceState({}, '', url);
+}
+
+// Inicialização da Sala ao abrir a página
+function initRoomConnection() {
+  const params = new URLSearchParams(window.location.search);
+  const paramRoom = params.get('sala') || params.get('room');
+  const savedRoom = localStorage.getItem('placar_current_room');
+
+  if (paramRoom && paramRoom.replace(/\D/g, '').length === 6) {
+    const clean = paramRoom.replace(/\D/g, '');
+    const savedPwd = getSavedRoomPassword(clean);
+
+    socket.emit('room:join', { roomId: clean, password: savedPwd, autoCreate: false }, (res) => {
+      if (res && res.success) {
+        currentRoomId = res.roomId;
+        localStorage.setItem('placar_current_room', res.roomId);
+        updateUrlWithRoom(res.roomId);
+        updateState(res.state);
+      } else if (res && res.requiresPassword) {
+        // Sala protegida: abre prompt de senha
+        openPasswordPrompt(clean, res.error);
+      } else {
+        openRoomModal();
+      }
+    });
+    return;
+  }
+
+  if (savedRoom && savedRoom.replace(/\D/g, '').length === 6) {
+    const clean = savedRoom.replace(/\D/g, '');
+    const savedPwd = getSavedRoomPassword(clean);
+
+    socket.emit('room:join', { roomId: clean, password: savedPwd }, (res) => {
+      if (res && res.success) {
+        currentRoomId = res.roomId;
+        updateUrlWithRoom(res.roomId);
+        updateState(res.state);
+      } else if (res && res.requiresPassword) {
+        openPasswordPrompt(clean, res.error);
+      } else {
+        openRoomModal();
+      }
+    });
+    return;
+  }
+
+  // Se não houver código na URL nem no cache, abre o modal de seleção
+  openRoomModal();
+}
+
+// ============================================================
+// COMPARTILHAMENTO & QR CODE
+// ============================================================
+function openShareModal() {
+  if (!currentRoomId) return;
+
+  const url = `${window.location.origin}/?sala=${currentRoomId}`;
+  if (shareUrlInput) shareUrlInput.value = url;
+  if (shareModalRoomCode) shareModalRoomCode.textContent = formatRoomCode(currentRoomId);
+
+  // Exibe aviso e badge caso a sala tenha senha
+  const isProtected = Boolean(lastRoomState && lastRoomState.hasPassword);
+  if (shareModalLockBadge) shareModalLockBadge.style.display = isProtected ? 'inline-block' : 'none';
+  if (sharePasswordAlertTip) sharePasswordAlertTip.style.display = isProtected ? 'block' : 'none';
+
+  if (qrCodeImage) {
+    // Gera QR Code nítido e veloz usando endpoint padrão
+    qrCodeImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(url)}`;
+  }
+
+  if (shareModalBackdrop) shareModalBackdrop.classList.add('show');
+  if (menuDropdown) menuDropdown.classList.remove('show');
+}
+
+function closeShareModal() {
+  if (shareModalBackdrop) shareModalBackdrop.classList.remove('show');
+}
+
+if (btnShareModal) btnShareModal.addEventListener('click', openShareModal);
+if (roomPill) roomPill.addEventListener('click', openShareModal);
+if (btnCloseShareModal) btnCloseShareModal.addEventListener('click', closeShareModal);
+
+if (shareModalBackdrop) {
+  shareModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === shareModalBackdrop) closeShareModal();
+  });
+}
+
+if (btnCopyShareUrl) {
+  btnCopyShareUrl.addEventListener('click', async () => {
+    const url = shareUrlInput.value;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        shareUrlInput.select();
+        document.execCommand('copy');
+      }
+      copyBtnIcon.textContent = '✅';
+      copyBtnText.textContent = 'Copiado!';
+      setTimeout(() => {
+        copyBtnIcon.textContent = '📋';
+        copyBtnText.textContent = 'Copiar URL';
+      }, 2000);
+    } catch (err) {
+      console.warn('Erro ao copiar link:', err);
+    }
+  });
+}
+
+// Compartilhamento direto no WhatsApp
+if (btnShareWhatsapp) {
+  btnShareWhatsapp.addEventListener('click', () => {
+    if (!currentRoomId) return;
+    const url = `${window.location.origin}/?sala=${currentRoomId}`;
+    let msg = `🏐 *Placar de Vôlei Online* 🏐\n\n`;
+    msg += `Acesse para acompanhar o placar e cronômetro em tempo real:\n${url}\n`;
+
+    const savedPwd = getSavedRoomPassword(currentRoomId);
+    if (lastRoomState && lastRoomState.hasPassword) {
+      if (savedPwd) {
+        msg += `\n🔒 *Senha de acesso:* ${savedPwd}\n`;
+      } else {
+        msg += `\n🔒 *Aviso:* Esta sala é protegida por senha.\n`;
+      }
+    }
+
+    msg += `\n📺 Abra no navegador do celular, tablet ou Smart TV!`;
+
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
+  });
+}
+
+// ============================================================
+// MODO TELÃO / SMART TV
+// ============================================================
+let tvModeActive = false;
+
+function toggleTvMode(forcedState) {
+  tvModeActive = typeof forcedState === 'boolean' ? forcedState : !tvModeActive;
+
+  if (tvModeActive) {
+    document.body.classList.add('body-tv-mode');
+    if (tvModeText) tvModeText.textContent = 'Sair Telão';
+    if (tvModeIcon) tvModeIcon.textContent = '✖';
+  } else {
+    document.body.classList.remove('body-tv-mode');
+    if (tvModeText) tvModeText.textContent = 'Modo Telão';
+    if (tvModeIcon) tvModeIcon.textContent = '📺';
+  }
+}
+
+if (btnTvMode) btnTvMode.addEventListener('click', () => toggleTvMode());
+if (btnExitTvMode) btnExitTvMode.addEventListener('click', () => toggleTvMode(false));
+
+// ============================================================
+// MODAL DE HISTÓRICO
+// ============================================================
 function openHistoryModal() {
   if (historyModalBackdrop) historyModalBackdrop.classList.add('show');
   if (menuDropdown) menuDropdown.classList.remove('show');
@@ -142,6 +663,39 @@ if (historyModalBackdrop) {
   historyModalBackdrop.addEventListener('click', (e) => {
     if (e.target === historyModalBackdrop) closeHistoryModal();
   });
+}
+
+// ============================================================
+// MODAL DE PLANOS PRO & MONETIZAÇÃO
+// ============================================================
+function openProModal() {
+  if (proModalBackdrop) proModalBackdrop.classList.add('show');
+  if (menuDropdown) menuDropdown.classList.remove('show');
+}
+
+function closeProModal() {
+  if (proModalBackdrop) proModalBackdrop.classList.remove('show');
+}
+
+if (menuItemPro) menuItemPro.addEventListener('click', openProModal);
+if (btnAdCta) btnAdCta.addEventListener('click', openProModal);
+if (btnCloseProModal) btnCloseProModal.addEventListener('click', closeProModal);
+
+if (proModalBackdrop) {
+  proModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === proModalBackdrop) closeProModal();
+  });
+}
+
+if (btnContactPro) {
+  btnContactPro.addEventListener('click', () => {
+    const text = encodeURIComponent('Olá! Tenho interesse nos planos PRO do Placar de Vôlei para minha arena/torneio.');
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  });
+}
+
+if (menuItemChangeRoom) {
+  menuItemChangeRoom.addEventListener('click', openRoomModal);
 }
 
 // Controle do Menu Dropdown
@@ -180,9 +734,9 @@ if (menuItemMute) {
   });
 }
 
-// Gerenciamento de Screen Wake Lock (Manter a tela ligada no tablet/celular)
+// Gerenciamento de Screen Wake Lock
 let wakeLockSentinel = null;
-let wakeLockEnabled = localStorage.getItem('placar_wakelock') !== 'false'; // Padrão: ativado
+let wakeLockEnabled = localStorage.getItem('placar_wakelock') !== 'false';
 
 async function requestWakeLock() {
   if (!wakeLockEnabled) return;
@@ -242,14 +796,12 @@ if (menuItemWakeLock) {
   });
 }
 
-// Reativa o Wake Lock automaticamente quando o usuário volta para a aba
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && wakeLockEnabled) {
     requestWakeLock();
   }
 });
 
-// Reativa na primeira interação com o display
 ['click', 'pointerdown', 'touchstart'].forEach((evt) => {
   window.addEventListener(evt, () => {
     if (wakeLockEnabled && (!wakeLockSentinel || wakeLockSentinel.released)) {
@@ -258,7 +810,6 @@ document.addEventListener('visibilitychange', () => {
   }, { passive: true });
 });
 
-// Inicialização imediata do Wake Lock
 requestWakeLock();
 
 // Controle de Tela Cheia
@@ -285,44 +836,13 @@ if (btnFullscreen) {
   document.addEventListener('fullscreenchange', updateFullscreenUI);
 }
 
-function updateState(state) {
-  if (document.activeElement !== nameA) nameA.value = state.nameA;
-  if (document.activeElement !== nameB) nameB.value = state.nameB;
+// ============================================================
+// SOCKET.IO LISTENERS
+// ============================================================
+socket.on('connect', () => {
+  initRoomConnection();
+});
 
-  // Animação Lado A
-  if (previousScoreA !== state.scoreA) {
-    scoreDigitA.classList.add('pop');
-    setTimeout(() => scoreDigitA.classList.remove('pop'), 150);
-  }
-  scoreDigitA.textContent = state.scoreA;
-  previousScoreA = state.scoreA;
-
-  // Animação Lado B
-  if (previousScoreB !== state.scoreB) {
-    scoreDigitB.classList.add('pop');
-    setTimeout(() => scoreDigitB.classList.remove('pop'), 150);
-  }
-  scoreDigitB.textContent = state.scoreB;
-  previousScoreB = state.scoreB;
-
-  // Cronômetro
-  updateTimerUI(state.timer);
-
-  // Histórico
-  renderHistory(state.matchHistory || []);
-
-  // Backup em cache local para proteção total contra reset
-  try {
-    localStorage.setItem('placar_last_state', JSON.stringify({
-      scoreA: state.scoreA,
-      scoreB: state.scoreB,
-      nameA: state.nameA,
-      nameB: state.nameB
-    }));
-  } catch (_) {}
-}
-
-// Socket.io listeners
 socket.on('state:update', (state) => {
   updateState(state);
 });
@@ -339,14 +859,14 @@ socket.on('sound:play', ({ type }) => {
   if (type === 'point_sub') window.sound.playPointSub();
 });
 
-// Feedback tátil para dispositivos touch (smartphones e tablets)
+// Feedback tátil
 function triggerHaptic() {
   if (navigator && typeof navigator.vibrate === 'function') {
     try { navigator.vibrate(25); } catch (_) {}
   }
 }
 
-// Ações do Lado A
+// Ações Lado A
 function addPointA() {
   triggerHaptic();
   if (window.sound) window.sound.playPointAdd();
@@ -374,7 +894,7 @@ nameA.addEventListener('keydown', (e) => {
   }
 });
 
-// Ações do Lado B
+// Ações Lado B
 function addPointB() {
   triggerHaptic();
   if (window.sound) window.sound.playPointAdd();
@@ -402,7 +922,7 @@ nameB.addEventListener('keydown', (e) => {
   }
 });
 
-// Ações do Cronômetro
+// Ações Cronômetro
 btnTimerToggle.addEventListener('click', () => {
   triggerHaptic();
   if (!btnTimerToggle.classList.contains('running') && window.sound) {
@@ -422,7 +942,7 @@ btnFinishMatch.addEventListener('click', () => {
   if (currentPtsA === 0 && currentPtsB === 0) {
     if (!confirm('O placar ainda está em 0 x 0. Deseja encerrar mesmo assim?')) return;
   } else {
-    if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico?')) return;
+    if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico desta sala?')) return;
   }
   if (window.sound) window.sound.playFinalWhistle();
   socket.emit('match:finish');
@@ -430,7 +950,7 @@ btnFinishMatch.addEventListener('click', () => {
 
 // Limpar Histórico
 btnClearHistory.addEventListener('click', () => {
-  if (confirm('Deseja realmente apagar todo o histórico de partidas?')) {
+  if (confirm('Deseja realmente apagar o histórico de partidas desta sala?')) {
     socket.emit('history:clear');
   }
 });
@@ -442,7 +962,7 @@ btnScoreReset.addEventListener('click', () => {
   }
 });
 
-// Atalhos de teclado
+// Atalhos de Teclado
 document.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
@@ -459,6 +979,9 @@ document.addEventListener('keydown', (e) => {
   } else if (key === 'f') {
     e.preventDefault();
     toggleFullscreen();
+  } else if (key === 't') {
+    e.preventDefault();
+    toggleTvMode();
   } else if (key === 'h') {
     e.preventDefault();
     if (historyModalBackdrop && historyModalBackdrop.classList.contains('show')) {
@@ -468,6 +991,8 @@ document.addEventListener('keydown', (e) => {
     }
   } else if (e.key === 'Escape') {
     closeHistoryModal();
+    closeShareModal();
+    closeProModal();
     if (menuDropdown) menuDropdown.classList.remove('show');
   }
 });

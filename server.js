@@ -12,38 +12,16 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'game_state.json');
+const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
+const LEGACY_FILE = path.join(DATA_DIR, 'game_state.json');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Carrega o estado persistido em disco para NUNCA resetar sozinho em caso de reinício do servidor
-function loadPersistedState() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf8');
-      const parsed = JSON.parse(raw);
-      console.log('📦 Estado persistido carregado com sucesso:', {
-        scoreA: parsed.scoreA,
-        scoreB: parsed.scoreB,
-        partidasNoHistorico: parsed.matchHistory?.length || 0
-      });
-      return {
-        scoreA: Number(parsed.scoreA) || 0,
-        nameA: parsed.nameA || 'LADO A',
-        scoreB: Number(parsed.scoreB) || 0,
-        nameB: parsed.nameB || 'LADO B',
-        timer: {
-          seconds: Number(parsed.timer?.seconds) || 0,
-          running: Boolean(parsed.timer?.running)
-        },
-        matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : []
-      };
-    }
-  } catch (err) {
-    console.warn('Aviso: Não foi possível carregar o arquivo de persistência:', err.message);
-  }
-
+// Estrutura padrão de uma nova sala
+function createDefaultRoomState(roomId, password = null) {
   return {
+    roomId: String(roomId),
+    password: password ? String(password).trim() : null,
     scoreA: 0,
     nameA: 'LADO A',
     scoreB: 0,
@@ -52,143 +30,390 @@ function loadPersistedState() {
       seconds: 0,
       running: false
     },
-    matchHistory: []
+    matchHistory: [],
+    createdAt: Date.now(),
+    lastActivity: Date.now()
   };
 }
 
-let gameState = loadPersistedState();
+// Higieniza o estado da sala para nunca enviar a senha em texto puro aos clientes
+function sanitizeRoomState(room) {
+  if (!room) return null;
+  const { password, ...safeRoom } = room;
+  return {
+    ...safeRoom,
+    hasPassword: Boolean(password && String(password).trim().length > 0)
+  };
+}
 
-// Salva o estado em disco de forma segura
-function persistStateToDisk() {
+// Mapa em memória de salas: roomId -> RoomState
+const rooms = new Map();
+
+// Carrega salas persistidas em disco
+function loadPersistedRooms() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(gameState, null, 2), 'utf8');
+
+    if (fs.existsSync(ROOMS_FILE)) {
+      const raw = fs.readFileSync(ROOMS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        Object.entries(parsed).forEach(([id, r]) => {
+          rooms.set(String(id), {
+            roomId: String(id),
+            password: r.password ? String(r.password).trim() : null,
+            scoreA: Number(r.scoreA) || 0,
+            nameA: r.nameA || 'LADO A',
+            scoreB: Number(r.scoreB) || 0,
+            nameB: r.nameB || 'LADO B',
+            timer: {
+              seconds: Number(r.timer?.seconds) || 0,
+              running: false // Sempre inicia pausado ao ligar servidor
+            },
+            matchHistory: Array.isArray(r.matchHistory) ? r.matchHistory : [],
+            createdAt: r.createdAt || Date.now(),
+            lastActivity: r.lastActivity || Date.now()
+          });
+        });
+        console.log(`📦 ${rooms.size} sala(s) carregada(s) do disco com sucesso.`);
+        return;
+      }
+    }
+
+    // Migração de estado legado de versão anterior (se existir)
+    if (fs.existsSync(LEGACY_FILE)) {
+      const rawLegacy = fs.readFileSync(LEGACY_FILE, 'utf8');
+      const legacy = JSON.parse(rawLegacy);
+      const defaultId = '100001';
+      rooms.set(defaultId, {
+        roomId: defaultId,
+        password: null,
+        scoreA: Number(legacy.scoreA) || 0,
+        nameA: legacy.nameA || 'LADO A',
+        scoreB: Number(legacy.scoreB) || 0,
+        nameB: legacy.nameB || 'LADO B',
+        timer: {
+          seconds: Number(legacy.timer?.seconds) || 0,
+          running: false
+        },
+        matchHistory: Array.isArray(legacy.matchHistory) ? legacy.matchHistory : [],
+        createdAt: Date.now(),
+        lastActivity: Date.now()
+      });
+      console.log(`📦 Estado legado importado com sucesso na sala #${defaultId}.`);
+      persistRoomsToDisk();
+    }
   } catch (err) {
-    console.warn('Erro ao salvar estado em disco:', err.message);
+    console.warn('Aviso: Erro ao carregar persistência de salas:', err.message);
   }
 }
 
-// Garante que o arquivo exista imediatamente
-persistStateToDisk();
+// Salva todas as salas no disco
+let saveTimeout = null;
+function persistRoomsToDisk(immediate = false) {
+  const doSave = () => {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const obj = {};
+      rooms.forEach((val, key) => {
+        obj[key] = val;
+      });
+      fs.writeFileSync(ROOMS_FILE, JSON.stringify(obj, null, 2), 'utf8');
+    } catch (err) {
+      console.warn('Erro ao salvar salas em disco:', err.message);
+    }
+  };
 
-function broadcastState() {
-  persistStateToDisk();
-  io.emit('state:update', gameState);
+  if (immediate) {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    doSave();
+  } else {
+    if (saveTimeout) return;
+    saveTimeout = setTimeout(() => {
+      saveTimeout = null;
+      doSave();
+    }, 1500);
+  }
 }
 
-// Loop do cronômetro sincronizado no servidor
-let lastSavedTimer = 0;
-setInterval(() => {
-  if (gameState.timer.running) {
-    gameState.timer.seconds += 1;
-    io.emit('timer:tick', gameState.timer);
+// Gera código aleatório único de 6 dígitos numéricos
+function generateUniqueRoomCode() {
+  for (let i = 0; i < 10000; i++) {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    if (!rooms.has(code)) {
+      return code;
+    }
+  }
+  return String(Date.now()).slice(-6);
+}
 
-    // Salva em disco a cada 10 segundos de cronômetro rodando
-    if (gameState.timer.seconds - lastSavedTimer >= 10) {
-      lastSavedTimer = gameState.timer.seconds;
-      persistStateToDisk();
+// Inicializa persistência
+loadPersistedRooms();
+
+// Transmite estado para todos os integrantes da sala
+function broadcastRoomState(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  room.lastActivity = Date.now();
+  persistRoomsToDisk();
+  io.to(roomId).emit('state:update', sanitizeRoomState(room));
+}
+
+// Loop do cronômetro sincronizado por sala no servidor
+let timerSaveCounter = 0;
+setInterval(() => {
+  let anyRunning = false;
+  rooms.forEach((room, roomId) => {
+    if (room.timer && room.timer.running) {
+      anyRunning = true;
+      room.timer.seconds += 1;
+      room.lastActivity = Date.now();
+      io.to(roomId).emit('timer:tick', room.timer);
+    }
+  });
+
+  if (anyRunning) {
+    timerSaveCounter += 1;
+    if (timerSaveCounter >= 10) {
+      timerSaveCounter = 0;
+      persistRoomsToDisk();
     }
   }
 }, 1000);
 
+// API HTTP rápida para verificar se uma sala existe e se requer senha
+app.get('/api/room/:roomId', (req, res) => {
+  const code = String(req.params.roomId).trim();
+  const exists = rooms.has(code);
+  const room = rooms.get(code);
+  res.json({
+    exists,
+    roomId: code,
+    hasPassword: room ? Boolean(room.password && room.password.trim().length > 0) : false
+  });
+});
+
 io.on('connection', (socket) => {
-  // Envia estado atual ao conectar
-  socket.emit('state:update', gameState);
+  let currentRoomId = null;
 
-  // Aumentar ponto (SEM LIMITE e SEM RESET AUTOMÁTICO)
+  // Função auxiliar para obter a sala atual do socket
+  const getRoom = () => {
+    if (!currentRoomId) return null;
+    return rooms.get(currentRoomId) || null;
+  };
+
+  // Criar uma nova sala com código de 6 dígitos e senha opcional
+  socket.on('room:create', (options, callback) => {
+    const newCode = generateUniqueRoomCode();
+    const rawPassword = (options && options.password) ? String(options.password).trim() : null;
+    const newRoom = createDefaultRoomState(newCode, rawPassword);
+
+    if (options && typeof options === 'object') {
+      if (options.nameA) newRoom.nameA = String(options.nameA).trim().slice(0, 20) || 'LADO A';
+      if (options.nameB) newRoom.nameB = String(options.nameB).trim().slice(0, 20) || 'LADO B';
+    }
+
+    rooms.set(newCode, newRoom);
+    persistRoomsToDisk(true);
+
+    if (currentRoomId) {
+      socket.leave(currentRoomId);
+    }
+    currentRoomId = newCode;
+    socket.join(newCode);
+
+    console.log(`✨ Nova sala criada: #${newCode} ${rawPassword ? '(Protegida por senha)' : '(Sem senha)'}`);
+    const safeState = sanitizeRoomState(newRoom);
+    if (typeof callback === 'function') {
+      callback({ success: true, roomId: newCode, state: safeState });
+    }
+    socket.emit('state:update', safeState);
+  });
+
+  // Entrar em uma sala existente (com checagem de senha)
+  socket.on('room:join', ({ roomId, password, autoCreate = false }, callback) => {
+    const cleanId = String(roomId || '').replace(/\D/g, '').trim();
+
+    if (!cleanId || cleanId.length !== 6) {
+      if (typeof callback === 'function') {
+        callback({ success: false, error: 'O código da sala deve ter 6 números.' });
+      }
+      return;
+    }
+
+    let room = rooms.get(cleanId);
+    if (!room) {
+      if (autoCreate) {
+        room = createDefaultRoomState(cleanId, null);
+        rooms.set(cleanId, room);
+        persistRoomsToDisk(true);
+        console.log(`✨ Sala criada por link direto: #${cleanId}`);
+      } else {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Sala não encontrada. Verifique o código ou crie uma nova partida.' });
+        }
+        return;
+      }
+    }
+
+    // Validação de senha caso a sala esteja protegida
+    if (room.password) {
+      const providedPwd = password ? String(password).trim() : '';
+      if (!providedPwd || providedPwd !== room.password) {
+        if (typeof callback === 'function') {
+          callback({
+            success: false,
+            requiresPassword: true,
+            error: providedPwd ? 'Senha incorreta. Tente novamente.' : 'Esta sala é protegida por senha. Digite a senha para entrar.'
+          });
+        }
+        return;
+      }
+    }
+
+    if (currentRoomId) {
+      socket.leave(currentRoomId);
+    }
+    currentRoomId = cleanId;
+    socket.join(cleanId);
+
+    console.log(`👤 Dispositivo entrou na sala: #${cleanId}`);
+    const safeState = sanitizeRoomState(room);
+    if (typeof callback === 'function') {
+      callback({ success: true, roomId: cleanId, state: safeState });
+    }
+    socket.emit('state:update', safeState);
+  });
+
+  // Aumentar ponto (+1)
   socket.on('point:add', (team) => {
-    if (team === 'A') gameState.scoreA += 1;
-    if (team === 'B') gameState.scoreB += 1;
-    socket.broadcast.emit('sound:play', { type: 'point_add' });
-    broadcastState();
+    const room = getRoom();
+    if (!room) return;
+
+    if (team === 'A') room.scoreA += 1;
+    if (team === 'B') room.scoreB += 1;
+
+    socket.to(currentRoomId).emit('sound:play', { type: 'point_add' });
+    broadcastRoomState(currentRoomId);
   });
 
-  // Diminuir ponto (apenas se for maior que zero)
+  // Diminuir ponto (-1)
   socket.on('point:sub', (team) => {
+    const room = getRoom();
+    if (!room) return;
+
     let changed = false;
-    if (team === 'A' && gameState.scoreA > 0) {
-      gameState.scoreA -= 1;
+    if (team === 'A' && room.scoreA > 0) {
+      room.scoreA -= 1;
       changed = true;
     }
-    if (team === 'B' && gameState.scoreB > 0) {
-      gameState.scoreB -= 1;
+    if (team === 'B' && room.scoreB > 0) {
+      room.scoreB -= 1;
       changed = true;
     }
+
     if (changed) {
-      socket.broadcast.emit('sound:play', { type: 'point_sub' });
-      broadcastState();
+      socket.to(currentRoomId).emit('sound:play', { type: 'point_sub' });
+      broadcastRoomState(currentRoomId);
     }
   });
 
-  // Resetar placar atual (APENAS disparado por clique intencional do usuário)
+  // Resetar placar
   socket.on('score:reset', () => {
-    gameState.scoreA = 0;
-    gameState.scoreB = 0;
-    broadcastState();
+    const room = getRoom();
+    if (!room) return;
+
+    room.scoreA = 0;
+    room.scoreB = 0;
+    broadcastRoomState(currentRoomId);
   });
 
   // Cronômetro: Iniciar / Pausar
   socket.on('timer:toggle', () => {
-    const wasRunning = gameState.timer.running;
-    gameState.timer.running = !wasRunning;
+    const room = getRoom();
+    if (!room) return;
+
+    const wasRunning = room.timer.running;
+    room.timer.running = !wasRunning;
+
     if (!wasRunning) {
-      socket.broadcast.emit('sound:play', { type: 'whistle' });
+      socket.to(currentRoomId).emit('sound:play', { type: 'whistle' });
     }
-    broadcastState();
+    broadcastRoomState(currentRoomId);
   });
 
   // Cronômetro: Reiniciar / Zerar
   socket.on('timer:restart', () => {
-    gameState.timer.seconds = 0;
-    broadcastState();
+    const room = getRoom();
+    if (!room) return;
+
+    room.timer.seconds = 0;
+    broadcastRoomState(currentRoomId);
   });
 
-  // Encerrar Partida e salvar no Histórico (APENAS disparado pelo usuário)
+  // Encerrar Partida e salvar no Histórico da Sala
   socket.on('match:finish', () => {
+    const room = getRoom();
+    if (!room) return;
+
     let winner = 'Empate';
-    if (gameState.scoreA > gameState.scoreB) winner = gameState.nameA;
-    else if (gameState.scoreB > gameState.scoreA) winner = gameState.nameB;
+    if (room.scoreA > room.scoreB) winner = room.nameA;
+    else if (room.scoreB > room.scoreA) winner = room.nameB;
 
     const matchRecord = {
       id: Date.now(),
-      matchNumber: gameState.matchHistory.length + 1,
-      nameA: gameState.nameA,
-      scoreA: gameState.scoreA,
-      nameB: gameState.nameB,
-      scoreB: gameState.scoreB,
+      matchNumber: (room.matchHistory ? room.matchHistory.length : 0) + 1,
+      nameA: room.nameA,
+      scoreA: room.scoreA,
+      nameB: room.nameB,
+      scoreB: room.scoreB,
       winner: winner,
-      durationSeconds: gameState.timer.seconds,
+      durationSeconds: room.timer.seconds,
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
-    gameState.matchHistory.unshift(matchRecord);
+    if (!room.matchHistory) room.matchHistory = [];
+    room.matchHistory.unshift(matchRecord);
 
-    gameState.scoreA = 0;
-    gameState.scoreB = 0;
-    gameState.timer.running = false;
-    gameState.timer.seconds = 0;
+    room.scoreA = 0;
+    room.scoreB = 0;
+    room.timer.running = false;
+    room.timer.seconds = 0;
 
-    socket.broadcast.emit('sound:play', { type: 'whistle_final' });
-    broadcastState();
+    socket.to(currentRoomId).emit('sound:play', { type: 'whistle_final' });
+    broadcastRoomState(currentRoomId);
   });
 
-  // Limpar histórico de partidas
+  // Limpar histórico de partidas da sala
   socket.on('history:clear', () => {
-    gameState.matchHistory = [];
-    broadcastState();
+    const room = getRoom();
+    if (!room) return;
+
+    room.matchHistory = [];
+    broadcastRoomState(currentRoomId);
   });
 
   // Atualizar nomes das equipes
   socket.on('name:update', ({ team, name }) => {
-    if (team === 'A') gameState.nameA = name.trim() || 'LADO A';
-    if (team === 'B') gameState.nameB = name.trim() || 'LADO B';
-    broadcastState();
+    const room = getRoom();
+    if (!room) return;
+
+    if (team === 'A') room.nameA = name.trim().slice(0, 20) || 'LADO A';
+    if (team === 'B') room.nameB = name.trim().slice(0, 20) || 'LADO B';
+    broadcastRoomState(currentRoomId);
+  });
+
+  // Desconexão
+  socket.on('disconnect', () => {
+    // Socket saiu da sala automaticamente pelo Socket.IO
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`🏐 Placar de Vôlei rodando na porta ${PORT}`);
+  console.log(`🏐 Placar de Vôlei Multi-Sessões rodando na porta ${PORT}`);
   console.log(`- Acesse: http://localhost:${PORT}`);
 });
