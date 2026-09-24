@@ -58,6 +58,11 @@
           <span class="action-text" id="tvModeText">Modo Telão</span>
         </button>
 
+        <button type="button" class="btn btn-action-pill" id="btnFullscreen" title="Alternar Modo Tela Cheia">
+          <span id="fullscreenIcon">⛶</span>
+          <span class="action-text" id="fullscreenText">Tela Cheia</span>
+        </button>
+
         <!-- MENU DROPDOWN -->
         <div class="menu-container">
           <button type="button" class="btn btn-menu" id="btnMenuToggle" title="Abrir Menu">
@@ -95,34 +100,6 @@
         </div>
       </div>
     </div>
-
-    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA -->
-    <div class="timer-container" id="timerContainer">
-      <div class="timer-box">
-        <span class="timer-dot" id="timerDot"></span>
-        <div class="timer-display" id="timerDisplay">00:00</div>
-      </div>
-
-      <div class="timer-controls" id="timerControls">
-        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar cronômetro">
-          <span id="timerToggleIcon">▶</span>
-          <span id="timerToggleText">Iniciar</span>
-        </button>
-        <button type="button" class="btn" id="btnTimerRestart" title="Zerar cronômetro">
-          <span>↺ Reiniciar</span>
-        </button>
-        <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
-          <span>🏁 Encerrar Partida</span>
-        </button>
-        <button type="button" class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
-          <span>⚠️ Zerar Placar</span>
-        </button>
-        <button type="button" class="btn" id="btnFullscreen" title="Alternar Modo Tela Cheia">
-          <span id="fullscreenIcon">⛶</span>
-          <span id="fullscreenText">Tela Cheia</span>
-        </button>
-      </div>
-    </div>
   </header>
 
   <!-- BANNER TOAST DE STATUS DE REDE (ONLINE / OFFLINE) -->
@@ -139,6 +116,32 @@
 
   <!-- CORPO PRINCIPAL DO PLACAR -->
   <main class="scoreboard-main">
+
+    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA (ACIMA DOS PLACARES) -->
+    <div class="timer-container" id="timerContainer">
+      <div class="timer-box">
+        <span class="timer-dot" id="timerDot"></span>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+      </div>
+
+      <div class="timer-controls" id="timerControls">
+        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar cronômetro">
+          <span id="timerToggleIcon">▶</span>
+          <span id="timerToggleText">Iniciar</span>
+        </button>
+        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Zerar cronômetro">
+          <span>↺ Reiniciar</span>
+        </button>
+        <span class="timer-controls-separator"></span>
+        <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+          <span>🏁 Encerrar Partida</span>
+        </button>
+        <button type="button" class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
+          <span>⚠️ Zerar Placar</span>
+        </button>
+      </div>
+    </div>
+
     <div class="scoreboard-grid">
 
       <!-- LADO A (AZUL) -->
