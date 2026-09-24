@@ -621,7 +621,18 @@ if (btnTimerToggle) {
 
 if (btnTimerRestart) {
   btnTimerRestart.addEventListener('click', () => {
+    const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
+    const isRunning = Boolean(currentState.timer && currentState.timer.running);
+
+    let confirmMsg = 'Deseja realmente reiniciar o cronômetro para 00:00?';
+    if (timerSeconds > 0 || isRunning) {
+      confirmMsg = `Deseja realmente reiniciar o cronômetro (tempo atual: ${formatTime(timerSeconds)}) de volta para 00:00?`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
     currentState.timer.seconds = 0;
+    currentState.timer.running = false;
     updateTimerUI(currentState.timer);
     persistCurrentState();
 
@@ -636,11 +647,16 @@ if (btnTimerRestart) {
 // Encerrar Partida
 if (btnFinishMatch) {
   btnFinishMatch.addEventListener('click', () => {
-    if (currentState.scoreA === 0 && currentState.scoreB === 0) {
-      if (!confirm('O placar ainda está em 0 x 0. Deseja encerrar mesmo assim?')) return;
-    } else {
-      if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico desta sala?')) return;
+    const ptsA = currentState.scoreA || 0;
+    const ptsB = currentState.scoreB || 0;
+    const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
+
+    let confirmMsg = `Deseja realmente encerrar a partida?\n\nPlacar atual: ${currentState.nameA} ${ptsA} x ${ptsB} ${currentState.nameB}\nDuração: ${formatTime(timerSeconds)}\n\nO resultado será salvo no histórico e o placar voltará para 0 x 0.`;
+    if (ptsA === 0 && ptsB === 0) {
+      confirmMsg = 'O placar ainda está em 0 x 0. Deseja realmente encerrar a partida mesmo assim?';
     }
+
+    if (!confirm(confirmMsg)) return;
 
     if (window.sound) window.sound.playFinalWhistle();
 
@@ -684,17 +700,25 @@ if (btnFinishMatch) {
 // Resetar Placar
 if (btnScoreReset) {
   btnScoreReset.addEventListener('click', () => {
-    if (confirm('Deseja zerar o placar atual das duas equipes sem salvar no histórico?')) {
-      currentState.scoreA = 0;
-      currentState.scoreB = 0;
-      renderScoreUI();
-      persistCurrentState();
+    const ptsA = currentState.scoreA || 0;
+    const ptsB = currentState.scoreB || 0;
 
-      if (socket && socket.connected) {
-        socket.emit('score:reset');
-      } else {
-        markOfflineChange();
-      }
+    let confirmMsg = 'Deseja realmente zerar o placar das duas equipes?';
+    if (ptsA > 0 || ptsB > 0) {
+      confirmMsg = `Atenção: O placar atual está ${currentState.nameA} ${ptsA} x ${ptsB} ${currentState.nameB}.\n\nDeseja realmente ZERAR o placar para 0 x 0 sem salvar no histórico? Esta ação não pode ser desfeita.`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    currentState.scoreA = 0;
+    currentState.scoreB = 0;
+    renderScoreUI();
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('score:reset');
+    } else {
+      markOfflineChange();
     }
   });
 }
