@@ -54,11 +54,31 @@ function verifyPassword(password, storedHash) {
 
 // Detecta qualquer variavel de conexao PostgreSQL suportada pelo Railway e outros provedores
 function getDatabaseUrl() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  if (process.env.DATABASE_PRIVATE_URL) return process.env.DATABASE_PRIVATE_URL;
-  if (process.env.DATABASE_PUBLIC_URL) return process.env.DATABASE_PUBLIC_URL;
-  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
-  if (process.env.POSTGRESQL_URL) return process.env.POSTGRESQL_URL;
+  const directKeys = [
+    'DATABASE_URL',
+    'DATABASE_PRIVATE_URL',
+    'DATABASE_PUBLIC_URL',
+    'POSTGRES_URL',
+    'POSTGRESQL_URL',
+    'DB_URL',
+    'DB_URI',
+    'DATABASE_URI',
+    'POSTGRES_URI',
+    'POSTGRES_DATABASE_URL'
+  ];
+
+  for (const k of directKeys) {
+    if (process.env[k]) return process.env[k];
+  }
+
+  // Auto-detecta qualquer variavel de ambiente que contenha string de conexao postgresql:// ou postgres://
+  for (const [key, val] of Object.entries(process.env)) {
+    if (typeof val === 'string' && (val.startsWith('postgres://') || val.startsWith('postgresql://'))) {
+      console.log(`Auto-detectada conexao PostgreSQL na variavel: ${key}`);
+      return val;
+    }
+  }
+
   if (process.env.PGHOST) {
     const user = process.env.PGUSER || 'postgres';
     const pass = process.env.PGPASSWORD ? encodeURIComponent(process.env.PGPASSWORD) : '';
@@ -1637,22 +1657,29 @@ function getDbStatus() {
     }
   }
 
-  const envVarKey = process.env.DATABASE_URL ? 'DATABASE_URL' : 
-                   process.env.DATABASE_PRIVATE_URL ? 'DATABASE_PRIVATE_URL' : 
-                   process.env.DATABASE_PUBLIC_URL ? 'DATABASE_PUBLIC_URL' : 
-                   process.env.POSTGRES_URL ? 'POSTGRES_URL' : 
-                   process.env.PGHOST ? 'PGHOST' : null;
+  let foundKey = null;
+  for (const [key, val] of Object.entries(process.env)) {
+    if (val === detectedUrl) {
+      foundKey = key;
+      break;
+    }
+  }
+
+  const relatedEnvKeys = Object.keys(process.env).filter(k => 
+    /postgres|database|db_|pg/i.test(k)
+  );
 
   return {
     isPostgres,
     databaseEngine: isPostgres ? 'PostgreSQL' : 'JSON Fallback Local (NÃO PERSISTE APÓS REDEPLOY)',
-    connectionStatus: isPostgres ? 'Conectado e gravando no PostgreSQL' : (detectedUrl ? 'URL encontrada mas falhou ao autenticar' : 'Nenhuma variável de PostgreSQL configurada'),
+    connectionStatus: isPostgres ? 'Conectado e gravando no PostgreSQL' : (detectedUrl ? 'URL encontrada mas falhou ao autenticar' : 'Nenhuma variável de PostgreSQL vinculada ao serviço da aplicação web'),
     detectedEnvVar: masked,
-    envVarKey: envVarKey || 'NENHUMA (Falta configurar no Railway)',
+    envVarKey: foundKey || (process.env.PGHOST ? 'PGHOST' : 'NENHUMA_VARIAVEL_ENCONTRADA'),
+    relatedEnvKeysInService: relatedEnvKeys,
     dbConnectionError: dbConnectionError || null,
-    tip: isPostgres 
+    instruction: isPostgres 
       ? 'O banco PostgreSQL está conectado e os dados são permanentes!' 
-      : 'No Railway, vá no serviço "placarchampions" -> aba "Variables" -> adicione a variável DATABASE_URL com o valor ${{Postgres.DATABASE_URL}}'
+      : 'No Railway, clique no card do serviço web "placarchampions" -> aba "Variables" -> adicione a variável DATABASE_URL com o valor ${{Postgres.DATABASE_URL}}'
   };
 }
 
