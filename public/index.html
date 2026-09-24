@@ -694,23 +694,16 @@
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="portal-nav">
-    <a href="/" class="brand-group">
-      <span class="brand-icon">🏐</span>
-      <div>
-        <span class="brand-title">Placar Champions</span>
-        <span class="brand-badge">OFICIAL</span>
-      </div>
-    </a>
-
-    <div class="nav-user-panel" id="navUserPanel">
-      <a href="#accessPortal" class="btn-compact" id="btnNavLogin">Entrar</a>
-    </div>
-  </nav>
-
   <!-- CONTEÚDO PRINCIPAL -->
   <main class="portal-main">
+
+    <!-- HERO SECTION (PLACAR CHAMPIONS) -->
+    <section class="hero-section">
+      <h1 class="hero-title">Placar Champions</h1>
+      <p class="hero-subtitle">
+        Placar digital em tempo real, sorteio de times perfeitamente equilibrados por estrelas e votação de craques da rodada.
+      </p>
+    </section>
 
     <!-- SEÇÃO DE ACESSO PRIORITÁRIA (PRIMEIRA DOBRA: LOGIN / CONVIDADO OU SESSÃO LOGADA) -->
     <section id="accessPortal" class="access-portal-wrapper">
@@ -968,7 +961,7 @@
           const isLuixAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com');
           const roleLabel = isLuixAdmin ? '👑 ADMINISTRADOR' : '👤 ATLETA';
 
-          navUserPanel.innerHTML = `
+          if (navUserPanel) navUserPanel.innerHTML = `
             <div class="user-pill">
               <div class="user-avatar-tag">${initial}</div>
               <div class="user-info-text">
@@ -988,10 +981,30 @@
               }
             });
           }
+          const btnLogoutSessionCard = document.getElementById('btnLogoutSessionCard');
+          if (btnLogoutSessionCard) {
+            btnLogoutSessionCard.addEventListener('click', () => {
+              if (confirm('Deseja realmente sair da sua conta?')) {
+                localStorage.removeItem('pelada_user');
+                renderPortalUI();
+              }
+            });
+          }
 
           // Bloco principal na primeira dobra: Sessão Atual com opção de Escolher ou Criar Nova
           accessPortalContent.innerHTML = `
             <div class="logged-session-card">
+              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px; width: 100%;">
+                <div class="user-pill" style="margin: 0;">
+                  <div class="user-avatar-tag">${initial}</div>
+                  <div class="user-info-text">
+                    <span class="user-name-display">${escapeHtml(user.name || user.username)}</span>
+                    <span class="user-role-badge">${roleLabel}</span>
+                  </div>
+                </div>
+                <button type="button" class="btn-portal-logout" id="btnLogoutSessionCard" title="Sair da conta">Sair</button>
+              </div>
+
               <div class="session-current-details">
                 <div class="session-icon-circle">🏐</div>
                 <div>
@@ -1039,7 +1052,7 @@
           // ==========================================
           // ESTADO DESLOGADO: LOGIN SIMPLIFICADO & CONVIDADO (APENAS PLACAR)
           // ==========================================
-          navUserPanel.innerHTML = `
+          if (navUserPanel) navUserPanel.innerHTML = `
             <a href="#accessPortal" class="btn-compact" id="btnNavLogin">Entrar / Cadastrar</a>
           `;
 
