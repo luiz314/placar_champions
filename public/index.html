@@ -182,13 +182,18 @@
 
     </div>
     
-    <!-- AÇÕES DA PARTIDA (CENTRALIZADAS EMBAIXO DOS PLACARES) -->
-    <div class="score-bottom-actions" id="scoreBottomActions">
-      <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
-        <span>🏁 Encerrar Partida</span>
+    <!-- AÇÕES DA PARTIDA (PERFEITAMENTE ALINHADAS LADO A LADO EMBAIXO DOS PLACARES) -->
+    <div class="match-actions-bar" id="matchActionsBar">
+      <button type="button" class="btn btn-match-action btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+        <span class="match-btn-icon">🏁</span>
+        <span class="match-btn-text">Encerrar Partida</span>
       </button>
-      <button type="button" class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
-        <span>⚠️ Zerar Placar</span>
+
+      <span class="match-actions-divider"></span>
+
+      <button type="button" class="btn btn-match-action btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
+        <span class="match-btn-icon">⚠️</span>
+        <span class="match-btn-text">Zerar Placar</span>
       </button>
     </div>
   </main>
