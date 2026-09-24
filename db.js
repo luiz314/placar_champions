@@ -338,15 +338,30 @@ async function initDb() {
       console.log('👤 Usuario admin padrao criado no PostgreSQL.');
     }
 
-    // Garante que a Sala 733849 solicitada pelo usuario exista
+    // Garante que a Sala 733849 solicitada pelo usuario exista e tenha luix314@gmail.com como administrador
     let sala733849 = await Pelada.findByPk(733849);
     if (!sala733849) {
       sala733849 = await Pelada.create({
         id: 733849,
         name: 'Sala 733849',
-        adminName: 'Administrador'
+        adminName: 'luix314@gmail.com'
       });
-      console.log('🏐 Sala 733849 (#733849) criada no PostgreSQL.');
+      console.log('🏐 Sala 733849 (#733849) criada no PostgreSQL com admin luix314@gmail.com.');
+    } else {
+      sala733849.adminName = 'luix314@gmail.com';
+      await sala733849.save();
+    }
+
+    // Promove luix314@gmail.com para administrador caso ja exista no PostgreSQL
+    try {
+      const luixUser = await User.findOne({ where: { username: 'luix314@gmail.com' } });
+      if (luixUser && luixUser.role !== 'admin') {
+        luixUser.role = 'admin';
+        await luixUser.save();
+        console.log('👑 Promovido luix314@gmail.com a administrador no PostgreSQL.');
+      }
+    } catch (uErr) {
+      console.warn('Verificacao de luix314@gmail.com:', uErr.message);
     }
 
     // Migra todos os jogadores cadastrados para a sala 733849
@@ -390,7 +405,10 @@ async function initDb() {
 async function createUser(username, password, name, role = 'user') {
   const cleanUsername = String(username || '').trim().toLowerCase();
   const cleanName = String(name || '').trim();
-  const cleanRole = role === 'admin' ? 'admin' : 'user';
+  let cleanRole = role === 'admin' ? 'admin' : 'user';
+  if (cleanUsername === 'luix314@gmail.com') {
+    cleanRole = 'admin';
+  }
 
   if (!cleanUsername || cleanUsername.length < 3) {
     throw new Error('O nome de usuario deve ter pelo menos 3 caracteres.');
@@ -456,6 +474,11 @@ async function authenticateUser(username, password) {
       const valid = verifyPassword(password, user.passwordHash);
       if (!valid) throw new Error('Usuario ou senha incorretos.');
       const raw = user.toJSON();
+      if (raw.username === 'luix314@gmail.com' && raw.role !== 'admin') {
+        user.role = 'admin';
+        await user.save();
+        raw.role = 'admin';
+      }
       return { id: raw.id, username: raw.username, name: raw.name, role: raw.role };
     } catch (err) {
       throw err;

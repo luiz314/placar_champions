@@ -1093,7 +1093,84 @@
       color: #38bdf8;
     }
 
-  </style>
+  
+    /* ESTRELINHAS INTERATIVAS NA TABELA DE JOGADORES */
+    .inline-star-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 4px 8px;
+      user-select: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+    }
+
+    .inline-star-picker:hover {
+      background: rgba(0, 0, 0, 0.65);
+      border-color: rgba(251, 191, 36, 0.5);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.25);
+    }
+
+    .inline-star-picker.user-voted {
+      border-color: rgba(251, 191, 36, 0.35);
+      background: rgba(251, 191, 36, 0.08);
+    }
+
+    .inline-star-picker .stars-track {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .inline-star-picker .star-btn {
+      font-size: 1.25rem;
+      color: rgba(255, 255, 255, 0.18);
+      cursor: pointer;
+      line-height: 1;
+      padding: 1px 2px;
+      transition: transform 0.12s ease, color 0.12s ease;
+    }
+
+    .inline-star-picker .star-btn.active {
+      color: #fbbf24;
+      text-shadow: 0 0 8px rgba(251, 191, 36, 0.55);
+    }
+
+    .inline-star-picker .star-btn.hover-active {
+      color: #fde047 !important;
+      text-shadow: 0 0 12px rgba(253, 224, 71, 0.9) !important;
+      transform: scale(1.3);
+    }
+
+    .inline-star-picker .star-numeric {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #94a3b8;
+      font-family: monospace;
+      min-width: 14px;
+      text-align: center;
+      margin-left: 2px;
+    }
+
+    .inline-star-picker:hover .star-numeric,
+    .inline-star-picker.user-voted .star-numeric {
+      color: #fbbf24;
+    }
+
+    .inline-star-picker.saved-pulse {
+      animation: starSavedGlow 0.55s ease-out;
+    }
+
+    @keyframes starSavedGlow {
+      0% { transform: scale(1); border-color: #10b981; box-shadow: 0 0 16px rgba(16, 185, 129, 0.85); }
+      50% { transform: scale(1.08); border-color: #34d399; }
+      100% { transform: scale(1); border-color: rgba(251, 191, 36, 0.35); box-shadow: none; }
+    }
+
+</style>
 </head>
 <body>
 
@@ -1226,6 +1303,25 @@
               <span>➕</span>
               <span>Cadastrar Nova Pelada</span>
             </button>
+          </div>
+        </div>
+
+        
+        <!-- BANNER DE AVALIAÇÃO DIRETA NA TABELA -->
+        <div class="inline-rating-banner" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(0, 242, 254, 0.08)); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.8rem; filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));">⭐</span>
+            <div>
+              <strong style="color: #fbbf24; font-size: 1rem; display: block; margin-bottom: 2px;">
+                Avaliação Direta em Grade (Até 5 Estrelas)
+              </strong>
+              <p style="margin: 0; color: #cbd5e1; font-size: 0.88rem; line-height: 1.4;">
+                Clique diretamente nas estrelinhas de <strong>Ataque, Defesa, Passe e Movimentação</strong> para dar suas notas a cada jogador. Suas notas são salvas na hora e você pode alterar a qualquer momento!
+              </p>
+            </div>
+          </div>
+          <div id="inlineRateUserBadge" style="font-size: 0.82rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 12px; color: #94a3b8; font-weight: 600;">
+            💡 Clique na estrela desejada (1 a 5)
           </div>
         </div>
 

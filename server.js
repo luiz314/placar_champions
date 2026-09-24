@@ -400,10 +400,11 @@ app.get('/api/players/:id/ratings', async (req, res) => {
 // Enviar ou editar avaliação de um jogador (1 voto por usuário com edição garantida)
 app.post('/api/players/:id/rate', async (req, res) => {
   try {
-    const { voterName, attack, defense, setPass, movement, userId } = req.body;
+    const { voterName, attack, defense, setPass, set_pass, movement, userId } = req.body;
+    const effectiveSetPass = setPass !== undefined ? setPass : set_pass;
     const effectiveUserId = userId || req.headers['x-user-id'] || null;
 
-    if (attack === undefined || defense === undefined || setPass === undefined || movement === undefined) {
+    if (attack === undefined || defense === undefined || effectiveSetPass === undefined || movement === undefined) {
       return res.status(400).json({ success: false, error: 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.' });
     }
     const rating = await db.addPlayerRating(
@@ -411,7 +412,7 @@ app.post('/api/players/:id/rate', async (req, res) => {
       voterName || 'Anônimo',
       attack,
       defense,
-      setPass,
+      effectiveSetPass,
       movement,
       effectiveUserId
     );

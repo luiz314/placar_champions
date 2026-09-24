@@ -921,7 +921,7 @@
         if (user && user.username) {
           // Renderiza Navbar com usuário logado
           const initial = (user.name || user.username).charAt(0).toUpperCase();
-          const roleLabel = (user.role === 'admin') ? 'ADMINISTRADOR' : 'JOGADOR';
+          const roleLabel = (user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com')) ? 'ADMINISTRADOR (SALA 733849)' : 'JOGADOR';
 
           navUserPanel.innerHTML = `
             <div class="user-pill">

@@ -574,7 +574,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Renderiza Tabela de Jogadores e Habilidades
+  
+  // Construtor de HTML das estrelinhas interativas (1 a 5 estrelas)
+  function buildInlineStarPickerHtml(playerId, skill, value, hasMyVote) {
+    const val = Math.max(0, Math.min(5, Math.round(Number(value) || 0)));
+    const starsHtml = [1, 2, 3, 4, 5].map(n => `
+      <span class="star-btn ${n <= val ? 'active' : ''}" data-val="${n}" title="${n} estrela${n > 1 ? 's' : ''}">★</span>
+    `).join('');
+
+    return `
+      <div class="inline-star-picker ${hasMyVote ? 'user-voted' : ''}" 
+           data-player-id="${playerId}" 
+           data-skill="${skill}" 
+           data-current="${val}" 
+           title="Clique na estrela para alterar a nota (1 a 5)">
+        <div class="stars-track">${starsHtml}</div>
+        <span class="star-numeric">${val > 0 ? val : '-'}</span>
+      </div>
+    `;
+  }
+
+  // Renderiza Tabela de Jogadores e Habilidades com Estrelinhas Interativas
   function renderPlayersTable() {
     if (!playersTableBody) return;
     playersTableBody.innerHTML = '';
@@ -594,6 +614,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const tr = document.createElement('tr');
       const initial = (p.nickname || p.name).trim().charAt(0).toUpperCase();
 
+      const myVote = userRatingsMap[p.id];
+      const curAttack = myVote ? Math.round(Number(myVote.attack) || 0) : (Math.round(Number(p.avg_attack) || 0));
+      const curDefense = myVote ? Math.round(Number(myVote.defense) || 0) : (Math.round(Number(p.avg_defense) || 0));
+      const curSetPass = myVote ? Math.round(Number(myVote.set_pass) || 0) : (Math.round(Number(p.avg_set_pass) || 0));
+      const curMovement = myVote ? Math.round(Number(myVote.movement) || 0) : (Math.round(Number(p.avg_movement) || 0));
+
       tr.innerHTML = `
         <td>
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -605,8 +631,9 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             `}
             <div>
-              <strong style="color: #ffffff;">${escapeHtml(p.name)}</strong>
+              <strong style="color: #ffffff; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
               ${p.nickname && p.nickname !== p.name ? `<div style="font-size: 0.75rem; color: #94a3b8;">"${escapeHtml(p.nickname)}"</div>` : ''}
+              ${myVote ? `<div style="font-size: 0.7rem; color: #fbbf24; font-weight: 700; margin-top: 1px;">✓ Seu Voto Gravado</div>` : ''}
             </div>
           </div>
         </td>
@@ -616,30 +643,22 @@ document.addEventListener('DOMContentLoaded', () => {
           </span>
         </td>
         <td>
-          <div class="player-overall-pill" style="display: inline-flex;">
-            ★ ${Number(p.overall || 0).toFixed(1)}
+          <div class="player-overall-pill" id="overall-pill-${p.id}" style="display: inline-flex;">
+            ⭐ ${Number(p.overall || 0).toFixed(1)}
           </div>
+          ${myVote ? `<div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Você deu: ⭐${Number(myVote.overall).toFixed(1)}</div>` : ''}
         </td>
-        <td>★ ${Number(p.avg_attack || 0).toFixed(1)}</td>
-        <td>★ ${Number(p.avg_defense || 0).toFixed(1)}</td>
-        <td>★ ${Number(p.avg_set_pass || 0).toFixed(1)}</td>
-        <td>★ ${Number(p.avg_movement || 0).toFixed(1)}</td>
+        <td>${buildInlineStarPickerHtml(p.id, 'attack', curAttack, !!myVote)}</td>
+        <td>${buildInlineStarPickerHtml(p.id, 'defense', curDefense, !!myVote)}</td>
+        <td>${buildInlineStarPickerHtml(p.id, 'set_pass', curSetPass, !!myVote)}</td>
+        <td>${buildInlineStarPickerHtml(p.id, 'movement', curMovement, !!myVote)}</td>
         <td>
-          <span style="color: #94a3b8; font-size: 0.85rem;">
+          <span style="color: #94a3b8; font-size: 0.85rem;" id="vote-count-${p.id}">
             ${p.vote_count || 0} voto${p.vote_count === 1 ? '' : 's'}
           </span>
         </td>
         <td style="text-align: right;">
           <div class="table-actions-cell">
-            ${userRatingsMap[p.id] ? `
-              <button type="button" class="btn-action-small btn-action-rate voted btn-open-rate-direct" data-id="${p.id}" title="Você já votou neste atleta. Clique para editar suas estrelas!">
-                ✏️ Meu Voto (★${Number(userRatingsMap[p.id].overall).toFixed(1)})
-              </button>
-            ` : `
-              <button type="button" class="btn-action-small btn-action-rate btn-open-rate-direct" data-id="${p.id}" title="Avaliar habilidades deste jogador com 1 a 5 estrelas">
-                ⭐ Avaliar
-              </button>
-            `}
             <button type="button" class="btn-action-small btn-edit-photo" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-photo="${escapeHtml(p.photo_url || '')}" title="Adicionar / Alterar Foto">
               📷 Foto
             </button>
@@ -654,14 +673,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     attachPhotoEventListeners();
-    playersTableBody.querySelectorAll('.btn-open-rate-direct').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.getAttribute('data-id');
-        const player = playersList.find(p => Number(p.id) === Number(id));
-        if (player) openDirectRateModal(player);
-      });
-    });
+    attachInlineStarEvents();
+
     playersTableBody.querySelectorAll('.btn-delete-player').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
@@ -673,7 +686,147 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function deletePlayer(id) {
+  // Ativa eventos das estrelinhas inline
+  function attachInlineStarEvents() {
+    if (!playersTableBody) return;
+
+    playersTableBody.querySelectorAll('.inline-star-picker').forEach(picker => {
+      const pId = parseInt(picker.getAttribute('data-player-id'), 10);
+      const skill = picker.getAttribute('data-skill');
+      const starBtns = picker.querySelectorAll('.star-btn');
+      const numericSpan = picker.querySelector('.star-numeric');
+
+      starBtns.forEach(btn => {
+        // Efeito de passar o mouse por cima (hover)
+        btn.addEventListener('mouseenter', () => {
+          const hoverVal = parseInt(btn.getAttribute('data-val'), 10);
+          starBtns.forEach(b => {
+            const bVal = parseInt(b.getAttribute('data-val'), 10);
+            b.classList.toggle('hover-active', bVal <= hoverVal);
+          });
+          if (numericSpan) numericSpan.textContent = hoverVal;
+        });
+
+        // Clique para salvar a nota
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!currentUser) {
+            if (modalAuth) modalAuth.classList.add('show');
+            showToast('Entre na sua conta para salvar suas avaliações!');
+            return;
+          }
+          const chosenVal = parseInt(btn.getAttribute('data-val'), 10);
+          await submitInlineStarRating(pId, skill, chosenVal, picker);
+        });
+      });
+
+      // Restaurar estado ao retirar o mouse
+      picker.addEventListener('mouseleave', () => {
+        starBtns.forEach(b => b.classList.remove('hover-active'));
+        const currentVal = parseInt(picker.getAttribute('data-current'), 10) || 0;
+        starBtns.forEach(b => {
+          const bVal = parseInt(b.getAttribute('data-val'), 10);
+          b.classList.toggle('active', bVal <= currentVal);
+        });
+        if (numericSpan) numericSpan.textContent = currentVal > 0 ? currentVal : '-';
+      });
+    });
+  }
+
+  // Enviar Avaliação Direta ao Clicar na Estrelinha
+  async function submitInlineStarRating(playerId, skill, chosenVal, picker) {
+    if (!currentUser) return;
+    const player = playersList.find(p => Number(p.id) === Number(playerId));
+    if (!player) return;
+
+    // Recupera ou cria voto do usuário
+    let myVote = userRatingsMap[playerId];
+    if (!myVote) {
+      myVote = {
+        attack: Math.round(Number(player.avg_attack)) || 3,
+        defense: Math.round(Number(player.avg_defense)) || 3,
+        set_pass: Math.round(Number(player.avg_set_pass)) || 3,
+        movement: Math.round(Number(player.avg_movement)) || 3
+      };
+    }
+
+    // Atualiza o atributo clicado
+    myVote[skill] = chosenVal;
+
+    // Feedback visual imediato
+    picker.setAttribute('data-current', chosenVal);
+    const starBtns = picker.querySelectorAll('.star-btn');
+    starBtns.forEach(b => {
+      const bVal = parseInt(b.getAttribute('data-val'), 10);
+      b.classList.toggle('active', bVal <= chosenVal);
+    });
+    const numSpan = picker.querySelector('.star-numeric');
+    if (numSpan) numSpan.textContent = chosenVal;
+
+    picker.classList.add('user-voted', 'saved-pulse');
+    setTimeout(() => picker.classList.remove('saved-pulse'), 600);
+
+    // Calcula previsão do Overall
+    const calculatedOverall = (
+      myVote.attack * 0.35 +
+      myVote.defense * 0.25 +
+      myVote.set_pass * 0.25 +
+      myVote.movement * 0.15
+    ).toFixed(1);
+    myVote.overall = parseFloat(calculatedOverall);
+    userRatingsMap[playerId] = myVote;
+
+    // Atualiza pílula de overall do jogador
+    const overallPill = document.getElementById(`overall-pill-${playerId}`);
+    if (overallPill) {
+      overallPill.innerHTML = `⭐ ${calculatedOverall}`;
+    }
+
+    try {
+      const res = await fetch(`/api/players/${playerId}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser.id
+        },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          voterName: currentUser.name || currentUser.username,
+          attack: myVote.attack,
+          defense: myVote.defense,
+          setPass: myVote.set_pass,
+          movement: myVote.movement
+        })
+      });
+
+      const data = await res.json();
+      if (data.success && data.rating) {
+        showToast(`⭐ ${player.name}: ${skillToLabel(skill)} alterado para ${chosenVal}★!`);
+        if (data.rating.overall) player.overall = data.rating.overall;
+        userRatingsMap[playerId].overall = data.rating.overall;
+        // Atualiza contagem de votos
+        const voteCountSpan = document.getElementById(`vote-count-${playerId}`);
+        if (voteCountSpan && player.vote_count !== undefined) {
+          voteCountSpan.textContent = `${player.vote_count} votos`;
+        }
+      } else {
+        alert(data.error || 'Erro ao registrar voto.');
+      }
+    } catch (err) {
+      console.error('Erro ao enviar voto inline:', err);
+      showToast('Erro de conexão ao salvar voto.');
+    }
+  }
+
+  function skillToLabel(s) {
+    if (s === 'attack') return 'Ataque';
+    if (s === 'defense') return 'Defesa';
+    if (s === 'set_pass') return 'Passe';
+    if (s === 'movement') return 'Movimentação';
+    return s;
+  }
+
+    async function deletePlayer(id) {
     try {
       const res = await fetch(`/api/players/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1217,8 +1370,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (userAvatarMini) userAvatarMini.textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
         if (userDisplayName) userDisplayName.textContent = currentUser.name || currentUser.username;
         if (userRoleTag) {
-          userRoleTag.textContent = currentUser.role === 'admin' ? '👑 Administrador' : '👤 Votante';
-          userRoleTag.style.color = currentUser.role === 'admin' ? '#fbbf24' : '#38bdf8';
+          const isLuixAdmin = currentUser.role === 'admin' || (currentUser.username && currentUser.username.toLowerCase() === 'luix314@gmail.com');
+          userRoleTag.textContent = isLuixAdmin ? '👑 Administrador (Sala 733849)' : '👤 Votante';
+          userRoleTag.style.color = isLuixAdmin ? '#fbbf24' : '#38bdf8';
+        }
+        const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
+        if (inlineRateUserBadge) {
+          inlineRateUserBadge.innerHTML = `👤 Votando como: <strong style="color: #fbbf24;">${escapeHtml(currentUser.name || currentUser.username)}</strong>`;
         }
       }
     } else {
