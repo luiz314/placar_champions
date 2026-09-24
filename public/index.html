@@ -129,12 +129,8 @@
           <span id="timerToggleIcon">▶</span>
           <span id="timerToggleText">Iniciar</span>
         </button>
-        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Zerar cronômetro">
+        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Reiniciar cronômetro para 00:00">
           <span>↺ Reiniciar</span>
-        </button>
-        <span class="timer-controls-separator"></span>
-        <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
-          <span>🏁 Encerrar Partida</span>
         </button>
       </div>
     </div>
@@ -186,8 +182,11 @@
 
     </div>
     
-    <!-- BOTÃO DE ZERAR O PLACAR (CENTRALIZADO EMBAIXO DOS PLACARES) -->
-    <div class="score-reset-container" id="scoreResetContainer">
+    <!-- AÇÕES DA PARTIDA (CENTRALIZADAS EMBAIXO DOS PLACARES) -->
+    <div class="score-bottom-actions" id="scoreBottomActions">
+      <button type="button" class="btn btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+        <span>🏁 Encerrar Partida</span>
+      </button>
       <button type="button" class="btn btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
         <span>⚠️ Zerar Placar</span>
       </button>
