@@ -868,48 +868,18 @@ function saveRoomPassword(roomId, password) {
 }
 
 function openRoomModal() {
-  if (roomSelectionModal) {
-    if (joinRoomError) joinRoomError.textContent = '';
-    if (inputRoomCode) inputRoomCode.value = '';
-    if (toggleCreatePassword) toggleCreatePassword.checked = false;
-    if (createPasswordBox) createPasswordBox.style.display = 'none';
-    if (inputCreatePassword) {
-      inputCreatePassword.value = '';
-      inputCreatePassword.type = 'password';
-    }
-    if (btnToggleCreateEye) btnToggleCreateEye.textContent = '👁️';
-    if (btnCloseRoomModal) {
-      btnCloseRoomModal.style.display = currentRoomId ? 'block' : 'none';
-    }
-    roomSelectionModal.classList.add('show');
-  }
-  if (menuDropdown) menuDropdown.classList.remove('show');
+  window.location.href = '/?chooseSession=1';
 }
 
-function closeRoomModal() {
-  if (roomSelectionModal) {
-    roomSelectionModal.classList.remove('show');
-  }
-}
+function closeRoomModal() {}
 
-if (btnGoHome) btnGoHome.addEventListener('click', openRoomModal);
-if (menuItemHome) menuItemHome.addEventListener('click', openRoomModal);
-if (headerTitleArea) {
-  headerTitleArea.addEventListener('click', (e) => {
-    if (e.target.closest('#roomPill') || e.target.closest('#connectionPill')) return;
-    openRoomModal();
-  });
-}
-if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', openRoomModal);
-if (btnCloseRoomModal) btnCloseRoomModal.addEventListener('click', closeRoomModal);
+// Navegação direta: botão Início volta para o portal inicial
+if (btnGoHome) btnGoHome.addEventListener('click', () => { window.location.href = '/'; });
+if (menuItemHome) menuItemHome.addEventListener('click', () => { window.location.href = '/'; });
 
-if (roomSelectionModal) {
-  roomSelectionModal.addEventListener('click', (e) => {
-    if (e.target === roomSelectionModal && currentRoomId) {
-      closeRoomModal();
-    }
-  });
-}
+// Nova sessão leva ao seletor/criador de sessões na tela inicial
+if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', () => { window.location.href = '/?chooseSession=1'; });
+if (menuItemChangeRoom) menuItemChangeRoom.addEventListener('click', () => { window.location.href = '/?chooseSession=1'; });
 
 // Modo Offline Rápido (Inicia imediatamente sem depender de rede)
 function startOfflineMode() {
@@ -1157,28 +1127,28 @@ function initRoomConnection() {
   if (!socket) return;
 
   const params = new URLSearchParams(window.location.search);
-  const paramRoom = params.get('sala') || params.get('room');
-  const savedRoom = localStorage.getItem('placar_current_room');
+  const paramRoom = (params.get('sala') || params.get('room') || '').trim();
+  const savedRoom = (localStorage.getItem('volei_current_room') || localStorage.getItem('placar_current_room') || '').trim();
 
-  const targetRoom = (paramRoom && paramRoom.replace(/\D/g, '').length === 6)
-    ? paramRoom.replace(/\D/g, '')
-    : (savedRoom && savedRoom.replace(/\D/g, '').length === 6 ? savedRoom.replace(/\D/g, '') : null);
+  let targetRoom = paramRoom || savedRoom || '733849';
+  targetRoom = targetRoom.replace(/\s+/g, '').toUpperCase();
 
   if (targetRoom) {
+    localStorage.setItem('volei_current_room', targetRoom);
+    localStorage.setItem('placar_current_room', targetRoom);
     const savedPwd = getSavedRoomPassword(targetRoom);
 
-    socket.emit('room:join', { roomId: targetRoom, password: savedPwd, autoCreate: false }, (res) => {
+    socket.emit('room:join', { roomId: targetRoom, password: savedPwd, autoCreate: true }, (res) => {
       if (res && res.success) {
         currentRoomId = res.roomId;
         updateUrlWithRoom(res.roomId);
 
-        // Se o usuário fez alterações offline enquanto estava desconectado, envia para o servidor
         if (hasOfflineChanges) {
           socket.emit('room:sync', currentState, (syncRes) => {
             if (syncRes && syncRes.success) {
               hasOfflineChanges = false;
               localStorage.removeItem('placar_has_offline_changes');
-              showToast('✅ Conexão restabelecida! Placar sincronizado com a sala.', 'online-restored', 3500);
+              showToast('✅ Conectado ao placar da Sala #' + res.roomId, 'online-restored', 3000);
             }
           });
         } else {
@@ -1187,17 +1157,10 @@ function initRoomConnection() {
       } else if (res && res.requiresPassword) {
         openPasswordPrompt(targetRoom, res.error);
       } else {
-        if (!currentState.scoreA && !currentState.scoreB) {
-          openRoomModal();
-        }
+        currentRoomId = targetRoom;
+        updateUrlWithRoom(targetRoom);
       }
     });
-    return;
-  }
-
-  // Se não houver sala salva e a pontuação estiver zerada, abre modal de seleção
-  if (!currentState.scoreA && !currentState.scoreB && currentState.roomId === 'LOCAL') {
-    openRoomModal();
   }
 }
 

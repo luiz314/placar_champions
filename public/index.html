@@ -1396,6 +1396,13 @@
           requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');
         }, 200);
       }
+
+      // Se veio do placar querendo trocar ou criar sessão
+      if (urlParams.get('chooseSession')) {
+        setTimeout(() => {
+          openSessionModal();
+        }, 200);
+      }
     })();
   </script>
 </body>
