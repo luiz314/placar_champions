@@ -1,4 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Apenas usuários logados podem acessar a Gestão da Pelada. Visitantes só podem abrir o Placar.
+  const storedUserRaw = localStorage.getItem('pelada_user');
+  if (!storedUserRaw) {
+    alert('Acesso restrito: Apenas usuários cadastrados e logados podem acessar o Controle da Pelada. Visitantes têm permissão exclusivamente para abrir o Placar.');
+    window.location.replace('/?authRequired=pelada');
+    return;
+  }
+  try {
+    const parsedUser = JSON.parse(storedUserRaw);
+    if (!parsedUser || !parsedUser.username) {
+      localStorage.removeItem('pelada_user');
+      window.location.replace('/?authRequired=pelada');
+      return;
+    }
+  } catch(e) {
+    localStorage.removeItem('pelada_user');
+    window.location.replace('/?authRequired=pelada');
+    return;
+  }
   // Estado local
   let peladasList = [];
   let activePeladaId = null;

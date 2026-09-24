@@ -838,12 +838,9 @@
   <script>
     (function() {
       // Estado da Sala e Usuário
-      let currentRoom = '733849';
-      let currentPeladaName = 'Sala 733849';
+      let currentRoom = localStorage.getItem('volei_current_room') || '';
+      let currentPeladaName = 'Placar Oficial';
       let userPeladas = [];
-
-      const storedRoom = localStorage.getItem('volei_current_room') || '733849';
-      currentRoom = storedRoom;
 
       // Elementos Principais
       const navUserPanel = document.getElementById('navUserPanel');
@@ -859,23 +856,79 @@
       const inputNewSessionName = document.getElementById('inputNewSessionName');
       const btnCreateNewSession = document.getElementById('btnCreateNewSession');
 
-      function updateNavigationLinks(roomCode) {
-        currentRoom = String(roomCode).trim().toUpperCase() || '733849';
-        localStorage.setItem('volei_current_room', currentRoom);
-
-        if (linkToPlacar) linkToPlacar.href = '/placar?room=' + encodeURIComponent(currentRoom);
-        if (linkToPelada) linkToPelada.href = '/pelada';
-        if (linkToAvaliar) linkToAvaliar.href = '/avaliar?pelada=' + encodeURIComponent(currentRoom);
-      }
-
-      updateNavigationLinks(currentRoom);
-
       function getStoredUser() {
         try {
           const raw = localStorage.getItem('pelada_user');
           return raw ? JSON.parse(raw) : null;
         } catch(e) {
           return null;
+        }
+      }
+
+      function updateNavigationLinks(roomCode) {
+        if (roomCode) {
+          currentRoom = String(roomCode).trim().toUpperCase();
+          localStorage.setItem('volei_current_room', currentRoom);
+        }
+
+        const user = getStoredUser();
+
+        // 1. Placar Ao Vivo (Permitido para todos, logados ou visitantes)
+        if (linkToPlacar) {
+          linkToPlacar.href = currentRoom ? ('/placar?room=' + encodeURIComponent(currentRoom)) : '/placar';
+          linkToPlacar.innerHTML = '<span>Abrir Placar Ao Vivo</span><span>➔</span>';
+          linkToPlacar.onclick = null;
+        }
+
+        // 2. Controle da Pelada (Apenas usuários logados)
+        if (linkToPelada) {
+          if (user && user.username) {
+            linkToPelada.href = '/pelada';
+            linkToPelada.innerHTML = '<span>Acessar Gestão da Pelada</span><span>➔</span>';
+            linkToPelada.onclick = null;
+          } else {
+            linkToPelada.href = 'javascript:void(0);';
+            linkToPelada.innerHTML = '<span>🔒 Login Necessário</span><span>➔</span>';
+            linkToPelada.onclick = function(e) {
+              e.preventDefault();
+              requireLoginAlert('Apenas usuários logados têm permissão para acessar a Gestão da Pelada. Visitantes têm permissão exclusivamente para abrir o Placar.');
+            };
+          }
+        }
+
+        // 3. Votação de Craques (Apenas usuários logados)
+        if (linkToAvaliar) {
+          if (user && user.username) {
+            linkToAvaliar.href = currentRoom ? ('/avaliar?pelada=' + encodeURIComponent(currentRoom)) : '/avaliar';
+            linkToAvaliar.innerHTML = '<span>Votar nos Atletas</span><span>➔</span>';
+            linkToAvaliar.onclick = null;
+          } else {
+            linkToAvaliar.href = 'javascript:void(0);';
+            linkToAvaliar.innerHTML = '<span>🔒 Login Necessário</span><span>➔</span>';
+            linkToAvaliar.onclick = function(e) {
+              e.preventDefault();
+              requireLoginAlert('Apenas usuários logados têm permissão para avaliar jogadores e votar em craques. Visitantes têm permissão exclusivamente para abrir o Placar.');
+            };
+          }
+        }
+      }
+
+      // Alerta e foco no formulário de login quando visitante tenta acessar recurso restrito
+      function requireLoginAlert(message) {
+        const accessPortal = document.getElementById('accessPortal');
+        if (accessPortal) {
+          accessPortal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const tabBtnLogin = document.getElementById('tabBtnLogin');
+        if (tabBtnLogin) tabBtnLogin.click();
+        const loginFeedback = document.getElementById('loginFeedback');
+        if (loginFeedback) {
+          loginFeedback.className = 'auth-feedback-box error';
+          loginFeedback.textContent = message || '🔒 Apenas usuários cadastrados e logados podem acessar este recurso. Visitantes têm permissão apenas para abrir o Placar.';
+        }
+        const loginUsername = document.getElementById('loginUsername');
+        if (loginUsername) {
+          setTimeout(() => loginUsername.focus(), 300);
         }
       }
 
@@ -886,9 +939,14 @@
           const data = await res.json();
           if (data.success && Array.isArray(data.peladas)) {
             userPeladas = data.peladas;
-            const activeP = userPeladas.find(p => String(p.id) === String(currentRoom));
-            if (activeP) {
-              currentPeladaName = activeP.name;
+            if (currentRoom) {
+              const activeP = userPeladas.find(p => String(p.id) === String(currentRoom));
+              if (activeP) {
+                currentPeladaName = activeP.name;
+              }
+            } else if (userPeladas.length > 0) {
+              currentRoom = String(userPeladas[0].id);
+              currentPeladaName = userPeladas[0].name;
             }
           }
         } catch(e) {
@@ -900,6 +958,7 @@
       async function renderPortalUI() {
         await fetchSessions();
         const user = getStoredUser();
+        updateNavigationLinks(currentRoom);
 
         if (user && user.username) {
           // ==========================================
@@ -913,7 +972,7 @@
             <div class="user-pill">
               <div class="user-avatar-tag">${initial}</div>
               <div class="user-info-text">
-                <span class="user-name-display">${user.name || user.username}</span>
+                <span class="user-name-display">${escapeHtml(user.name || user.username)}</span>
                 <span class="user-role-badge">${roleLabel}</span>
               </div>
             </div>
@@ -939,7 +998,7 @@
                   <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Sessão / Pelada Selecionada:</div>
                   <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                     <strong style="font-size: 1.15rem; color: #ffffff;" id="activePeladaNameDisplay">${escapeHtml(currentPeladaName)}</strong>
-                    <span class="session-pill-code">SALA #${currentRoom}</span>
+                    <span class="session-pill-code">${currentRoom ? ('SALA #' + currentRoom) : 'SEM SALA'}</span>
                   </div>
                 </div>
               </div>
@@ -953,7 +1012,7 @@
                   <span>➕</span>
                   <span>Nova Sessão</span>
                 </button>
-                <a href="/placar?room=${encodeURIComponent(currentRoom)}" class="btn-card-action btn-cyan" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
+                <a href="${currentRoom ? ('/placar?room=' + encodeURIComponent(currentRoom)) : '/placar'}" class="btn-card-action btn-cyan" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
                   <span>Ir ao Placar</span>
                   <span>➔</span>
                 </a>
@@ -978,14 +1037,14 @@
 
         } else {
           // ==========================================
-          // ESTADO DESLOGADO: LOGIN SIMPLIFICADO & CONVIDADO
+          // ESTADO DESLOGADO: LOGIN SIMPLIFICADO & CONVIDADO (APENAS PLACAR)
           // ==========================================
           navUserPanel.innerHTML = `
             <a href="#accessPortal" class="btn-compact" id="btnNavLogin">Entrar / Cadastrar</a>
           `;
 
           accessPortalContent.innerHTML = `
-            <!-- LADO ESQUERDO: LOGIN SIMPLIFICADO / CADASTRO -->
+            <!-- LADO ESQUERDO: LOGIN SIMPLIFICADO / CADASTRO (SOMENTE E-MAIL) -->
             <div id="authFormsContainer">
               <div class="auth-tabs-header">
                 <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Entrar (Login)</button>
@@ -993,15 +1052,15 @@
               </div>
 
               <!-- FORMULÁRIO DE LOGIN -->
-              <form class="auth-form" id="formLogin">
+              <form class="auth-form" id="formLogin" autocomplete="off">
                 <div class="form-group">
-                  <label class="form-label" for="loginUsername">Usuário ou E-mail</label>
-                  <input type="text" id="loginUsername" class="form-input" placeholder="Ex: luix314@gmail.com ou seu usuário" required autocomplete="username">
+                  <label class="form-label" for="loginUsername">E-mail</label>
+                  <input type="email" id="loginUsername" class="form-input" placeholder="" required autocomplete="off" value="">
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="loginPassword">Senha de Acesso</label>
-                  <input type="password" id="loginPassword" class="form-input" placeholder="Sua senha secreta" required autocomplete="current-password">
+                  <label class="form-label" for="loginPassword">Senha</label>
+                  <input type="password" id="loginPassword" class="form-input" placeholder="" required autocomplete="new-password" value="">
                 </div>
 
                 <div class="auth-feedback-box" id="loginFeedback"></div>
@@ -1013,20 +1072,20 @@
               </form>
 
               <!-- FORMULÁRIO DE CADASTRO -->
-              <form class="auth-form" id="formRegister" style="display: none;">
+              <form class="auth-form" id="formRegister" style="display: none;" autocomplete="off">
                 <div class="form-group">
                   <label class="form-label" for="regName">Nome Completo</label>
-                  <input type="text" id="regName" class="form-input" placeholder="Ex: Lucas Silva" required autocomplete="name">
+                  <input type="text" id="regName" class="form-input" placeholder="" required autocomplete="off" value="">
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="regUsername">E-mail ou Usuário</label>
-                  <input type="text" id="regUsername" class="form-input" placeholder="Ex: atleta@gmail.com" required autocomplete="username">
+                  <label class="form-label" for="regUsername">E-mail</label>
+                  <input type="email" id="regUsername" class="form-input" placeholder="" required autocomplete="off" value="">
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="regPassword">Senha de Acesso</label>
-                  <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
+                  <label class="form-label" for="regPassword">Senha</label>
+                  <input type="password" id="regPassword" class="form-input" placeholder="" required autocomplete="new-password" value="">
                 </div>
 
                 <div class="auth-feedback-box" id="regFeedback"></div>
@@ -1038,19 +1097,19 @@
               </form>
             </div>
 
-            <!-- LADO DIREITO: ACESSO CONVIDADO / ESPECTADOR DIRETO -->
+            <!-- LADO DIREITO: ACESSO CONVIDADO / ESPECTADOR DIRETO (EXCLUSIVAMENTE PLACAR) -->
             <div class="visitor-card">
               <div class="visitor-header">
                 <div class="visitor-badge">👀</div>
                 <div>
-                  <h3 class="visitor-title">Acesso Convidado / Espectador</h3>
-                  <p class="visitor-desc">Acompanhe qualquer partida ao vivo sem necessidade de cadastro.</p>
+                  <h3 class="visitor-title">Acesso Visitante (Placar)</h3>
+                  <p class="visitor-desc">Usuários não logados têm permissão exclusivamente para assistir ao placar ao vivo.</p>
                 </div>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="inputGuestRoomCode">Código da Sala / Sessão:</label>
-                <input type="text" id="inputGuestRoomCode" class="form-input" value="${currentRoom}" maxlength="10" placeholder="Ex: 733849" style="text-align: center; font-family: monospace; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px;">
+                <label class="form-label" for="inputGuestRoomCode">Código da Sala:</label>
+                <input type="text" id="inputGuestRoomCode" class="form-input" value="" maxlength="10" placeholder="Digite o código da sala" autocomplete="off" style="text-align: center; font-family: monospace; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px;">
               </div>
 
               <button type="button" class="btn-card-action btn-cyan" id="btnGuestEnter">
@@ -1092,11 +1151,18 @@
 
         if (btnGuestEnter) {
           btnGuestEnter.addEventListener('click', () => {
-            const roomVal = (inputGuestRoomCode ? inputGuestRoomCode.value.trim().toUpperCase() : '') || '733849';
+            const roomVal = (inputGuestRoomCode ? inputGuestRoomCode.value.trim().toUpperCase() : '');
+            if (!roomVal) {
+              alert('Por favor, informe o código da sala que deseja assistir no placar.');
+              if (inputGuestRoomCode) inputGuestRoomCode.focus();
+              return;
+            }
             updateNavigationLinks(roomVal);
             window.location.href = '/placar?room=' + encodeURIComponent(roomVal);
           });
         }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (formLogin) {
           formLogin.addEventListener('submit', async (e) => {
@@ -1104,8 +1170,14 @@
             loginFeedback.className = 'auth-feedback-box';
             loginFeedback.textContent = '';
 
-            const username = document.getElementById('loginUsername').value.trim();
+            const username = document.getElementById('loginUsername').value.trim().toLowerCase();
             const password = document.getElementById('loginPassword').value;
+
+            if (!emailRegex.test(username)) {
+              loginFeedback.className = 'auth-feedback-box error';
+              loginFeedback.textContent = 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).';
+              return;
+            }
 
             try {
               const res = await fetch('/api/auth/login', {
@@ -1117,17 +1189,16 @@
 
               if (!res.ok || !data.success) {
                 loginFeedback.className = 'auth-feedback-box error';
-                loginFeedback.textContent = data.error || 'Usuário ou senha incorretos.';
+                loginFeedback.textContent = data.error || 'E-mail ou senha incorretos.';
                 return;
               }
 
               loginFeedback.className = 'auth-feedback-box success';
-              loginFeedback.textContent = 'Login efetuado! Conectando...';
+              loginFeedback.textContent = 'Login efetuado com sucesso! Conectando...';
               localStorage.setItem('pelada_user', JSON.stringify(data.user));
 
               setTimeout(() => {
                 renderPortalUI().then(() => {
-                  // Se o usuário tiver mais de 1 sessão, abre o seletor na hora
                   if (userPeladas.length > 1) {
                     openSessionModal();
                   }
@@ -1148,8 +1219,14 @@
             regFeedback.textContent = '';
 
             const name = document.getElementById('regName').value.trim();
-            const username = document.getElementById('regUsername').value.trim();
+            const username = document.getElementById('regUsername').value.trim().toLowerCase();
             const password = document.getElementById('regPassword').value;
+
+            if (!emailRegex.test(username)) {
+              regFeedback.className = 'auth-feedback-box error';
+              regFeedback.textContent = 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).';
+              return;
+            }
 
             try {
               const res = await fetch('/api/auth/register', {
@@ -1298,6 +1375,14 @@
 
       // Inicializa
       renderPortalUI();
+
+      // Se foi redirecionado com authRequired, exibe alerta explicativo
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('authRequired')) {
+        setTimeout(() => {
+          requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');
+        }, 200);
+      }
     })();
   </script>
 </body>

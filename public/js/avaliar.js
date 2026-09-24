@@ -1,4 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Apenas usuários logados podem acessar as Avaliações e Craques. Visitantes só podem abrir o Placar.
+  const storedUserRaw = localStorage.getItem('pelada_user');
+  if (!storedUserRaw) {
+    alert('Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Votação e Avaliação de Craques. Visitantes têm permissão exclusivamente para abrir o Placar.');
+    window.location.replace('/?authRequired=avaliar');
+    return;
+  }
+  try {
+    const parsedUser = JSON.parse(storedUserRaw);
+    if (!parsedUser || !parsedUser.username) {
+      localStorage.removeItem('pelada_user');
+      window.location.replace('/?authRequired=avaliar');
+      return;
+    }
+  } catch(e) {
+    localStorage.removeItem('pelada_user');
+    window.location.replace('/?authRequired=avaliar');
+    return;
+  }
   // Verifica autenticação obrigatória do usuário
   let currentUser = null;
   try {

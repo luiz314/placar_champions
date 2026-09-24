@@ -227,22 +227,32 @@ app.get('/api/room/:roomId', (req, res) => {
 // ROTAS DE AUTENTICAÇÃO E USUÁRIOS
 // ==========================================
 
-// Cadastro de novo usuário (Admin ou Votante)
+// Cadastro de novo usuário (O usuário deve ser exclusivamente e-mail)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password, name, role } = req.body;
-    const user = await db.createUser(username, password, name, role || 'user');
+    const cleanUsername = String(username || '').trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanUsername)) {
+      return res.status(400).json({ success: false, error: 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).' });
+    }
+    const user = await db.createUser(cleanUsername, password, name, role || 'user');
     res.status(201).json({ success: true, user });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }
 });
 
-// Login de usuário
+// Login de usuário (O usuário deve ser exclusivamente e-mail)
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await db.authenticateUser(username, password);
+    const cleanUsername = String(username || '').trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanUsername)) {
+      return res.status(400).json({ success: false, error: 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).' });
+    }
+    const user = await db.authenticateUser(cleanUsername, password);
     res.json({ success: true, user });
   } catch (err) {
     res.status(401).json({ success: false, error: err.message });

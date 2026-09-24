@@ -415,8 +415,9 @@ async function createUser(username, password, name, role = 'user') {
     cleanRole = 'admin';
   }
 
-  if (!cleanUsername || cleanUsername.length < 3) {
-    throw new Error('O nome de usuario deve ter pelo menos 3 caracteres.');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!cleanUsername || !emailRegex.test(cleanUsername)) {
+    throw new Error('O usuário deve ser um e-mail válido.');
   }
   if (!password || String(password).length < 4) {
     throw new Error('A senha deve ter pelo menos 4 caracteres.');
@@ -430,7 +431,7 @@ async function createUser(username, password, name, role = 'user') {
   if (isPostgres && User) {
     try {
       const exists = await User.findOne({ where: { username: cleanUsername } });
-      if (exists) throw new Error('Este nome de usuario ja esta em uso.');
+      if (exists) throw new Error('Este e-mail já está cadastrado.');
 
       const user = await User.create({
         username: cleanUsername,
@@ -450,7 +451,7 @@ async function createUser(username, password, name, role = 'user') {
   const data = getFallbackData();
   if (!data.users) data.users = [];
   const exists = data.users.find(u => u.username.toLowerCase() === cleanUsername);
-  if (exists) throw new Error('Este nome de usuario ja esta em uso.');
+  if (exists) throw new Error('Este e-mail já está cadastrado.');
 
   const nextId = data.users.length > 0 ? Math.max(...data.users.map(u => Number(u.id))) + 1 : 1;
   const newUser = {
@@ -468,8 +469,9 @@ async function createUser(username, password, name, role = 'user') {
 
 async function authenticateUser(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase();
-  if (!cleanUsername || !password) {
-    throw new Error('Usuario e senha sao obrigatorios.');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!cleanUsername || !emailRegex.test(cleanUsername) || !password) {
+    throw new Error('Informe um e-mail válido e a senha.');
   }
 
   if (isPostgres && User) {
