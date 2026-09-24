@@ -1170,6 +1170,196 @@
       100% { transform: scale(1); border-color: rgba(251, 191, 36, 0.35); box-shadow: none; }
     }
 
+
+    /* NOVOS RECURSOS: PRESENCA, RANKING, MVP E CARD CANVAS */
+    .attendance-hero-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(0, 242, 254, 0.08));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    .attendance-progress-box {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .attendance-progress-track {
+      width: 100%;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .attendance-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #00f2fe);
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .attendance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .attendance-player-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .attendance-player-chip:hover {
+      border-color: rgba(0, 242, 254, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .attendance-player-chip.waitlist {
+      border-color: rgba(251, 191, 36, 0.35);
+      background: rgba(251, 191, 36, 0.05);
+    }
+
+    .chip-order-badge {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #94a3b8;
+      font-family: monospace;
+      width: 22px;
+      text-align: center;
+    }
+
+    /* PODIO DE RANKING & MVP */
+    .podium-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .podium-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 18px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(10px);
+    }
+
+    .podium-card.gold {
+      border-color: rgba(251, 191, 36, 0.6);
+      box-shadow: 0 0 25px rgba(251, 191, 36, 0.2);
+    }
+
+    .podium-card.gold::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .podium-card.silver {
+      border-color: rgba(203, 213, 225, 0.4);
+    }
+
+    .podium-card.silver::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: linear-gradient(90deg, #cbd5e1, #94a3b8);
+    }
+
+    .podium-card.bronze {
+      border-color: rgba(180, 83, 9, 0.4);
+    }
+
+    .podium-card.bronze::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: linear-gradient(90deg, #d97706, #b45309);
+    }
+
+    .podium-medal {
+      font-size: 2.2rem;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .podium-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      object-fit: cover;
+      margin: 4px auto;
+    }
+
+    /* CARTOES DE VOTACAO MVP */
+    .mvp-categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .mvp-category-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mvp-category-card:hover {
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+
+    /* MODAL DE CARD INSTAGRAM */
+    .card-canvas-wrapper {
+      max-width: 100%;
+      max-height: 520px;
+      overflow: auto;
+      border-radius: 14px;
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 8px;
+    }
+
+    .card-canvas-wrapper canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+    }
+
 </style>
 </head>
 <body>
@@ -1402,7 +1592,11 @@
             </select>
           </div>
 
-          <div style="margin-left: auto; display: flex; gap: 8px;">
+          <div style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn-pelada" id="btnLoadConfirmedAttendance" style="padding: 6px 12px; font-size: 0.8rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(0, 242, 254, 0.2)); border-color: rgba(16, 185, 129, 0.6); color: #6ee7b7; font-weight: 700;" title="Seleciona apenas os jogadores que confirmaram presenca hoje">
+              <span>📋</span>
+              <span id="loadConfirmedBtnText">Carregar Confirmados de Hoje</span>
+            </button>
             <button type="button" class="btn-pelada" id="btnSelectAll" style="padding: 6px 12px; font-size: 0.8rem;">
               Marcar Todos
             </button>
@@ -1508,6 +1702,239 @@
     </section>
 
     <!-- ABA 3: HISTÓRICO DE PARTIDAS DO POSTGRES -->
+    
+    <!-- ======================================================== -->
+    <!-- ABA: LISTA DE PRESENCA & CHECK-IN (FUNCAO 1)             -->
+    <!-- ======================================================== -->
+    <section id="tab-presenca" class="tab-content">
+      <div class="pelada-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>📋</span> Lista de Presença da Rodada
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
+              Confirme sua presença no jogo. Quem confirmar primeiro garante vaga direta nos times de hoje!
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label for="inputAttendanceDate" style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">Data:</label>
+            <input type="date" id="inputAttendanceDate" class="config-select" style="padding: 8px 12px;">
+          </div>
+        </div>
+
+        <!-- HERO BAR DE STATUS DAS VAGAS -->
+        <div class="attendance-hero-bar">
+          <div class="attendance-progress-box">
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700;">
+              <span style="color: #6ee7b7;" id="attendanceCountStatus">Carregando vagas...</span>
+              <span style="color: #94a3b8;" id="attendancePercentageStatus">0%</span>
+            </div>
+            <div class="attendance-progress-track">
+              <div class="attendance-progress-fill" id="attendanceProgressFill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <div id="attendanceUserActionContainer">
+            <!-- RENDERIZADO VIA JS: BOTAO CONFIRMAR PRESENCA OU CANCELAR -->
+          </div>
+        </div>
+
+        <!-- PAINEL ADMIN: ADICIONAR ATLETA MANUALMENTE -->
+        <div id="adminAttendancePanel" style="display: none; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">
+            👑 <strong>Painel do Administrador:</strong> Adicionar jogador da pelada à lista de presença:
+          </div>
+          <div style="display: flex; gap: 8px; flex: 1; max-width: 400px;">
+            <select id="selectAdminAddAttendance" class="config-select" style="flex: 1;">
+              <option value="" disabled selected>Escolha um atleta cadastrado...</option>
+            </select>
+            <button type="button" class="btn-pelada btn-pelada-primary" id="btnAdminAddAttendance" style="padding: 8px 14px;">
+              <span>+ Adicionar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- LISTA 1: CONFIRMADOS (COM VAGA GARANTIDA) -->
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 1.05rem; color: #10b981; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span>✅</span> Confirmados com Vaga (<span id="confirmedTotalDisplay">0</span>)
+          </h3>
+          <div class="attendance-grid" id="confirmedListGrid">
+            <div style="color: #94a3b8; font-size: 0.85rem; grid-column: 1/-1; padding: 15px; text-align: center;">
+              Nenhum atleta confirmado nesta data ainda. Seja o primeiro!
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA 2: FILA DE ESPERA (EXCEDENTES) -->
+        <div id="waitlistSection" style="display: none; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 18px;">
+          <h3 style="font-size: 1.05rem; color: #fbbf24; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span>⏳</span> Fila de Espera (<span id="waitlistTotalDisplay">0</span>)
+          </h3>
+          <p style="font-size: 0.82rem; color: #94a3b8; margin: 0 0 10px 0;">
+            Caso algum confirmado desista, os atletas da fila entram automaticamente na ordem.
+          </p>
+          <div class="attendance-grid" id="waitlistGrid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- ABA: RANKING & ESTATISTICAS DE VITORIAS (FUNCAO 3)       -->
+    <!-- ======================================================== -->
+    <section id="tab-ranking" class="tab-content">
+      <div class="pelada-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>🏆</span> Classificação Geral & Aproveitamento
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
+              Estatísticas calculadas a partir de todas as partidas oficiais registradas no banco de dados.
+            </p>
+          </div>
+          <button type="button" class="btn-pelada" id="btnRefreshStats">
+            <span>🔄</span> Atualizar
+          </button>
+        </div>
+
+        <!-- PODIO DOS 3 MAIORES VENCEDORES -->
+        <div class="podium-container" id="statsPodiumContainer">
+          <!-- RENDERIZADO VIA JS: 1º, 2º e 3º LUGAR -->
+        </div>
+
+        <!-- TABELA DETALHADA DE ESTATISTICAS -->
+        <div class="players-table-card">
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Atleta</th>
+                <th>Posição</th>
+                <th style="text-align: center;">Partidas</th>
+                <th style="text-align: center; color: #34d399;">Vitórias</th>
+                <th style="text-align: center; color: #f87171;">Derrotas</th>
+                <th style="text-align: center;">% Aproveitamento</th>
+                <th style="text-align: right;">Overall Médio</th>
+              </tr>
+            </thead>
+            <tbody id="playerStatsTableBody">
+              <tr>
+                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 25px;">
+                  Carregando ranking do banco...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- ABA: CRAQUES DA RODADA (MVP PÓS-JOGO) (FUNCAO 5)        -->
+    <!-- ======================================================== -->
+    <section id="tab-mvp" class="tab-content">
+      <div class="pelada-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>👑</span> Craques & Destaques da Rodada
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
+              Vote nos atletas que mais se destacaram no jogo de hoje. O pódio atualiza em tempo real!
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label for="inputMvpDate" style="font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">Data:</label>
+            <input type="date" id="inputMvpDate" class="config-select" style="padding: 8px 12px;">
+          </div>
+        </div>
+
+        <!-- FORMULARIO DE VOTACAO DE CRAQUES -->
+        <form id="formMvpVote" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 14px 0; font-size: 1.05rem; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+            <span>⭐</span> Registre Seus Votos da Rodada
+          </h3>
+
+          <div class="mvp-categories-grid">
+            <!-- 1. MVP DA RODADA -->
+            <div class="mvp-category-card" style="border-color: rgba(251, 191, 36, 0.4);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.6rem;">👑</span>
+                <div>
+                  <strong style="color: #fbbf24; font-size: 0.95rem;">Craque da Noite (MVP)</strong>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">O jogador mais decisivo e dominante</div>
+                </div>
+              </div>
+              <select id="selectMvpPlayer" class="config-select" style="width: 100%; margin-top: 6px;">
+                <option value="">Selecione o craque...</option>
+              </select>
+            </div>
+
+            <!-- 2. MURALHA -->
+            <div class="mvp-category-card" style="border-color: rgba(56, 189, 248, 0.4);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.6rem;">🛡️</span>
+                <div>
+                  <strong style="color: #38bdf8; font-size: 0.95rem;">Troféu Muralha</strong>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">Melhores bloqueios e defesas difíceis</div>
+                </div>
+              </div>
+              <select id="selectDefensePlayer" class="config-select" style="width: 100%; margin-top: 6px;">
+                <option value="">Selecione o defensor...</option>
+              </select>
+            </div>
+
+            <!-- 3. GARÇOM -->
+            <div class="mvp-category-card" style="border-color: rgba(168, 85, 247, 0.4);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.6rem;">⚡</span>
+                <div>
+                  <strong style="color: #c084fc; font-size: 0.95rem;">Troféu Garçom</strong>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">Melhores levantamentos e passes precisos</div>
+                </div>
+              </div>
+              <select id="selectPassPlayer" class="config-select" style="width: 100%; margin-top: 6px;">
+                <option value="">Selecione o levantador/passador...</option>
+              </select>
+            </div>
+
+            <!-- 4. TROFEU FURADA -->
+            <div class="mvp-category-card" style="border-color: rgba(244, 63, 94, 0.4);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.6rem;">😅</span>
+                <div>
+                  <strong style="color: #fb7185; font-size: 0.95rem;">Troféu Furada / Bagre</strong>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">O lance mais cômico ou inusitado</div>
+                </div>
+              </div>
+              <select id="selectFunnyPlayer" class="config-select" style="width: 100%; margin-top: 6px;">
+                <option value="">Selecione o troféu furada...</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;">
+            <div id="mvpVoteStatusMsg" style="font-size: 0.85rem; color: #94a3b8;">
+              🔒 Faça login para que seu voto seja computado.
+            </div>
+            <button type="submit" class="btn-pelada btn-pelada-gold" id="btnSubmitMvpVote" style="padding: 10px 22px;">
+              <span>⭐ Gravar Meus Votos de Craque</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- PODIO DOS VENCEDORES DA RODADA -->
+        <h3 style="font-size: 1.1rem; color: #fff; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
+          <span>🎖️</span> Pódio Atual dos Mais Votados
+        </h3>
+        <div class="podium-container" id="mvpPodiumDisplay">
+          <!-- RENDERIZADO VIA JS -->
+        </div>
+      </div>
+    </section>
+
     <section id="tab-historico" class="tab-content">
       <div class="pelada-card">
         <div class="card-header-row">
@@ -1849,5 +2276,47 @@
   <div class="toast-msg" id="peladaToast">Notificação</div>
 
   <script src="/js/pelada.js"></script>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: GERADOR DE CARD INSTAGRAM / WHATSAPP (FUNCAO 4)   -->
+  <!-- ======================================================== -->
+  <div class="modal-overlay" id="modalGameCard">
+    <div class="modal-dialog" style="max-width: 680px; text-align: center;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+        <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+          <span>🎨</span> Card Oficial da Rodada
+        </h3>
+        <button type="button" class="btn-modal-close" id="btnCloseGameCardModal">&times;</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px 0;">
+        Imagem gerada automaticamente em alta resolução com a escalação equilibrada e fotos dos atletas.
+      </p>
+
+      <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 14px;">
+        <button type="button" class="btn-pelada active" id="btnCardFormatStories" style="padding: 6px 14px; font-size: 0.82rem;">
+          📱 Stories (9:16)
+        </button>
+        <button type="button" class="btn-pelada" id="btnCardFormatPost" style="padding: 6px 14px; font-size: 0.82rem;">
+          📷 Post Quadrado (1:1)
+        </button>
+      </div>
+
+      <!-- PRE-VISUALIZACAO DO CANVAS -->
+      <div class="card-canvas-wrapper">
+        <canvas id="gameCardCanvas"></canvas>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+        <button type="button" class="btn-pelada btn-pelada-primary" id="btnDownloadCardPng" style="font-size: 1rem; padding: 12px 24px; background: linear-gradient(135deg, #10b981, #00f2fe); border: none; font-weight: 800; color: #000;">
+          <span>📥 Baixar Imagem (PNG)</span>
+        </button>
+        <button type="button" class="btn-pelada" id="btnCloseGameCardModal2">
+          <span>Fechar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

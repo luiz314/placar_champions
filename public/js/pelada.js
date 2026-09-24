@@ -134,6 +134,12 @@ document.addEventListener('DOMContentLoaded', () => {
       loadPlayers(activePeladaId);
     } else if (targetId === 'tab-historico') {
       loadMatches();
+    } else if (targetId === 'tab-presenca') {
+      loadAttendance();
+    } else if (targetId === 'tab-ranking') {
+      loadPlayerStats();
+    } else if (targetId === 'tab-mvp') {
+      loadMvpData();
     }
   }
 
@@ -1701,6 +1707,798 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Inicialização
+
+  // ========================================================
+  // MODULO 1: LISTA DE PRESENCA & CHECK-IN (FUNCAO 1)
+  // ========================================================
+  let currentAttendanceList = [];
+  const inputAttendanceDate = document.getElementById('inputAttendanceDate');
+  const attendanceCountBadge = document.getElementById('attendanceCountBadge');
+  const attendanceCountStatus = document.getElementById('attendanceCountStatus');
+  const attendancePercentageStatus = document.getElementById('attendancePercentageStatus');
+  const attendanceProgressFill = document.getElementById('attendanceProgressFill');
+  const attendanceUserActionContainer = document.getElementById('attendanceUserActionContainer');
+  const confirmedListGrid = document.getElementById('confirmedListGrid');
+  const waitlistSection = document.getElementById('waitlistSection');
+  const waitlistGrid = document.getElementById('waitlistGrid');
+  const confirmedTotalDisplay = document.getElementById('confirmedTotalDisplay');
+  const waitlistTotalDisplay = document.getElementById('waitlistTotalDisplay');
+  const adminAttendancePanel = document.getElementById('adminAttendancePanel');
+  const selectAdminAddAttendance = document.getElementById('selectAdminAddAttendance');
+  const btnAdminAddAttendance = document.getElementById('btnAdminAddAttendance');
+  const btnLoadConfirmedAttendance = document.getElementById('btnLoadConfirmedAttendance');
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (inputAttendanceDate) inputAttendanceDate.value = todayStr;
+
+  async function loadAttendance(date = null) {
+    const targetDate = date || (inputAttendanceDate ? inputAttendanceDate.value : todayStr);
+    try {
+      const res = await fetch(`/api/peladas/${activePeladaId}/attendance?date=${targetDate}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.attendances)) {
+        currentAttendanceList = data.attendances;
+        renderAttendanceUI();
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar presenca:', err);
+    }
+  }
+
+  function renderAttendanceUI() {
+    const maxSpots = 12;
+    const confirmed = currentAttendanceList.filter(a => a.status === 'confirmed');
+    const waitlist = currentAttendanceList.filter(a => a.status === 'waitlist');
+
+    // Badge da aba
+    if (attendanceCountBadge) {
+      attendanceCountBadge.textContent = confirmed.length;
+      attendanceCountBadge.style.display = confirmed.length > 0 ? 'inline-block' : 'none';
+    }
+
+    // Progresso
+    const pct = Math.min(100, Math.round((confirmed.length / maxSpots) * 100));
+    if (attendanceCountStatus) {
+      attendanceCountStatus.textContent = `${confirmed.length} / ${maxSpots} Vagas Preenchidas`;
+    }
+    if (attendancePercentageStatus) attendancePercentageStatus.textContent = `${pct}%`;
+    if (attendanceProgressFill) attendanceProgressFill.style.width = `${pct}%`;
+
+    // Totais
+    if (confirmedTotalDisplay) confirmedTotalDisplay.textContent = confirmed.length;
+    if (waitlistTotalDisplay) waitlistTotalDisplay.textContent = waitlist.length;
+    if (waitlistSection) waitlistSection.style.display = waitlist.length > 0 ? 'block' : 'none';
+
+    // Ação do usuário logado
+    const isLuixAdmin = currentUser && (currentUser.role === 'admin' || (currentUser.username && currentUser.username.toLowerCase() === 'luix314@gmail.com'));
+    if (adminAttendancePanel) {
+      adminAttendancePanel.style.display = isLuixAdmin ? 'flex' : 'none';
+      populateAdminAttendanceSelect();
+    }
+
+    if (attendanceUserActionContainer) {
+      if (!currentUser) {
+        attendanceUserActionContainer.innerHTML = `
+          <button type="button" class="btn-pelada btn-pelada-primary" id="btnAttendanceLogin">
+            <span>🔒</span> Entrar para Confirmar Presença
+          </button>
+        `;
+        const btnL = document.getElementById('btnAttendanceLogin');
+        if (btnL && modalAuth) btnL.addEventListener('click', () => modalAuth.classList.add('show'));
+      } else {
+        const myAtt = currentAttendanceList.find(a => Number(a.userId || a.user_id) === Number(currentUser.id));
+        if (myAtt) {
+          const isWait = myAtt.status === 'waitlist';
+          attendanceUserActionContainer.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: ${isWait ? '#fbbf24' : '#10b981'}; font-weight: 700; font-size: 0.9rem;">
+                ${isWait ? '⏳ Na Fila de Espera' : '✅ Presença Confirmada!'}
+              </span>
+              <button type="button" class="btn-pelada" id="btnCancelMyAttendance" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239,68,68,0.5); color: #fca5a5; font-size: 0.8rem; padding: 6px 12px;">
+                Cancelar Presença
+              </button>
+            </div>
+          `;
+          const btnCancel = document.getElementById('btnCancelMyAttendance');
+          if (btnCancel) btnCancel.addEventListener('click', () => toggleMyAttendance());
+        } else {
+          attendanceUserActionContainer.innerHTML = `
+            <button type="button" class="btn-pelada btn-pelada-primary" id="btnConfirmMyAttendance" style="font-weight: 800; padding: 10px 20px;">
+              <span>⚡</span> Confirmar Minha Presença Hoje!
+            </button>
+          `;
+          const btnConf = document.getElementById('btnConfirmMyAttendance');
+          if (btnConf) btnConf.addEventListener('click', () => toggleMyAttendance());
+        }
+      }
+    }
+
+    // Renderiza lista de confirmados
+    if (confirmedListGrid) {
+      if (confirmed.length === 0) {
+        confirmedListGrid.innerHTML = `
+          <div style="color: #94a3b8; font-size: 0.88rem; grid-column: 1/-1; padding: 25px; text-align: center;">
+            Nenhum atleta confirmado nesta data ainda. Seja o primeiro a confirmar!
+          </div>
+        `;
+      } else {
+        confirmedListGrid.innerHTML = '';
+        confirmed.forEach((att, idx) => {
+          const card = createAttendanceChip(att, idx + 1, false, isLuixAdmin);
+          confirmedListGrid.appendChild(card);
+        });
+      }
+    }
+
+    // Renderiza fila de espera
+    if (waitlistGrid) {
+      waitlistGrid.innerHTML = '';
+      waitlist.forEach((att, idx) => {
+        const card = createAttendanceChip(att, idx + 1, true, isLuixAdmin);
+        waitlistGrid.appendChild(card);
+      });
+    }
+  }
+
+  function createAttendanceChip(att, orderNum, isWaitlist, isLuixAdmin) {
+    const chip = document.createElement('div');
+    chip.className = `attendance-player-chip ${isWaitlist ? 'waitlist' : ''}`;
+    const initial = (att.playerName || att.player_name || 'A').charAt(0).toUpperCase();
+
+    // Tenta encontrar foto se vinculado a jogador cadastrado
+    const matchedPlayer = playersList.find(p => 
+      (att.playerId && Number(p.id) === Number(att.playerId)) ||
+      (p.name.toLowerCase() === (att.playerName || att.player_name).toLowerCase())
+    );
+
+    chip.innerHTML = `
+      <div class="chip-order-badge">#${orderNum}</div>
+      ${matchedPlayer && matchedPlayer.photo_url ? `
+        <img src="${escapeHtml(matchedPlayer.photo_url)}" alt="Foto" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${isWaitlist ? '#fbbf24' : '#10b981'};">
+      ` : `
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #38bdf8; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.1);">
+          ${initial}
+        </div>
+      `}
+      <div style="flex: 1; min-width: 0;">
+        <strong style="color: #fff; font-size: 0.9rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${escapeHtml(att.playerName || att.player_name)}
+        </strong>
+        <span style="font-size: 0.72rem; color: ${isWaitlist ? '#fbbf24' : '#6ee7b7'};">
+          ${isWaitlist ? 'Fila de Espera' : '✓ Confirmado'}
+        </span>
+      </div>
+      ${isLuixAdmin ? `
+        <button type="button" class="btn-remove-attendance" data-id="${att.id}" style="background: transparent; border: none; color: #f87171; cursor: pointer; padding: 4px; font-size: 0.85rem;" title="Remover presença">
+          &times;
+        </button>
+      ` : ''}
+    `;
+
+    const btnRem = chip.querySelector('.btn-remove-attendance');
+    if (btnRem) {
+      btnRem.addEventListener('click', async () => {
+        if (confirm(`Remover presença de ${att.playerName || att.player_name}?`)) {
+          await fetch(`/api/peladas/${activePeladaId}/attendance/${att.id}`, { method: 'DELETE' });
+          await loadAttendance();
+        }
+      });
+    }
+
+    return chip;
+  }
+
+  async function toggleMyAttendance() {
+    if (!currentUser) return;
+    const targetDate = inputAttendanceDate ? inputAttendanceDate.value : todayStr;
+    try {
+      const res = await fetch(`/api/peladas/${activePeladaId}/attendance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
+        body: JSON.stringify({
+          date: targetDate,
+          userId: currentUser.id,
+          playerName: currentUser.name || currentUser.username
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.result && data.result.action === 'removed') {
+          showToast('Sua presença foi cancelada.');
+        } else {
+          showToast('⚡ Presença confirmada com sucesso!');
+        }
+        await loadAttendance(targetDate);
+      }
+    } catch (e) {
+      showToast('Erro ao atualizar presença.');
+    }
+  }
+
+  function populateAdminAttendanceSelect() {
+    if (!selectAdminAddAttendance) return;
+    selectAdminAddAttendance.innerHTML = '<option value="" disabled selected>Escolha um atleta cadastrado...</option>';
+    playersList.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name} (${p.position || 'Geral'})`;
+      selectAdminAddAttendance.appendChild(opt);
+    });
+  }
+
+  if (btnAdminAddAttendance) {
+    btnAdminAddAttendance.addEventListener('click', async () => {
+      const pId = selectAdminAddAttendance.value;
+      const player = playersList.find(p => Number(p.id) === Number(pId));
+      if (!player) {
+        alert('Selecione um jogador.');
+        return;
+      }
+      const targetDate = inputAttendanceDate ? inputAttendanceDate.value : todayStr;
+      try {
+        const res = await fetch(`/api/peladas/${activePeladaId}/attendance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: targetDate,
+            playerId: player.id,
+            playerName: player.name
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Presença de ${player.name} adicionada!`);
+          await loadAttendance(targetDate);
+        }
+      } catch(e) {
+        showToast('Erro ao adicionar atleta.');
+      }
+    });
+  }
+
+  if (inputAttendanceDate) {
+    inputAttendanceDate.addEventListener('change', () => {
+      loadAttendance(inputAttendanceDate.value);
+    });
+  }
+
+  // Integração com o Sorteador: Carregar Confirmados do Dia com 1 clique
+  if (btnLoadConfirmedAttendance) {
+    btnLoadConfirmedAttendance.addEventListener('click', () => {
+      const confirmed = currentAttendanceList.filter(a => a.status === 'confirmed');
+      if (confirmed.length === 0) {
+        alert('Nenhum atleta confirmado na lista de presença para esta data. Acesse a aba "Presença da Rodada" primeiro!');
+        return;
+      }
+
+      selectedPlayerIds.clear();
+      let matchedCount = 0;
+
+      confirmed.forEach(att => {
+        // Encontra o jogador pelo ID ou pelo nome
+        const p = playersList.find(pl => 
+          (att.playerId && Number(pl.id) === Number(att.playerId)) ||
+          (pl.name.toLowerCase() === (att.playerName || att.player_name).toLowerCase())
+        );
+        if (p) {
+          selectedPlayerIds.add(p.id);
+          matchedCount++;
+        }
+      });
+
+      renderPlayerSelectionGrid();
+      updateSelectedCount();
+      showToast(`📋 ${matchedCount} atletas confirmados selecionados para o sorteio!`);
+    });
+  }
+
+  // ========================================================
+  // MODULO 3: ESTATISTICAS & RANKING DE VITORIAS (FUNCAO 3)
+  // ========================================================
+  const statsPodiumContainer = document.getElementById('statsPodiumContainer');
+  const playerStatsTableBody = document.getElementById('playerStatsTableBody');
+  const btnRefreshStats = document.getElementById('btnRefreshStats');
+
+  async function loadPlayerStats() {
+    try {
+      const res = await fetch(`/api/peladas/${activePeladaId}/stats`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.stats)) {
+        renderPlayerStatsUI(data.stats);
+      }
+    } catch(err) {
+      console.warn('Erro ao carregar estatisticas:', err);
+    }
+  }
+
+  function renderPlayerStatsUI(stats) {
+    // 1. Podio (Top 3)
+    if (statsPodiumContainer) {
+      statsPodiumContainer.innerHTML = '';
+      const top3 = stats.slice(0, 3);
+      const medals = ['🥇', '🥈', '🥉'];
+      const classes = ['gold', 'silver', 'bronze'];
+      const titles = ['1º Lugar (Ouro)', '2º Lugar (Prata)', '3º Lugar (Bronze)'];
+
+      top3.forEach((s, idx) => {
+        const card = document.createElement('div');
+        card.className = `podium-card ${classes[idx]}`;
+        const initial = s.name.charAt(0).toUpperCase();
+
+        card.innerHTML = `
+          <div class="podium-medal">${medals[idx]}</div>
+          <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">${titles[idx]}</div>
+          ${s.photo_url ? `
+            <img src="${escapeHtml(s.photo_url)}" alt="${escapeHtml(s.name)}" class="podium-avatar">
+          ` : `
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #38bdf8; font-size: 1.3rem; margin: 4px auto; border: 2px solid rgba(255,255,255,0.15);">
+              ${initial}
+            </div>
+          `}
+          <strong style="color: #fff; font-size: 1.1rem;">${escapeHtml(s.name)}</strong>
+          <div style="font-size: 0.85rem; color: #34d399; font-weight: 800;">
+            ${s.wins} vitória${s.wins === 1 ? '' : 's'} (${s.winRate}%)
+          </div>
+          <div style="font-size: 0.75rem; color: #94a3b8;">
+            ${s.matchesPlayed} partida${s.matchesPlayed === 1 ? '' : 's'} jogada${s.matchesPlayed === 1 ? '' : 's'}
+          </div>
+        `;
+        statsPodiumContainer.appendChild(card);
+      });
+    }
+
+    // 2. Tabela Geral
+    if (playerStatsTableBody) {
+      playerStatsTableBody.innerHTML = '';
+      if (stats.length === 0) {
+        playerStatsTableBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; color: #94a3b8; padding: 25px;">
+              Nenhum dado de partidas registrado ainda.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      stats.forEach((s, idx) => {
+        const tr = document.createElement('tr');
+        const initial = s.name.charAt(0).toUpperCase();
+
+        tr.innerHTML = `
+          <td><strong>#${idx + 1}</strong></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${s.photo_url ? `
+                <img src="${escapeHtml(s.photo_url)}" alt="${escapeHtml(s.name)}" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+              ` : `
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: #1e293b; color: #38bdf8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;">
+                  ${initial}
+                </div>
+              `}
+              <strong style="color: #fff;">${escapeHtml(s.name)}</strong>
+            </div>
+          </td>
+          <td><span style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${escapeHtml(s.position || 'Geral')}</span></td>
+          <td style="text-align: center; color: #cbd5e1;">${s.matchesPlayed}</td>
+          <td style="text-align: center; font-weight: 800; color: #34d399;">${s.wins}</td>
+          <td style="text-align: center; color: #f87171;">${s.losses}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+              <span style="font-weight: 700; color: #fbbf24;">${s.winRate}%</span>
+            </div>
+          </td>
+          <td style="text-align: right; font-weight: 700; color: #fbbf24;">⭐ ${Number(s.overall || 0).toFixed(1)}</td>
+        `;
+        playerStatsTableBody.appendChild(tr);
+      });
+    }
+  }
+
+  if (btnRefreshStats) {
+    btnRefreshStats.addEventListener('click', () => loadPlayerStats());
+  }
+
+  // ========================================================
+  // MODULO 4: GERADOR DE CARD INSTAGRAM / WHATSAPP (FUNCAO 4)
+  // ========================================================
+  const modalGameCard = document.getElementById('modalGameCard');
+  const btnCloseGameCardModal = document.getElementById('btnCloseGameCardModal');
+  const btnCloseGameCardModal2 = document.getElementById('btnCloseGameCardModal2');
+  const btnOpenInstagramCardModal = document.getElementById('btnOpenInstagramCardModal');
+  const gameCardCanvas = document.getElementById('gameCardCanvas');
+  const btnCardFormatStories = document.getElementById('btnCardFormatStories');
+  const btnCardFormatPost = document.getElementById('btnCardFormatPost');
+  const btnDownloadCardPng = document.getElementById('btnDownloadCardPng');
+
+  let currentCardFormat = 'stories'; // 'stories' (9:16) ou 'post' (1:1)
+
+  function openGameCardModal() {
+    if (!lastBalancedResult || !lastBalancedResult.teams || lastBalancedResult.teams.length < 2) {
+      alert('Sorteie os times primeiro no botão "Equilibrar Times Agora" antes de gerar o card!');
+      return;
+    }
+    if (modalGameCard) modalGameCard.classList.add('show');
+    drawGameCard(currentCardFormat);
+  }
+
+  if (btnOpenInstagramCardModal) {
+    btnOpenInstagramCardModal.addEventListener('click', () => openGameCardModal());
+  }
+  if (btnCloseGameCardModal) {
+    btnCloseGameCardModal.addEventListener('click', () => modalGameCard.classList.remove('show'));
+  }
+  if (btnCloseGameCardModal2) {
+    btnCloseGameCardModal2.addEventListener('click', () => modalGameCard.classList.remove('show'));
+  }
+
+  if (btnCardFormatStories) {
+    btnCardFormatStories.addEventListener('click', () => {
+      currentCardFormat = 'stories';
+      btnCardFormatStories.classList.add('active');
+      btnCardFormatPost.classList.remove('active');
+      drawGameCard('stories');
+    });
+  }
+  if (btnCardFormatPost) {
+    btnCardFormatPost.addEventListener('click', () => {
+      currentCardFormat = 'post';
+      btnCardFormatPost.classList.add('active');
+      btnCardFormatStories.classList.remove('active');
+      drawGameCard('post');
+    });
+  }
+
+  function drawGameCard(format = 'stories') {
+    if (!gameCardCanvas || !lastBalancedResult) return;
+    const ctx = gameCardCanvas.getContext('2d');
+
+    const width = 1080;
+    const height = (format === 'stories') ? 1920 : 1080;
+    gameCardCanvas.width = width;
+    gameCardCanvas.height = height;
+
+    // Fundo escuro esportivo com gradiente radial
+    const bgGrad = ctx.createRadialGradient(width / 2, height / 3, 50, width / 2, height / 2, width);
+    bgGrad.addColorStop(0, '#0f172a');
+    bgGrad.addColorStop(0.6, '#07090e');
+    bgGrad.addColorStop(1, '#020408');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Linhas estilizadas de quadra de volei
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.08)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(60, 60, width - 120, height - 120);
+    ctx.beginPath();
+    ctx.moveTo(60, height / 2);
+    ctx.lineTo(width - 60, height / 2);
+    ctx.stroke();
+
+    // Topo: Marca e Sessão
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00f2fe';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillText('🏐 VÔLEI PRO • SALA ' + (activePeladaId || '733849'), width / 2, (format === 'stories') ? 160 : 110);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 54px sans-serif';
+    ctx.fillText('ESCALAÇÃO OFICIAL DA RODADA', width / 2, (format === 'stories') ? 230 : 170);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '28px sans-serif';
+    ctx.fillText(`Partida Equilibrada por Habilidades • ${new Date().toLocaleDateString('pt-BR')}`, width / 2, (format === 'stories') ? 280 : 215);
+
+    // Times A e B
+    const teams = lastBalancedResult.teams;
+    const teamA = teams[0];
+    const teamB = teams[1];
+
+    if (format === 'stories') {
+      // Stories: Time A no bloco superior, Time B no bloco inferior com VS no meio
+      drawTeamBoxCanvas(ctx, teamA, 'TIME A', 100, 360, width - 200, 560, '#00f2fe', '#3b82f6');
+      
+      // Circulo "VS" central
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(width / 2, 970, 50, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText('VS', width / 2, 982);
+
+      drawTeamBoxCanvas(ctx, teamB, 'TIME B', 100, 1020, width - 200, 560, '#fbbf24', '#f59e0b');
+
+      // Rodapé
+      ctx.fillStyle = '#64748b';
+      ctx.font = '24px sans-serif';
+      ctx.fillText('placarchampions.up.railway.app • Vôlei Multi-Sessões', width / 2, height - 90);
+
+    } else {
+      // Post 1:1: Lado a Lado
+      const colW = (width - 180) / 2;
+      drawTeamBoxCanvas(ctx, teamA, 'TIME A', 70, 260, colW, 640, '#00f2fe', '#3b82f6');
+      drawTeamBoxCanvas(ctx, teamB, 'TIME B', 110 + colW, 260, colW, 640, '#fbbf24', '#f59e0b');
+
+      // Badge VS no meio
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(width / 2, 580, 40, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillText('VS', width / 2, 590);
+
+      // Rodapé
+      ctx.fillStyle = '#64748b';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('Equilíbrio garantido com base em estrelas e fundamentos • Vôlei Pro', width / 2, height - 70);
+    }
+  }
+
+  function drawTeamBoxCanvas(ctx, team, defaultName, x, y, w, h, accentColor, gradColor) {
+    if (!team) return;
+    // Caixa arredondada
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    roundRect(ctx, x, y, w, h, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    // Topo da caixa do time
+    ctx.fillStyle = accentColor;
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(team.name || defaultName, x + 30, y + 55);
+
+    // Média do time
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(`⭐ ${Number(team.avgOverall || 0).toFixed(1)}`, x + w - 30, y + 55);
+
+    // Divisória
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.moveTo(x + 20, y + 75);
+    ctx.lineTo(x + w - 20, y + 75);
+    ctx.stroke();
+
+    // Lista de jogadores
+    const players = team.players || [];
+    let startY = y + 125;
+    const lineHeight = 55;
+
+    players.forEach((p, idx) => {
+      ctx.textAlign = 'left';
+      // Número
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 26px monospace';
+      ctx.fillText(`${idx + 1}.`, x + 30, startY);
+
+      // Nome do Jogador
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 30px sans-serif';
+      ctx.fillText(p.name, x + 70, startY);
+
+      // Posição
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '24px sans-serif';
+      ctx.fillText(p.position || 'Geral', x + w - 30, startY);
+
+      startY += lineHeight;
+    });
+
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  if (btnDownloadCardPng) {
+    btnDownloadCardPng.addEventListener('click', () => {
+      if (!gameCardCanvas) return;
+      const link = document.createElement('a');
+      link.download = `volei_card_${currentCardFormat}_${new Date().toISOString().slice(0,10)}.png`;
+      link.href = gameCardCanvas.toDataURL('image/png');
+      link.click();
+      showToast('📥 Imagem baixada com sucesso!');
+    });
+  }
+
+  // ========================================================
+  // MODULO 5: VOTACAO DE CRAQUES / MVP POS-JOGO (FUNCAO 5)
+  // ========================================================
+  const inputMvpDate = document.getElementById('inputMvpDate');
+  const formMvpVote = document.getElementById('formMvpVote');
+  const selectMvpPlayer = document.getElementById('selectMvpPlayer');
+  const selectDefensePlayer = document.getElementById('selectDefensePlayer');
+  const selectPassPlayer = document.getElementById('selectPassPlayer');
+  const selectFunnyPlayer = document.getElementById('selectFunnyPlayer');
+  const mvpVoteStatusMsg = document.getElementById('mvpVoteStatusMsg');
+  const mvpPodiumDisplay = document.getElementById('mvpPodiumDisplay');
+  const btnSubmitMvpVote = document.getElementById('btnSubmitMvpVote');
+
+  if (inputMvpDate) inputMvpDate.value = todayStr;
+
+  async function loadMvpData(date = null) {
+    const targetDate = date || (inputMvpDate ? inputMvpDate.value : todayStr);
+    try {
+      const url = currentUser ? 
+        `/api/peladas/${activePeladaId}/mvp?date=${targetDate}&userId=${currentUser.id}` : 
+        `/api/peladas/${activePeladaId}/mvp?date=${targetDate}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success && data.mvp) {
+        renderMvpUI(data.mvp);
+      }
+    } catch(err) {
+      console.warn('Erro ao carregar dados MVP:', err);
+    }
+  }
+
+  function renderMvpUI(mvp) {
+    // Popula selects com jogadores cadastrados
+    const selects = [selectMvpPlayer, selectDefensePlayer, selectPassPlayer, selectFunnyPlayer];
+    selects.forEach(sel => {
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Selecione o atleta...</option>';
+      playersList.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.position || 'Geral'})`;
+        sel.appendChild(opt);
+      });
+      if (cur) sel.value = cur;
+    });
+
+    // Se o usuário logado já votou hoje
+    if (currentUser) {
+      if (mvp.myVote) {
+        const my = mvp.myVote;
+        if (selectMvpPlayer && my.mvpPlayerId) selectMvpPlayer.value = my.mvpPlayerId;
+        if (selectDefensePlayer && my.defensePlayerId) selectDefensePlayer.value = my.defensePlayerId;
+        if (selectPassPlayer && my.passPlayerId) selectPassPlayer.value = my.passPlayerId;
+        if (selectFunnyPlayer && my.funnyPlayerId) selectFunnyPlayer.value = my.funnyPlayerId;
+
+        if (mvpVoteStatusMsg) {
+          mvpVoteStatusMsg.innerHTML = `<span style="color:#10b981; font-weight:700;">✓ Você já votou nesta rodada!</span> Seus votos estão preenchidos acima e você pode alterá-los a qualquer momento.`;
+        }
+        if (btnSubmitMvpVote) btnSubmitMvpVote.innerHTML = '<span>⭐ Atualizar Meus Votos</span>';
+      } else {
+        if (mvpVoteStatusMsg) {
+          mvpVoteStatusMsg.innerHTML = `👤 Votando como: <strong style="color:#fbbf24">${escapeHtml(currentUser.name || currentUser.username)}</strong>.`;
+        }
+        if (btnSubmitMvpVote) btnSubmitMvpVote.innerHTML = '<span>⭐ Gravar Meus Votos de Craque</span>';
+      }
+    } else {
+      if (mvpVoteStatusMsg) {
+        mvpVoteStatusMsg.innerHTML = `🔒 <strong>Apenas usuários logados podem votar no MVP.</strong>`;
+      }
+    }
+
+    // Renderiza Podio dos Mais Votados
+    if (mvpPodiumDisplay) {
+      mvpPodiumDisplay.innerHTML = '';
+      const categories = [
+        { key: 'mvp', title: 'Craque da Noite (MVP)', icon: '👑', color: '#fbbf24' },
+        { key: 'defense', title: 'Troféu Muralha (Defesa)', icon: '🛡️', color: '#38bdf8' },
+        { key: 'pass', title: 'Troféu Garçom (Passe)', icon: '⚡', color: '#c084fc' },
+        { key: 'funny', title: 'Troféu Furada (Cômico)', icon: '😅', color: '#fb7185' }
+      ];
+
+      categories.forEach(cat => {
+        const winners = (mvp.podium && mvp.podium[cat.key]) ? mvp.podium[cat.key] : [];
+        const topWinner = winners[0];
+
+        const card = document.createElement('div');
+        card.className = 'podium-card';
+        card.style.borderColor = cat.color;
+
+        if (topWinner && topWinner.voteCount > 0) {
+          const p = topWinner.player;
+          const initial = p.name ? p.name.charAt(0).toUpperCase() : 'J';
+
+          card.innerHTML = `
+            <div class="podium-medal">${cat.icon}</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: ${cat.color}; font-weight: 800;">${cat.title}</div>
+            ${p.photo_url ? `
+              <img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="podium-avatar" style="border-color:${cat.color};">
+            ` : `
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: #1e293b; color: ${cat.color}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; margin: 4px auto; border: 2px solid ${cat.color};">
+                ${initial}
+              </div>
+            `}
+            <strong style="color: #fff; font-size: 1.05rem;">${escapeHtml(p.name)}</strong>
+            <div style="font-size: 0.82rem; color: #10b981; font-weight: 800;">
+              ${topWinner.voteCount} voto${topWinner.voteCount === 1 ? '' : 's'}
+            </div>
+          `;
+        } else {
+          card.innerHTML = `
+            <div class="podium-medal" style="opacity: 0.4;">${cat.icon}</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">${cat.title}</div>
+            <div style="color: #94a3b8; font-size: 0.85rem; padding: 15px 0;">
+              Aguardando votos...
+            </div>
+          `;
+        }
+        mvpPodiumDisplay.appendChild(card);
+      });
+    }
+  }
+
+  if (formMvpVote) {
+    formMvpVote.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentUser) {
+        if (modalAuth) modalAuth.classList.add('show');
+        showToast('🔒 Faça login para votar nos craques da rodada!');
+        return;
+      }
+
+      const votes = {
+        mvpPlayerId: selectMvpPlayer ? selectMvpPlayer.value : null,
+        defensePlayerId: selectDefensePlayer ? selectDefensePlayer.value : null,
+        passPlayerId: selectPassPlayer ? selectPassPlayer.value : null,
+        funnyPlayerId: selectFunnyPlayer ? selectFunnyPlayer.value : null
+      };
+
+      if (!votes.mvpPlayerId && !votes.defensePlayerId && !votes.passPlayerId && !votes.funnyPlayerId) {
+        alert('Selecione pelo menos um atleta em alguma das categorias para votar.');
+        return;
+      }
+
+      const targetDate = inputMvpDate ? inputMvpDate.value : todayStr;
+      try {
+        const res = await fetch(`/api/peladas/${activePeladaId}/mvp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
+          body: JSON.stringify({
+            date: targetDate,
+            userId: currentUser.id,
+            voterName: currentUser.name || currentUser.username,
+            votes
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('👑 Seus votos de Craques da Rodada foram gravados com sucesso!');
+          await loadMvpData(targetDate);
+        } else {
+          alert(data.error || 'Erro ao salvar voto de craque.');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao salvar voto.');
+      }
+    });
+  }
+
+  if (inputMvpDate) {
+    inputMvpDate.addEventListener('change', () => {
+      loadMvpData(inputMvpDate.value);
+    });
+  }
+
+
+  loadAttendance();
   initUserAuth();
   loadPeladas();
 });

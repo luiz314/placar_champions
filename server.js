@@ -342,6 +342,115 @@ app.delete('/api/peladas/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// FUNCAO 1: ROTAS DE LISTA DE PRESENCA & CHECK-IN
+// ==========================================
+app.get('/api/peladas/:id/attendance', async (req, res) => {
+  try {
+    const { date } = req.query;
+    const attendances = await db.getAttendance(req.params.id, date);
+    res.json({ success: true, attendances });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/peladas/:id/attendance', async (req, res) => {
+  try {
+    const { date, userId, playerName, playerId, maxSpots } = req.body;
+    const effectiveUserId = userId || req.headers['x-user-id'] || null;
+    
+    // Se o usuário estiver autenticado, busca seu nome oficial
+    let finalName = playerName;
+    if (effectiveUserId) {
+      const u = await db.getUserById(effectiveUserId);
+      if (u) finalName = u.name || u.username;
+    }
+
+    if (!finalName || !finalName.trim()) {
+      return res.status(400).json({ success: false, error: 'O nome do atleta e obrigatorio.' });
+    }
+
+    const result = await db.toggleAttendance(
+      req.params.id,
+      date,
+      effectiveUserId,
+      finalName,
+      playerId,
+      maxSpots || 12
+    );
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/peladas/:id/attendance/:attId', async (req, res) => {
+  try {
+    await db.removeAttendance(req.params.attId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// FUNCAO 3: ROTAS DE ESTATISTICAS & RANKING
+// ==========================================
+app.get('/api/peladas/:id/stats', async (req, res) => {
+  try {
+    const stats = await db.getPlayerStats(req.params.id);
+    res.json({ success: true, stats });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// FUNCAO 5: ROTAS DE VOTACAO DE CRAQUES (MVP)
+// ==========================================
+app.get('/api/peladas/:id/mvp', async (req, res) => {
+  try {
+    const { date, userId } = req.query;
+    const effectiveUserId = userId || req.headers['x-user-id'] || null;
+    const mvpData = await db.getMvpVotes(req.params.id, date, effectiveUserId);
+    res.json({ success: true, mvp: mvpData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/peladas/:id/mvp', async (req, res) => {
+  try {
+    const { date, userId, voterName, votes } = req.body;
+    const effectiveUserId = userId || req.headers['x-user-id'] || null;
+
+    if (!effectiveUserId) {
+      return res.status(401).json({ success: false, error: 'Apenas usuarios autenticados podem votar no MVP.' });
+    }
+
+    const authUser = await db.getUserById(effectiveUserId);
+    if (!authUser) {
+      return res.status(401).json({ success: false, error: 'Usuario nao encontrado.' });
+    }
+
+    if (!votes || typeof votes !== 'object') {
+      return res.status(400).json({ success: false, error: 'Votos sao obrigatorios.' });
+    }
+
+    const vote = await db.saveMvpVote(
+      req.params.id,
+      date,
+      authUser.id,
+      authUser.name || authUser.username,
+      votes
+    );
+    res.status(201).json({ success: true, vote });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Listar jogadores com médias de estrelas e overall (com suporte a filtro por peladaId)
 app.get('/api/players', async (req, res) => {
   try {

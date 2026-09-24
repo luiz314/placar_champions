@@ -31,6 +31,8 @@ let Pelada = null;
 let Player = null;
 let PlayerRating = null;
 let PeladaSession = null;
+let Attendance = null;
+let MvpVote = null;
 let isPostgres = false;
 
 // ==========================================
@@ -86,11 +88,14 @@ if (process.env.DATABASE_URL) {
     Match = sequelize.define('Match', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       roomId: { type: DataTypes.STRING, defaultValue: 'DEFAULT' },
+      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
       teamA: { type: DataTypes.STRING, defaultValue: 'LADO A' },
       scoreA: { type: DataTypes.INTEGER, defaultValue: 0 },
       teamB: { type: DataTypes.STRING, defaultValue: 'LADO B' },
       scoreB: { type: DataTypes.INTEGER, defaultValue: 0 },
       winner: { type: DataTypes.STRING, defaultValue: 'Empate' },
+      teamAPlayers: { type: DataTypes.TEXT, allowNull: true },
+      teamBPlayers: { type: DataTypes.TEXT, allowNull: true },
       durationSeconds: { type: DataTypes.INTEGER, defaultValue: 0 },
       matchNumber: { type: DataTypes.INTEGER, defaultValue: 1 }
     }, {
@@ -722,16 +727,23 @@ async function deletePelada(id) {
 // METODOS DE PARTIDAS (MATCHES)
 // ==========================================
 async function saveMatch(matchData) {
-  const { roomId, teamA, scoreA, teamB, scoreB, winner, durationSeconds, matchNumber } = matchData;
+  const { roomId, teamA, scoreA, teamB, scoreB, winner, durationSeconds, matchNumber, teamAPlayers, teamBPlayers, peladaId } = matchData;
+  const teamAStr = Array.isArray(teamAPlayers) ? JSON.stringify(teamAPlayers) : (teamAPlayers || null);
+  const teamBStr = Array.isArray(teamBPlayers) ? JSON.stringify(teamBPlayers) : (teamBPlayers || null);
+  const numPelada = peladaId ? parseInt(peladaId, 10) : 733849;
+
   if (isPostgres && Match) {
     try {
       const match = await Match.create({
         roomId: roomId || 'DEFAULT',
+        peladaId: numPelada,
         teamA: teamA || 'LADO A',
         scoreA: scoreA || 0,
         teamB: teamB || 'LADO B',
         scoreB: scoreB || 0,
         winner: winner || 'Empate',
+        teamAPlayers: teamAStr,
+        teamBPlayers: teamBStr,
         durationSeconds: durationSeconds || 0,
         matchNumber: matchNumber || 1
       });
@@ -746,11 +758,14 @@ async function saveMatch(matchData) {
   const newMatch = {
     id: Date.now(),
     room_id: roomId || 'DEFAULT',
+    pelada_id: numPelada,
     team_a: teamA || 'LADO A',
     score_a: scoreA || 0,
     team_b: teamB || 'LADO B',
     score_b: scoreB || 0,
     winner: winner || 'Empate',
+    team_a_players: teamAStr,
+    team_b_players: teamBStr,
     duration_seconds: durationSeconds || 0,
     match_number: matchNumber || (data.matches.length + 1),
     created_at: new Date().toISOString()
@@ -1153,6 +1168,378 @@ async function savePeladaSession(title, format, teams, bench = [], peladaId = nu
   return session;
 }
 
+
+// ==========================================
+// FUNCAO 1: LISTA DE PRESENCA & CHECK-IN
+// ==========================================
+async function getAttendance(peladaId = 733849, date = null) {
+  const numPelada = parseInt(peladaId, 10) || 733849;
+  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+
+  if (isPostgres && Attendance) {
+    try {
+      const records = await Attendance.findAll({
+        where: { peladaId: numPelada, date: targetDate },
+        order: [['createdAt', 'ASC']]
+      });
+      return records.map(r => r.toJSON());
+    } catch (err) {
+      console.error('Erro ao buscar lista de presenca no Sequelize:', err.message);
+    }
+  }
+
+  const data = getFallbackData();
+  data.attendances = data.attendances || [];
+  return data.attendances.filter(a => Number(a.pelada_id) === numPelada && a.date === targetDate);
+}
+
+async function toggleAttendance(peladaId = 733849, date = null, userId = null, playerName = '', playerId = null, maxSpots = 12) {
+  const numPelada = parseInt(peladaId, 10) || 733849;
+  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const cleanName = String(playerName || '').trim();
+  const numUserId = userId ? parseInt(userId, 10) : null;
+  const numPlayerId = playerId ? parseInt(playerId, 10) : null;
+
+  if (isPostgres && Attendance) {
+    try {
+      // Se usuario logado, verifica se ja confirmou hoje
+      let existing = null;
+      if (numUserId) {
+        existing = await Attendance.findOne({
+          where: { peladaId: numPelada, date: targetDate, userId: numUserId }
+        });
+      } else if (cleanName) {
+        existing = await Attendance.findOne({
+          where: { peladaId: numPelada, date: targetDate, playerName: cleanName }
+        });
+      }
+
+      if (existing) {
+        // Se ja existe, remove a presenca (toggle cancelar)
+        await existing.destroy();
+        return { action: 'removed', date: targetDate };
+      }
+
+      // Conta confirmados atuais para decidir se vai para fila de espera
+      const confirmedCount = await Attendance.count({
+        where: { peladaId: numPelada, date: targetDate, status: 'confirmed' }
+      });
+      const status = confirmedCount >= maxSpots ? 'waitlist' : 'confirmed';
+
+      const record = await Attendance.create({
+        peladaId: numPelada,
+        date: targetDate,
+        userId: numUserId,
+        playerId: numPlayerId,
+        playerName: cleanName || 'Atleta',
+        status: status
+      });
+
+      return { action: 'added', attendance: record.toJSON() };
+    } catch (err) {
+      console.error('Erro ao alternar presenca no Sequelize:', err.message);
+      throw err;
+    }
+  }
+
+  // Fallback
+  const data = getFallbackData();
+  data.attendances = data.attendances || [];
+  const idx = data.attendances.findIndex(a => 
+    Number(a.pelada_id) === numPelada && 
+    a.date === targetDate && 
+    ((numUserId && Number(a.user_id) === numUserId) || (cleanName && a.player_name.toLowerCase() === cleanName.toLowerCase()))
+  );
+
+  if (idx !== -1) {
+    data.attendances.splice(idx, 1);
+    saveFallbackData(data);
+    return { action: 'removed', date: targetDate };
+  }
+
+  const confirmedCount = data.attendances.filter(a => Number(a.pelada_id) === numPelada && a.date === targetDate && a.status === 'confirmed').length;
+  const status = confirmedCount >= maxSpots ? 'waitlist' : 'confirmed';
+
+  const newAtt = {
+    id: Date.now(),
+    pelada_id: numPelada,
+    date: targetDate,
+    user_id: numUserId,
+    player_id: numPlayerId,
+    player_name: cleanName || 'Atleta',
+    status,
+    created_at: new Date().toISOString()
+  };
+  data.attendances.push(newAtt);
+  saveFallbackData(data);
+  return { action: 'added', attendance: newAtt };
+}
+
+async function removeAttendance(attendanceId) {
+  const numId = parseInt(attendanceId, 10);
+  if (isPostgres && Attendance) {
+    try {
+      await Attendance.destroy({ where: { id: numId } });
+      return { success: true };
+    } catch (err) {
+      console.error('Erro ao remover presenca no Sequelize:', err.message);
+    }
+  }
+
+  const data = getFallbackData();
+  data.attendances = data.attendances || [];
+  data.attendances = data.attendances.filter(a => Number(a.id) !== numId);
+  saveFallbackData(data);
+  return { success: true };
+}
+
+// ==========================================
+// FUNCAO 3: ESTATISTICAS & RANKING DE VITORIAS
+// ==========================================
+async function getPlayerStats(peladaId = 733849) {
+  const numPelada = parseInt(peladaId, 10) || 733849;
+  const players = await getPlayersWithRatings(numPelada);
+  let matches = [];
+
+  if (isPostgres && Match) {
+    try {
+      const dbMatches = await Match.findAll({
+        where: {
+          [Op.or]: [{ peladaId: numPelada }, { peladaId: null }]
+        },
+        order: [['createdAt', 'DESC']]
+      });
+      matches = dbMatches.map(m => m.toJSON());
+    } catch (err) {
+      console.error('Erro ao buscar partidas para estatisticas:', err.message);
+    }
+  } else {
+    const data = getFallbackData();
+    matches = (data.matches || []).filter(m => !m.pelada_id || Number(m.pelada_id) === numPelada);
+  }
+
+  // Mapa de estatisticas por jogador
+  const statsMap = {};
+  players.forEach(p => {
+    statsMap[p.id] = {
+      id: p.id,
+      name: p.name,
+      nickname: p.nickname,
+      photo_url: p.photo_url,
+      position: p.position,
+      overall: p.overall,
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0
+    };
+  });
+
+  matches.forEach(m => {
+    let teamAPlayers = [];
+    let teamBPlayers = [];
+
+    try {
+      if (typeof m.teamAPlayers === 'string') teamAPlayers = JSON.parse(m.teamAPlayers);
+      else if (typeof m.team_a_players === 'string') teamAPlayers = JSON.parse(m.team_a_players);
+      else if (Array.isArray(m.teamAPlayers)) teamAPlayers = m.teamAPlayers;
+
+      if (typeof m.teamBPlayers === 'string') teamBPlayers = JSON.parse(m.teamBPlayers);
+      else if (typeof m.team_b_players === 'string') teamBPlayers = JSON.parse(m.team_b_players);
+      else if (Array.isArray(m.teamBPlayers)) teamBPlayers = m.teamBPlayers;
+    } catch (e) {
+      // Ignora erro de parse em partidas legadas
+    }
+
+    const winner = String(m.winner || '').toUpperCase();
+    const teamAWon = winner.includes('LADO A') || winner.includes('TIME A') || winner.includes('EQUIPE A');
+    const teamBWon = winner.includes('LADO B') || winner.includes('TIME B') || winner.includes('EQUIPE B');
+
+    // Processa time A
+    teamAPlayers.forEach(item => {
+      const pId = typeof item === 'object' ? item.id : item;
+      if (statsMap[pId]) {
+        statsMap[pId].matchesPlayed += 1;
+        if (teamAWon) statsMap[pId].wins += 1;
+        else if (teamBWon) statsMap[pId].losses += 1;
+      }
+    });
+
+    // Processa time B
+    teamBPlayers.forEach(item => {
+      const pId = typeof item === 'object' ? item.id : item;
+      if (statsMap[pId]) {
+        statsMap[pId].matchesPlayed += 1;
+        if (teamBWon) statsMap[pId].wins += 1;
+        else if (teamAWon) statsMap[pId].losses += 1;
+      }
+    });
+  });
+
+  // Calcula % de vitoria
+  const statsList = Object.values(statsMap).map(s => {
+    const rate = s.matchesPlayed > 0 ? (s.wins / s.matchesPlayed) * 100 : 0;
+    return {
+      ...s,
+      winRate: parseFloat(rate.toFixed(1))
+    };
+  });
+
+  // Ordena por vitorias DESC, winRate DESC, overall DESC
+  statsList.sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+    return (b.overall || 0) - (a.overall || 0);
+  });
+
+  return statsList;
+}
+
+// ==========================================
+// FUNCAO 5: VOTACAO DE CRAQUES DA RODADA (MVP)
+// ==========================================
+async function getMvpVotes(peladaId = 733849, date = null, userId = null) {
+  const numPelada = parseInt(peladaId, 10) || 733849;
+  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const numUserId = userId ? parseInt(userId, 10) : null;
+
+  let allVotes = [];
+  if (isPostgres && MvpVote) {
+    try {
+      const records = await MvpVote.findAll({
+        where: { peladaId: numPelada, date: targetDate }
+      });
+      allVotes = records.map(r => r.toJSON());
+    } catch (err) {
+      console.error('Erro ao buscar votos MVP no Sequelize:', err.message);
+    }
+  } else {
+    const data = getFallbackData();
+    data.mvp_votes = data.mvp_votes || [];
+    allVotes = data.mvp_votes.filter(v => Number(v.pelada_id) === numPelada && v.date === targetDate);
+  }
+
+  // Identifica voto do usuário requisitante
+  const myVote = numUserId ? allVotes.find(v => Number(v.userId || v.user_id) === numUserId) : null;
+
+  // Contabiliza votos para cada categoria
+  const counts = {
+    mvp: {},
+    defense: {},
+    pass: {},
+    funny: {}
+  };
+
+  allVotes.forEach(v => {
+    const mvpId = v.mvpPlayerId || v.mvp_player_id;
+    const defId = v.defensePlayerId || v.defense_player_id;
+    const passId = v.passPlayerId || v.pass_player_id;
+    const funId = v.funnyPlayerId || v.funny_player_id;
+
+    if (mvpId) counts.mvp[mvpId] = (counts.mvp[mvpId] || 0) + 1;
+    if (defId) counts.defense[defId] = (counts.defense[defId] || 0) + 1;
+    if (passId) counts.pass[passId] = (counts.pass[passId] || 0) + 1;
+    if (funId) counts.funny[funId] = (counts.funny[funId] || 0) + 1;
+  });
+
+  const players = await getPlayersWithRatings(numPelada);
+  const playersMap = {};
+  players.forEach(p => { playersMap[p.id] = p; });
+
+  function getPodium(catDict) {
+    return Object.entries(catDict)
+      .map(([pId, voteCount]) => ({
+        player: playersMap[pId] || { id: pId, name: 'Jogador #' + pId },
+        voteCount
+      }))
+      .sort((a, b) => b.voteCount - a.voteCount);
+  }
+
+  return {
+    date: targetDate,
+    totalVoters: allVotes.length,
+    myVote: myVote || null,
+    podium: {
+      mvp: getPodium(counts.mvp),
+      defense: getPodium(counts.defense),
+      pass: getPodium(counts.pass),
+      funny: getPodium(counts.funny)
+    }
+  };
+}
+
+async function saveMvpVote(peladaId = 733849, date = null, userId, voterName, votes) {
+  const numPelada = parseInt(peladaId, 10) || 733849;
+  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const numUserId = parseInt(userId, 10);
+  const cleanVoter = String(voterName || 'Atleta').trim();
+  const { mvpPlayerId, defensePlayerId, passPlayerId, funnyPlayerId } = votes;
+
+  if (isPostgres && MvpVote) {
+    try {
+      let vote = await MvpVote.findOne({
+        where: { peladaId: numPelada, date: targetDate, userId: numUserId }
+      });
+
+      if (vote) {
+        vote.voterName = cleanVoter;
+        vote.mvpPlayerId = mvpPlayerId ? parseInt(mvpPlayerId, 10) : null;
+        vote.defensePlayerId = defensePlayerId ? parseInt(defensePlayerId, 10) : null;
+        vote.passPlayerId = passPlayerId ? parseInt(passPlayerId, 10) : null;
+        vote.funnyPlayerId = funnyPlayerId ? parseInt(funnyPlayerId, 10) : null;
+        await vote.save();
+        return vote.toJSON();
+      } else {
+        vote = await MvpVote.create({
+          peladaId: numPelada,
+          date: targetDate,
+          userId: numUserId,
+          voterName: cleanVoter,
+          mvpPlayerId: mvpPlayerId ? parseInt(mvpPlayerId, 10) : null,
+          defensePlayerId: defensePlayerId ? parseInt(defensePlayerId, 10) : null,
+          passPlayerId: passPlayerId ? parseInt(passPlayerId, 10) : null,
+          funnyPlayerId: funnyPlayerId ? parseInt(funnyPlayerId, 10) : null
+        });
+        return vote.toJSON();
+      }
+    } catch (err) {
+      console.error('Erro ao salvar voto MVP no Sequelize:', err.message);
+      throw err;
+    }
+  }
+
+  // Fallback
+  const data = getFallbackData();
+  data.mvp_votes = data.mvp_votes || [];
+  let existingIdx = data.mvp_votes.findIndex(v => 
+    Number(v.pelada_id) === numPelada && 
+    v.date === targetDate && 
+    Number(v.user_id) === numUserId
+  );
+
+  const voteObj = {
+    id: Date.now(),
+    pelada_id: numPelada,
+    date: targetDate,
+    user_id: numUserId,
+    voter_name: cleanVoter,
+    mvp_player_id: mvpPlayerId ? parseInt(mvpPlayerId, 10) : null,
+    defense_player_id: defensePlayerId ? parseInt(defensePlayerId, 10) : null,
+    pass_player_id: passPlayerId ? parseInt(passPlayerId, 10) : null,
+    funny_player_id: funnyPlayerId ? parseInt(funnyPlayerId, 10) : null,
+    created_at: new Date().toISOString()
+  };
+
+  if (existingIdx !== -1) {
+    data.mvp_votes[existingIdx] = voteObj;
+  } else {
+    data.mvp_votes.push(voteObj);
+  }
+  saveFallbackData(data);
+  return voteObj;
+}
+
+
 module.exports = {
   sequelize,
   models: { Match, User, Pelada, Player, PlayerRating, PeladaSession },
@@ -1176,5 +1563,11 @@ module.exports = {
   addPlayerRating,
   getPlayerRatings,
   savePeladaSession,
-  calculateOverall
+  calculateOverall,
+  getAttendance,
+  toggleAttendance,
+  removeAttendance,
+  getPlayerStats,
+  getMvpVotes,
+  saveMvpVote
 };
