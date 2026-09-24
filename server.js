@@ -404,17 +404,36 @@ app.post('/api/players/:id/rate', async (req, res) => {
     const effectiveSetPass = setPass !== undefined ? setPass : set_pass;
     const effectiveUserId = userId || req.headers['x-user-id'] || null;
 
+    // REGRA MANDATÓRIA: Apenas usuários logados poderão avaliar outros jogadores
+    if (!effectiveUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Apenas usuários autenticados podem avaliar outros jogadores. Por favor, faça login para registrar sua nota.'
+      });
+    }
+
+    const authUser = await db.getUserById(effectiveUserId);
+    if (!authUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sessão inválida ou usuário não encontrado. Por favor, faça login novamente.'
+      });
+    }
+
     if (attack === undefined || defense === undefined || effectiveSetPass === undefined || movement === undefined) {
       return res.status(400).json({ success: false, error: 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.' });
     }
+
+    const voterCleanName = authUser.name || authUser.username || voterName || 'Avaliador';
+
     const rating = await db.addPlayerRating(
       req.params.id,
-      voterName || 'Anônimo',
+      voterCleanName,
       attack,
       defense,
       effectiveSetPass,
       movement,
-      effectiveUserId
+      authUser.id
     );
     res.status(201).json({ success: true, rating });
   } catch (err) {

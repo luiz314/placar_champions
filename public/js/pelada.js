@@ -1377,11 +1377,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
         if (inlineRateUserBadge) {
           inlineRateUserBadge.innerHTML = `👤 Votando como: <strong style="color: #fbbf24;">${escapeHtml(currentUser.name || currentUser.username)}</strong>`;
+          inlineRateUserBadge.style.cursor = 'default';
+          inlineRateUserBadge.style.background = 'rgba(0, 242, 254, 0.08)';
+          inlineRateUserBadge.style.borderColor = 'rgba(0, 242, 254, 0.3)';
+          inlineRateUserBadge.style.color = '#38bdf8';
+          inlineRateUserBadge.onclick = null;
         }
       }
     } else {
       if (btnOpenAuthModal) btnOpenAuthModal.style.display = 'inline-flex';
       if (userLoggedInfo) userLoggedInfo.style.display = 'none';
+      const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
+      if (inlineRateUserBadge) {
+        inlineRateUserBadge.innerHTML = `🔒 <strong>Apenas usuários logados podem avaliar</strong> (Clique para Entrar)`;
+        inlineRateUserBadge.style.cursor = 'pointer';
+        inlineRateUserBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+        inlineRateUserBadge.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+        inlineRateUserBadge.style.color = '#fca5a5';
+        inlineRateUserBadge.onclick = () => {
+          if (modalAuth) modalAuth.classList.add('show');
+        };
+      }
     }
   }
 

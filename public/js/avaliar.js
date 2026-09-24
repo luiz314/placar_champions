@@ -1,4 +1,27 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Verifica autenticação obrigatória do usuário
+  let currentUser = null;
+  try {
+    const raw = localStorage.getItem('pelada_user');
+    if (raw) currentUser = JSON.parse(raw);
+  } catch(e) {
+    currentUser = null;
+  }
+
+  const authLockCard = document.getElementById('authLockCard');
+  const voterAuthName = document.getElementById('voterAuthName');
+  const voterAvatarPill = document.getElementById('voterAvatarPill');
+
+  if (!currentUser) {
+    if (authLockCard) authLockCard.style.display = 'block';
+    const formEl = document.getElementById('formRatePlayer');
+    if (formEl) formEl.style.display = 'none';
+  } else {
+    if (authLockCard) authLockCard.style.display = 'none';
+    if (voterAuthName) voterAuthName.textContent = currentUser.name || currentUser.username;
+    if (voterAvatarPill) voterAvatarPill.textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
+  }
+
   // Estado local
   let playersList = [];
   const currentRatings = {
@@ -208,21 +231,31 @@ document.addEventListener('DOMContentLoaded', () => {
     formRatePlayer.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      if (!currentUser) {
+        alert('Apenas usuários logados podem avaliar outros jogadores!');
+        window.location.href = '/login';
+        return;
+      }
+
       const playerId = selectPlayer.value;
       if (!playerId) {
         alert('Por favor, selecione um jogador.');
         return;
       }
 
-      const voterName = inputVoterName.value.trim() || 'Anônimo';
+      const voterName = currentUser.name || currentUser.username;
       btnSubmitVote.disabled = true;
       btnSubmitVote.innerHTML = `<span>⏳</span><span>Gravando no Banco...</span>`;
 
       try {
         const res = await fetch(`/api/players/${playerId}/rate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser.id
+          },
           body: JSON.stringify({
+            userId: currentUser.id,
             voterName: voterName,
             attack: currentRatings.attack,
             defense: currentRatings.defense,
