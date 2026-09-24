@@ -128,39 +128,58 @@ if (process.env.DATABASE_URL) {
   console.log('ℹ️ DATABASE_URL não definida. Modo fallback para JSON local ativo (data/db_fallback.json).');
 }
 
+const INITIAL_PELADA_PLAYERS = [
+  'Aline',
+  'Airton',
+  'Adriel',
+  'Murilo',
+  'Lucas',
+  'Rodrigo',
+  'Roberta',
+  'Luiz',
+  'Thomas',
+  'Noelle',
+  'Evaldo',
+  'Bia'
+];
+
 // Helper para banco de dados fallback local JSON
 function getFallbackData() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+
+  const defaultPlayers = INITIAL_PELADA_PLAYERS.map((name, idx) => ({
+    id: idx + 1,
+    name: name,
+    nickname: name,
+    position: 'Geral',
+    active: true,
+    createdAt: new Date().toISOString()
+  }));
+
   if (!fs.existsSync(FALLBACK_DB_FILE)) {
     const initial = {
       matches: [],
-      players: [
-        { id: 1, name: 'Lucas Silva', nickname: 'Lucão', position: 'Ponteiro', active: true, createdAt: new Date().toISOString() },
-        { id: 2, name: 'Gabriel Souza', nickname: 'Gabi', position: 'Levantador', active: true, createdAt: new Date().toISOString() },
-        { id: 3, name: 'Matheus Costa', nickname: 'Theus', position: 'Central', active: true, createdAt: new Date().toISOString() },
-        { id: 4, name: 'Rafael Dias', nickname: 'Rafa', position: 'Oposto', active: true, createdAt: new Date().toISOString() },
-        { id: 5, name: 'Bruno Lima', nickname: 'Bruninho', position: 'Líbero', active: true, createdAt: new Date().toISOString() },
-        { id: 6, name: 'Carlos Eduardo', nickname: 'Cadu', position: 'Ponteiro', active: true, createdAt: new Date().toISOString() }
-      ],
-      player_ratings: [
-        { id: 1, player_id: 1, voter_name: 'Organizador', attack: 4.5, defense: 3.5, set_pass: 3.5, movement: 4.0, overall: 3.88, created_at: new Date().toISOString() },
-        { id: 2, player_id: 2, voter_name: 'Organizador', attack: 3.0, defense: 4.0, set_pass: 5.0, movement: 4.5, overall: 4.12, created_at: new Date().toISOString() },
-        { id: 3, player_id: 3, voter_name: 'Organizador', attack: 4.5, defense: 4.5, set_pass: 3.0, movement: 3.5, overall: 3.88, created_at: new Date().toISOString() },
-        { id: 4, player_id: 4, voter_name: 'Organizador', attack: 5.0, defense: 3.0, set_pass: 3.0, movement: 4.0, overall: 3.75, created_at: new Date().toISOString() },
-        { id: 5, player_id: 5, voter_name: 'Organizador', attack: 2.0, defense: 5.0, set_pass: 4.5, movement: 5.0, overall: 4.12, created_at: new Date().toISOString() },
-        { id: 6, player_id: 6, voter_name: 'Organizador', attack: 3.5, defense: 3.5, set_pass: 3.5, movement: 3.5, overall: 3.50, created_at: new Date().toISOString() }
-      ],
+      players: defaultPlayers,
+      player_ratings: [],
       pelada_sessions: []
     };
     fs.writeFileSync(FALLBACK_DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
     return initial;
   }
   try {
-    return JSON.parse(fs.readFileSync(FALLBACK_DB_FILE, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(FALLBACK_DB_FILE, 'utf8'));
+    // Se ainda tiver os jogadores antigos de exemplo, atualiza para os 12 novos
+    const hasOldExamples = (parsed.players || []).some(p => p.name === 'Lucas Silva' || p.name === 'Gabriel Souza');
+    if (hasOldExamples || !parsed.players || parsed.players.length === 0) {
+      parsed.players = defaultPlayers;
+      parsed.player_ratings = [];
+      saveFallbackData(parsed);
+    }
+    return parsed;
   } catch (err) {
-    return { matches: [], players: [], player_ratings: [], pelada_sessions: [] };
+    return { matches: [], players: defaultPlayers, player_ratings: [], pelada_sessions: [] };
   }
 }
 
@@ -180,13 +199,39 @@ function saveFallbackData(data) {
 // Cria tabelas e adiciona novas colunas automaticamente
 // ==========================================
 async function initDb() {
-  if (!isPostgres || !sequelize) return;
+  if (!isPostgres || !sequelize) {
+    getFallbackData(); // Garante inicialização do fallback com os 12 jogadores
+    return;
+  }
 
   try {
     console.log('🔄 Executando sincronização autônoma do banco (Sequelize auto-alter)...');
     // { alter: true } cria tabelas ausentes e adiciona novas colunas automaticamente
     await sequelize.sync({ alter: true });
     console.log('✅ Banco de dados PostgreSQL 100% sincronizado de forma autônoma!');
+
+    // Remove jogadores de exemplo antigos se existirem
+    const oldExampleNames = ['Lucas Silva', 'Gabriel Souza', 'Matheus Costa', 'Rafael Dias', 'Bruno Lima', 'Carlos Eduardo', 'Thiago Alves'];
+    await Player.destroy({
+      where: {
+        name: oldExampleNames
+      }
+    });
+
+    // Insere os 12 novos jogadores solicitados (sem estrelas) caso ainda não existam
+    for (const name of INITIAL_PELADA_PLAYERS) {
+      const exists = await Player.findOne({ where: { name } });
+      if (!exists) {
+        await Player.create({
+          name: name,
+          nickname: name,
+          position: 'Geral',
+          active: true
+        });
+        console.log(`➕ Jogador "${name}" adicionado ao PostgreSQL.`);
+      }
+    }
+    console.log('🏐 Elenco inicial de 12 jogadores pronto no PostgreSQL (sem estrelas).');
   } catch (err) {
     console.error('❌ Erro na sincronização autônoma do Sequelize:', err.message);
   }
@@ -293,11 +338,11 @@ async function getPlayersWithRatings() {
             active: raw.active,
             created_at: raw.createdAt,
             vote_count: 0,
-            avg_attack: 3.0,
-            avg_defense: 3.0,
-            avg_set_pass: 3.0,
-            avg_movement: 3.0,
-            overall: 3.0
+            avg_attack: 0,
+            avg_defense: 0,
+            avg_set_pass: 0,
+            avg_movement: 0,
+            overall: 0
           };
         }
 
@@ -322,7 +367,7 @@ async function getPlayersWithRatings() {
           avg_movement: Number((sumM / count).toFixed(1)),
           overall: Number((sumO / count).toFixed(1))
         };
-      }).sort((a, b) => b.overall - a.overall);
+      }).sort((a, b) => (b.overall - a.overall) || a.name.localeCompare(b.name));
     } catch (err) {
       console.error('Erro ao buscar jogadores no Sequelize:', err.message);
     }
@@ -340,11 +385,11 @@ async function getPlayersWithRatings() {
       return {
         ...p,
         vote_count: 0,
-        avg_attack: 3.0,
-        avg_defense: 3.0,
-        avg_set_pass: 3.0,
-        avg_movement: 3.0,
-        overall: 3.0
+        avg_attack: 0,
+        avg_defense: 0,
+        avg_set_pass: 0,
+        avg_movement: 0,
+        overall: 0
       };
     }
     const sumA = pRatings.reduce((acc, cur) => acc + Number(cur.attack), 0);
@@ -362,7 +407,7 @@ async function getPlayersWithRatings() {
       avg_movement: Number((sumM / count).toFixed(1)),
       overall: Number((sumO / count).toFixed(1))
     };
-  }).sort((a, b) => b.overall - a.overall);
+  }).sort((a, b) => (b.overall - a.overall) || a.name.localeCompare(b.name));
 }
 
 async function addPlayer(name, nickname = '', position = 'Geral', photoUrl = '') {

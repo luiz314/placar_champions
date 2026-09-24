@@ -137,9 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
           </div>
         </div>
-        <div class="player-overall-pill" title="Média Ponderada das Avaliações">
-          <span>★</span>
-          <span>${Number(player.overall || 3.0).toFixed(1)}</span>
+        <div class="player-overall-pill" title="${player.overall && player.overall > 0 ? 'Média Ponderada das Avaliações' : 'Ainda sem estrelas cadastradas'}">
+          ${player.overall && player.overall > 0 ? `<span>★</span><span>${Number(player.overall).toFixed(1)}</span>` : `<span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600;">Sem estrelas</span>`}
         </div>
       `;
 
@@ -371,14 +370,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td>
           <div class="star-rating-display" style="font-size: 1.05rem;">
-            <span>★</span>
-            <span>${Number(p.overall || 3.0).toFixed(1)}</span>
+            ${p.overall && p.overall > 0 ? `<span>★</span><span>${Number(p.overall).toFixed(1)}</span>` : `<span style="font-size: 0.8rem; color: #94a3b8; font-weight: normal;">Sem estrelas</span>`}
           </div>
         </td>
-        <td>💥 ${Number(p.avg_attack || 3.0).toFixed(1)}</td>
-        <td>🛡️ ${Number(p.avg_defense || 3.0).toFixed(1)}</td>
-        <td>🎯 ${Number(p.avg_set_pass || 3.0).toFixed(1)}</td>
-        <td>⚡ ${Number(p.avg_movement || 3.0).toFixed(1)}</td>
+        <td>${p.avg_attack && p.avg_attack > 0 ? `💥 ${Number(p.avg_attack).toFixed(1)}` : '<span style="color: #64748b;">-</span>'}</td>
+        <td>${p.avg_defense && p.avg_defense > 0 ? `🛡️ ${Number(p.avg_defense).toFixed(1)}` : '<span style="color: #64748b;">-</span>'}</td>
+        <td>${p.avg_set_pass && p.avg_set_pass > 0 ? `🎯 ${Number(p.avg_set_pass).toFixed(1)}` : '<span style="color: #64748b;">-</span>'}</td>
+        <td>${p.avg_movement && p.avg_movement > 0 ? `⚡ ${Number(p.avg_movement).toFixed(1)}` : '<span style="color: #64748b;">-</span>'}</td>
         <td>
           <span style="font-size: 0.8rem; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 999px;">
             ${p.vote_count || 0} voto(s)

@@ -94,9 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success && Array.isArray(data.players)) {
         selectPlayer.innerHTML = '<option value="" disabled>Selecione um jogador...</option>';
         data.players.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = `${p.nickname || p.name} (${p.position || 'Geral'}) - Atual: ★${Number(p.overall || 3.0).toFixed(1)}`;
+          const starStatus = p.overall && p.overall > 0 ? `Atual: ★${Number(p.overall).toFixed(1)}` : 'Sem estrelas ainda';
+          opt.textContent = `${p.nickname || p.name} (${p.position || 'Geral'}) - ${starStatus}`;
           if (targetPlayerId && String(p.id) === String(targetPlayerId)) {
             opt.selected = true;
           }
