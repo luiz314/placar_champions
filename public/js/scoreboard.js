@@ -485,16 +485,28 @@ updateState(currentState);
 // AÇÕES OTIMISTAS (RESPOSTA INSTANTÂNEA LOCAL + EMISSÃO)
 // ============================================================
 
-function triggerHaptic() {
+let lastSwipeTime = 0;
+
+function triggerDigitAnimation(digitElement, direction) {
+  if (!digitElement) return;
+  const animClass = direction === 'up' ? 'slide-up' : 'slide-down';
+  digitElement.classList.remove('slide-up', 'slide-down', 'pop');
+  void digitElement.offsetWidth; // força reflow para reiniciar animação
+  digitElement.classList.add(animClass);
+  setTimeout(() => digitElement.classList.remove(animClass), 250);
+}
+
+function triggerHaptic(duration = 25) {
   if (navigator && typeof navigator.vibrate === 'function') {
-    try { navigator.vibrate(25); } catch (_) {}
+    try { navigator.vibrate(duration); } catch (_) {}
   }
 }
 
 // Lado A
-function addPointA() {
-  triggerHaptic();
+function addPointA(fromSwipe = false) {
+  triggerHaptic(30);
   if (window.sound) window.sound.playPointAdd();
+  if (fromSwipe) triggerDigitAnimation(scoreDigitA, 'up');
   currentState.scoreA += 1;
   renderScoreUI();
   persistCurrentState();
@@ -506,10 +518,11 @@ function addPointA() {
   }
 }
 
-function subPointA() {
-  triggerHaptic();
+function subPointA(fromSwipe = false) {
+  triggerHaptic(20);
   if (currentState.scoreA > 0) {
     if (window.sound) window.sound.playPointSub();
+    if (fromSwipe) triggerDigitAnimation(scoreDigitA, 'down');
     currentState.scoreA -= 1;
     renderScoreUI();
     persistCurrentState();
@@ -522,10 +535,139 @@ function subPointA() {
   }
 }
 
-if (btnAddA) btnAddA.addEventListener('click', addPointA);
-if (clickAreaA) clickAreaA.addEventListener('click', addPointA);
-if (btnSubA) btnSubA.addEventListener('click', subPointA);
+// Lado B
+function addPointB(fromSwipe = false) {
+  triggerHaptic(30);
+  if (window.sound) window.sound.playPointAdd();
+  if (fromSwipe) triggerDigitAnimation(scoreDigitB, 'up');
+  currentState.scoreB += 1;
+  renderScoreUI();
+  persistCurrentState();
 
+  if (socket && socket.connected) {
+    socket.emit('point:add', 'B');
+  } else {
+    markOfflineChange();
+  }
+}
+
+function subPointB(fromSwipe = false) {
+  triggerHaptic(20);
+  if (currentState.scoreB > 0) {
+    if (window.sound) window.sound.playPointSub();
+    if (fromSwipe) triggerDigitAnimation(scoreDigitB, 'down');
+    currentState.scoreB -= 1;
+    renderScoreUI();
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('point:sub', 'B');
+    } else {
+      markOfflineChange();
+    }
+  }
+}
+
+// Botões explícitos (+1 / -1)
+if (btnAddA) btnAddA.addEventListener('click', () => addPointA(false));
+if (btnSubA) btnSubA.addEventListener('click', () => subPointA(false));
+if (btnAddB) btnAddB.addEventListener('click', () => addPointB(false));
+if (btnSubB) btnSubB.addEventListener('click', () => subPointB(false));
+
+// Clique direto no número gigante (com proteção contra clique acidental pós-swipe)
+if (clickAreaA) {
+  clickAreaA.addEventListener('click', () => {
+    if (Date.now() - lastSwipeTime < 400) return;
+    addPointA(false);
+  });
+}
+
+if (clickAreaB) {
+  clickAreaB.addEventListener('click', () => {
+    if (Date.now() - lastSwipeTime < 400) return;
+    addPointB(false);
+  });
+}
+
+// ============================================================
+// GESTOS TOUCH (DESLIZAR PARA CIMA: +1 | DESLIZAR PARA BAIXO: -1)
+// Otimizado para tablets e smartphones
+// ============================================================
+function setupSwipeGestures(cardElement, onSwipeUp, onSwipeDown) {
+  if (!cardElement) return;
+
+  let startX = 0;
+  let startY = 0;
+  let gestureTriggered = false;
+
+  cardElement.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    // Ignora se o toque começou num input ou botão explícito
+    if (e.target.closest('input') || e.target.closest('button')) return;
+
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    gestureTriggered = false;
+  }, { passive: true });
+
+  cardElement.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 1 || gestureTriggered) return;
+    if (e.target.closest('input') || e.target.closest('button')) return;
+
+    const touch = e.touches[0];
+    const diffY = touch.clientY - startY;
+    const diffX = touch.clientX - startX;
+
+    // Detecta deslizamento vertical se mover mais de 28px e for predominantemente vertical
+    if (Math.abs(diffY) >= 28 && Math.abs(diffY) > Math.abs(diffX) * 1.1) {
+      gestureTriggered = true;
+      lastSwipeTime = Date.now();
+
+      if (diffY < 0) {
+        // Deslizou para CIMA: aumenta ponto (+1)
+        onSwipeUp(true);
+      } else {
+        // Deslizou para BAIXO: diminui ponto (-1)
+        onSwipeDown(true);
+      }
+    }
+  }, { passive: true });
+
+  cardElement.addEventListener('touchend', () => {
+    if (gestureTriggered) {
+      lastSwipeTime = Date.now();
+    }
+  }, { passive: true });
+}
+
+// Roda de scroll do mouse / trackpad como bônus (Scroll Cima: +1, Scroll Baixo: -1)
+function setupWheelGesture(element, onWheelUp, onWheelDown) {
+  if (!element) return;
+  let lastWheelTime = 0;
+  element.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (Date.now() - lastWheelTime < 250) return;
+    lastWheelTime = Date.now();
+    if (e.deltaY < 0) {
+      onWheelUp(true);
+    } else if (e.deltaY > 0) {
+      onWheelDown(true);
+    }
+  }, { passive: false });
+}
+
+// Inicializa os gestos nos cards das equipes e nas caixas de pontuação
+const teamCardA = document.querySelector('.team-card.team-a');
+const teamCardB = document.querySelector('.team-card.team-b');
+
+setupSwipeGestures(teamCardA, addPointA, subPointA);
+setupSwipeGestures(teamCardB, addPointB, subPointB);
+
+setupWheelGesture(clickAreaA, addPointA, subPointA);
+setupWheelGesture(clickAreaB, addPointB, subPointB);
+
+// Edição de nomes das equipes
 if (nameA) {
   nameA.addEventListener('change', () => {
     currentState.nameA = nameA.value.trim().slice(0, 20) || 'LADO A';
@@ -543,41 +685,6 @@ if (nameA) {
     }
   });
 }
-
-// Lado B
-function addPointB() {
-  triggerHaptic();
-  if (window.sound) window.sound.playPointAdd();
-  currentState.scoreB += 1;
-  renderScoreUI();
-  persistCurrentState();
-
-  if (socket && socket.connected) {
-    socket.emit('point:add', 'B');
-  } else {
-    markOfflineChange();
-  }
-}
-
-function subPointB() {
-  triggerHaptic();
-  if (currentState.scoreB > 0) {
-    if (window.sound) window.sound.playPointSub();
-    currentState.scoreB -= 1;
-    renderScoreUI();
-    persistCurrentState();
-
-    if (socket && socket.connected) {
-      socket.emit('point:sub', 'B');
-    } else {
-      markOfflineChange();
-    }
-  }
-}
-
-if (btnAddB) btnAddB.addEventListener('click', addPointB);
-if (clickAreaB) clickAreaB.addEventListener('click', addPointB);
-if (btnSubB) btnSubB.addEventListener('click', subPointB);
 
 if (nameB) {
   nameB.addEventListener('change', () => {

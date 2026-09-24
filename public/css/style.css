@@ -532,6 +532,9 @@ body.body-tv-mode .score-bottom-actions {
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .team-card::before {
@@ -617,6 +620,9 @@ body.body-tv-mode .score-bottom-actions {
   display: flex;
   justify-content: center;
   align-items: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .score-digit {
@@ -627,6 +633,7 @@ body.body-tv-mode .score-bottom-actions {
   letter-spacing: -3px;
   transition: transform 0.12s ease-out;
   text-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  user-select: none;
 }
 
 .team-a .score-digit {
@@ -641,6 +648,26 @@ body.body-tv-mode .score-bottom-actions {
 
 .score-digit.pop {
   transform: scale(1.15);
+}
+
+.score-digit.slide-up {
+  animation: scoreSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.score-digit.slide-down {
+  animation: scoreSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scoreSlideUp {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-18px) scale(1.08); filter: brightness(1.25); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes scoreSlideDown {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(18px) scale(0.94); opacity: 0.85; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* BOTÕES DE PONTUAÇÃO (+ / -) */
