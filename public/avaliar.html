@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Avaliar Jogadores - Placar da Pelada</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#07090e">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <style>
+    :root {
+      --star-active: #fbbf24;
+      --star-inactive: #334155;
+      --vote-bg: #07090e;
+      --vote-card-bg: rgba(15, 23, 42, 0.9);
+      --vote-border: rgba(255, 255, 255, 0.12);
+    }
+
+    body {
+      background-color: var(--vote-bg);
+      background-image: 
+        radial-gradient(circle at 10% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 85%, rgba(251, 191, 36, 0.08) 0%, transparent 40%);
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      box-sizing: border-box;
+    }
+
+    .vote-container {
+      width: 100%;
+      max-width: 520px;
+      margin: 10px auto 40px auto;
+    }
+
+    /* HEADER */
+    .vote-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .vote-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 242, 254, 0.12);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: #38bdf8;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .vote-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin: 0 0 6px 0;
+      background: linear-gradient(135deg, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .vote-subtitle {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      margin: 0;
+    }
+
+    /* CARD PRINCIPAL */
+    .vote-card {
+      background: var(--vote-card-bg);
+      border: 1px solid var(--vote-border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(14px);
+    }
+
+    /* CAMPO JOGADOR SELECIONADO */
+    .field-group {
+      margin-bottom: 20px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .custom-select, .custom-input {
+      width: 100%;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--vote-border);
+      color: #f8fafc;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    .custom-select:focus, .custom-input:focus {
+      border-color: #38bdf8;
+    }
+
+    /* SEÇÃO DE ATRIBUTOS */
+    .attributes-section {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 10px;
+      margin-bottom: 24px;
+    }
+
+    .attribute-box {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+
+    .attribute-box:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    .attribute-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .attribute-name {
+      font-weight: 800;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .attribute-score {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--star-active);
+      background: rgba(251, 191, 36, 0.1);
+      padding: 2px 8px;
+      border-radius: 8px;
+      min-width: 32px;
+      text-align: center;
+    }
+
+    .attribute-desc {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+
+    /* ESTRELAS INTERATIVAS */
+    .stars-picker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .star-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 2.2rem;
+      color: var(--star-inactive);
+      transition: transform 0.15s ease, color 0.15s ease;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    .star-btn.active {
+      color: var(--star-active);
+      text-shadow: 0 0 16px rgba(251, 191, 36, 0.5);
+    }
+
+    .star-btn:hover {
+      transform: scale(1.2);
+    }
+
+    /* PREVIEW DO OVERALL */
+    .overall-preview-card {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .overall-preview-val {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--star-active);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* BOTÃO SUBMIT */
+    .btn-submit-vote {
+      width: 100%;
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #051329;
+      border: none;
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 242, 254, 0.35);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-submit-vote:hover {
+      background: linear-gradient(135deg, #38ef7d, #11998e);
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(56, 239, 125, 0.4);
+    }
+
+    .btn-submit-vote:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* TELA DE SUCESSO */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 20px 10px;
+    }
+
+    .success-screen.active {
+      display: block;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .success-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+      animation: bounce 0.6s ease-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .success-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--vote-border);
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="vote-container">
+    
+    <!-- HEADER -->
+    <header class="vote-header">
+      <div class="vote-badge">
+        <span>🏐</span>
+        <span>Avaliação dos Jogadores</span>
+      </div>
+      <h1 class="vote-title">Distribua as Estrelas</h1>
+      <p class="vote-subtitle">Avalie cada fundamento de 1 a 5 estrelas. O sistema calculará a média ponderada final.</p>
+    </header>
+
+    <!-- FORMULÁRIO DE VOTAÇÃO -->
+    <div class="vote-card" id="voteCard">
+      <form id="formRatePlayer">
+        
+        <!-- SELEÇÃO DE JOGADOR -->
+        <div class="field-group">
+          <label class="field-label" for="selectPlayer">Jogador a ser avaliado:</label>
+          <select id="selectPlayer" class="custom-select" required>
+            <option value="" disabled selected>Selecione um jogador...</option>
+          </select>
+        </div>
+
+        <!-- SEU NOME / APELIDO -->
+        <div class="field-group">
+          <label class="field-label" for="inputVoterName">Seu Nome ou Apelido:</label>
+          <input type="text" id="inputVoterName" class="custom-input" placeholder="Ex: Gabriel (ou anônimo)" maxlength="40">
+        </div>
+
+        <!-- OS 4 ATRIBUTOS EXIGIDOS: ATAQUE, DEFESA, PASSE, MOVIMENTAÇÃO -->
+        <div class="attributes-section">
+          
+          <!-- 1. ATAQUE -->
+          <div class="attribute-box" data-attr="attack">
+            <div class="attribute-head">
+              <span class="attribute-name">
+                <span>💥</span> ATAQUE
+              </span>
+              <span class="attribute-score" id="scoreDisplayAttack">3★</span>
+            </div>
+            <div class="attribute-desc">Corte, largada, potência e eficiência na finalização de pontos.</div>
+            <div class="stars-picker" data-attr="attack">
+              <button type="button" class="star-btn active" data-val="1">★</button>
+              <button type="button" class="star-btn active" data-val="2">★</button>
+              <button type="button" class="star-btn active" data-val="3">★</button>
+              <button type="button" class="star-btn" data-val="4">★</button>
+              <button type="button" class="star-btn" data-val="5">★</button>
+            </div>
+          </div>
+
+          <!-- 2. DEFESA -->
+          <div class="attribute-box" data-attr="defense">
+            <div class="attribute-head">
+              <span class="attribute-name">
+                <span>🛡️</span> DEFESA
+              </span>
+              <span class="attribute-score" id="scoreDisplayDefense">3★</span>
+            </div>
+            <div class="attribute-desc">Bloqueio, recepção de ataque adversário, mergulho e posicionamento de fundo.</div>
+            <div class="stars-picker" data-attr="defense">
+              <button type="button" class="star-btn active" data-val="1">★</button>
+              <button type="button" class="star-btn active" data-val="2">★</button>
+              <button type="button" class="star-btn active" data-val="3">★</button>
+              <button type="button" class="star-btn" data-val="4">★</button>
+              <button type="button" class="star-btn" data-val="5">★</button>
+            </div>
+          </div>
+
+          <!-- 3. PASSE -->
+          <div class="attribute-box" data-attr="set_pass">
+            <div class="attribute-head">
+              <span class="attribute-name">
+                <span>🎯</span> PASSE
+              </span>
+              <span class="attribute-score" id="scoreDisplaySetPass">3★</span>
+            </div>
+            <div class="attribute-desc">Levantamento preciso, manchete de passe e recepção de saque na mão.</div>
+            <div class="stars-picker" data-attr="set_pass">
+              <button type="button" class="star-btn active" data-val="1">★</button>
+              <button type="button" class="star-btn active" data-val="2">★</button>
+              <button type="button" class="star-btn active" data-val="3">★</button>
+              <button type="button" class="star-btn" data-val="4">★</button>
+              <button type="button" class="star-btn" data-val="5">★</button>
+            </div>
+          </div>
+
+          <!-- 4. MOVIMENTAÇÃO -->
+          <div class="attribute-box" data-attr="movement">
+            <div class="attribute-head">
+              <span class="attribute-name">
+                <span>⚡</span> MOVIMENTAÇÃO
+              </span>
+              <span class="attribute-score" id="scoreDisplayMovement">3★</span>
+            </div>
+            <div class="attribute-desc">Velocidade, agilidade lateral, fôlego e cobertura da quadra.</div>
+            <div class="stars-picker" data-attr="movement">
+              <button type="button" class="star-btn active" data-val="1">★</button>
+              <button type="button" class="star-btn active" data-val="2">★</button>
+              <button type="button" class="star-btn active" data-val="3">★</button>
+              <button type="button" class="star-btn" data-val="4">★</button>
+              <button type="button" class="star-btn" data-val="5">★</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- PRÉ-VISUALIZAÇÃO DA MÉDIA PONDERADA -->
+        <div class="overall-preview-card">
+          <div>
+            <strong style="color: #cbd5e1; font-size: 0.95rem;">Média Ponderada Calculada:</strong>
+            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #94a3b8;">Sua avaliação final deste atleta</p>
+          </div>
+          <div class="overall-preview-val" id="overallPreviewDisplay">
+            <span>★</span>
+            <span id="overallNumeric">3.0</span>
+          </div>
+        </div>
+
+        <!-- BOTÃO ENVIAR -->
+        <button type="submit" class="btn-submit-vote" id="btnSubmitVote">
+          <span>⭐</span>
+          <span>Gravar Avaliação no Banco</span>
+        </button>
+
+      </form>
+
+      <!-- TELA DE SUCESSO APÓS GRAVAÇÃO -->
+      <div class="success-screen" id="successScreen">
+        <div class="success-icon">🎉</div>
+        <h2 style="font-size: 1.5rem; margin: 0 0 8px 0; color: #34d399;">Avaliação Registrada!</h2>
+        <p style="color: #cbd5e1; font-size: 0.95rem; margin: 0;" id="successPlayerText">
+          As estrelas foram computadas com sucesso no banco de dados.
+        </p>
+
+        <div class="success-actions">
+          <button type="button" class="btn-submit-vote" id="btnVoteAnother">
+            <span>⭐</span>
+            <span>Avaliar Outro Jogador</span>
+          </button>
+          <a href="/pelada" class="btn-secondary">
+            <span>🏐</span>
+            <span>Ir para o Controle da Pelada</span>
+          </a>
+          <a href="/" class="btn-secondary">
+            <span>🏠</span>
+            <span>Voltar ao Placar</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="/js/avaliar.js"></script>
+</body>
+</html>

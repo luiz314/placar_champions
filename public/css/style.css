@@ -1878,6 +1878,18 @@ body.body-tv-mode .score-digit {
   border-radius: 12px;
 }
 
+.menu-item-pelada {
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.menu-item-pelada:hover {
+  background: rgba(56, 189, 248, 0.2);
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
 .menu-item-pro {
   color: #fbbf24;
   border: 1px solid rgba(251, 191, 36, 0.2);

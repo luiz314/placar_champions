@@ -3,6 +3,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const db = require('./db');
+const balancer = require('./balancer');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +17,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
 const LEGACY_FILE = path.join(DATA_DIR, 'game_state.json');
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Estrutura padrão de uma nova sala
@@ -185,6 +189,15 @@ setInterval(() => {
   }
 }, 1000);
 
+// Rotas de Páginas
+app.get('/pelada', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pelada.html'));
+});
+
+app.get('/avaliar', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'avaliar.html'));
+});
+
 // API HTTP rápida para verificar se uma sala existe e se requer senha
 app.get('/api/room/:roomId', (req, res) => {
   const code = String(req.params.roomId).trim();
@@ -195,6 +208,120 @@ app.get('/api/room/:roomId', (req, res) => {
     roomId: code,
     hasPassword: room ? Boolean(room.password && room.password.trim().length > 0) : false
   });
+});
+
+// ==========================================
+// REST API: JOGADORES, AVALIAÇÕES E PELADA
+// ==========================================
+
+// Listar todos os jogadores com médias de estrelas e overall
+app.get('/api/players', async (req, res) => {
+  try {
+    const players = await db.getPlayersWithRatings();
+    res.json({ success: true, players });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cadastrar novo jogador
+app.post('/api/players', async (req, res) => {
+  try {
+    const { name, nickname, position, photoUrl } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'O nome do jogador é obrigatório.' });
+    }
+    const player = await db.addPlayer(name, nickname, position, photoUrl);
+    res.status(201).json({ success: true, player });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Remover jogador
+app.delete('/api/players/:id', async (req, res) => {
+  try {
+    await db.deletePlayer(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Obter histórico de avaliações de um jogador
+app.get('/api/players/:id/ratings', async (req, res) => {
+  try {
+    const ratings = await db.getPlayerRatings(req.params.id);
+    res.json({ success: true, ratings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Enviar avaliação para um jogador (Ataque, Defesa, Passe, Movimentação: 1 a 5 estrelas)
+app.post('/api/players/:id/rate', async (req, res) => {
+  try {
+    const { voterName, attack, defense, setPass, movement } = req.body;
+    if (attack === undefined || defense === undefined || setPass === undefined || movement === undefined) {
+      return res.status(400).json({ success: false, error: 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.' });
+    }
+    const rating = await db.addPlayerRating(
+      req.params.id,
+      voterName || 'Anônimo',
+      attack,
+      defense,
+      setPass,
+      movement
+    );
+    res.status(201).json({ success: true, rating });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Algoritmo de Equilíbrio de Times
+app.post('/api/pelada/balance', async (req, res) => {
+  try {
+    const { playerIds, numTeams = 2, maxPerTeam = null } = req.body;
+    if (!Array.isArray(playerIds) || playerIds.length < 2) {
+      return res.status(400).json({ success: false, error: 'Selecione pelo menos 2 jogadores para equilibrar os times.' });
+    }
+
+    const allPlayers = await db.getPlayersWithRatings();
+    const idSet = new Set(playerIds.map(id => Number(id)));
+    const selectedPlayers = allPlayers.filter(p => idSet.has(Number(p.id)));
+
+    const result = balancer.balanceTeams(selectedPlayers, {
+      numTeams: parseInt(numTeams, 10) || 2,
+      maxPerTeam: maxPerTeam ? parseInt(maxPerTeam, 10) : null
+    });
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Salvar sessão/escalação de pelada
+app.post('/api/pelada/save', async (req, res) => {
+  try {
+    const { title, format, teams, bench } = req.body;
+    const session = await db.savePeladaSession(title, format, teams, bench);
+    res.status(201).json({ success: true, session });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Buscar histórico de partidas gravadas no Banco de Dados
+app.get('/api/matches', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const matches = await db.getMatches(limit);
+    res.json({ success: true, matches });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 io.on('connection', (socket) => {
@@ -421,6 +548,20 @@ io.on('connection', (socket) => {
     if (!room.matchHistory) room.matchHistory = [];
     room.matchHistory.unshift(matchRecord);
 
+    // Persistência no PostgreSQL / Fallback
+    db.saveMatch({
+      roomId: currentRoomId,
+      teamA: room.nameA,
+      scoreA: room.scoreA,
+      teamB: room.nameB,
+      scoreB: room.scoreB,
+      winner: winner,
+      durationSeconds: room.timer.seconds,
+      matchNumber: matchRecord.matchNumber
+    }).catch(err => {
+      console.warn('Aviso: Falha ao salvar partida no banco de dados:', err.message);
+    });
+
     room.scoreA = 0;
     room.scoreB = 0;
     room.timer.running = false;
@@ -455,7 +596,14 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🏐 Placar de Vôlei Multi-Sessões rodando na porta ${PORT}`);
   console.log(`- Acesse: http://localhost:${PORT}`);
+  console.log(`- Controle da Pelada: http://localhost:${PORT}/pelada`);
+  console.log(`- Votação de Jogadores: http://localhost:${PORT}/avaliar`);
+  try {
+    await db.initDb();
+  } catch (err) {
+    console.error('Erro ao inicializar DB:', err.message);
+  }
 });
