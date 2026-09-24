@@ -289,6 +289,48 @@ io.on('connection', (socket) => {
     socket.emit('state:update', safeState);
   });
 
+  // Sincronização de estado vindo de cliente que operou offline
+  socket.on('room:sync', (clientState, callback) => {
+    const room = getRoom();
+    if (!room || !clientState || typeof clientState !== 'object') {
+      if (typeof callback === 'function') callback({ success: false, error: 'Sala não encontrada ou estado inválido' });
+      return;
+    }
+
+    if (typeof clientState.scoreA === 'number' && clientState.scoreA >= 0) {
+      room.scoreA = Math.floor(clientState.scoreA);
+    }
+    if (typeof clientState.scoreB === 'number' && clientState.scoreB >= 0) {
+      room.scoreB = Math.floor(clientState.scoreB);
+    }
+    if (clientState.nameA && typeof clientState.nameA === 'string') {
+      room.nameA = clientState.nameA.trim().slice(0, 20) || 'LADO A';
+    }
+    if (clientState.nameB && typeof clientState.nameB === 'string') {
+      room.nameB = clientState.nameB.trim().slice(0, 20) || 'LADO B';
+    }
+    if (clientState.timer && typeof clientState.timer === 'object') {
+      if (typeof clientState.timer.seconds === 'number' && clientState.timer.seconds >= 0) {
+        room.timer.seconds = Math.floor(clientState.timer.seconds);
+      }
+      if (typeof clientState.timer.running === 'boolean') {
+        room.timer.running = clientState.timer.running;
+      }
+    }
+    if (Array.isArray(clientState.matchHistory)) {
+      room.matchHistory = clientState.matchHistory;
+    }
+
+    room.lastActivity = Date.now();
+    persistRoomsToDisk(true);
+    broadcastRoomState(currentRoomId);
+    console.log(`🔄 Sala #${currentRoomId} sincronizada com sucesso após reconexão.`);
+
+    if (typeof callback === 'function') {
+      callback({ success: true, state: sanitizeRoomState(room) });
+    }
+  });
+
   // Aumentar ponto (+1)
   socket.on('point:add', (team) => {
     const room = getRoom();

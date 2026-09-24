@@ -1,12 +1,52 @@
-// Script do Placar Multi-Sessões, Cronômetro, Salas e Monetização
-const socket = io();
+// ============================================================
+// PLACAR DE VÔLEI - SISTEMA MULTI-SESSÕES, OFFLINE-FIRST (PWA)
+// Resiliente a quedas de internet e 100% funcional sem conexão
+// ============================================================
 
-// Estado da Sessão Atual
-let currentRoomId = null;
+// Registro do Service Worker (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => {
+        console.log('🏐 Service Worker registrado com sucesso:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('Aviso: Falha ao registrar Service Worker:', err);
+      });
+  });
+}
 
-// Elementos DOM - Cabeçalho e Salas
+// Inicialização do Socket.IO (com fallback seguro caso offline)
+let socket = null;
+try {
+  if (typeof io !== 'undefined') {
+    socket = io({
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 10000
+    });
+  }
+} catch (e) {
+  console.warn('Socket.IO indisponível no momento:', e);
+}
+
+// ============================================================
+// ELEMENTOS DO DOM
+// ============================================================
+
+// Cabeçalho e Salas
+const headerTitleArea = document.querySelector('.title-area');
+const btnGoHome = document.getElementById('btnGoHome');
 const roomPill = document.getElementById('roomPill');
 const currentRoomCodeDisplay = document.getElementById('currentRoomCodeDisplay');
+const roomPillLock = document.getElementById('roomPillLock');
+const connectionPill = document.getElementById('connectionPill');
+const connectionStatusText = document.getElementById('connectionStatusText');
+const offlineToastBanner = document.getElementById('offlineToastBanner');
+const offlineToastIcon = document.getElementById('offlineToastIcon');
+const offlineToastMsg = document.getElementById('offlineToastMsg');
 const btnHeaderNewSession = document.getElementById('btnHeaderNewSession');
 const btnShareModal = document.getElementById('btnShareModal');
 const btnTvMode = document.getElementById('btnTvMode');
@@ -14,7 +54,7 @@ const tvModeIcon = document.getElementById('tvModeIcon');
 const tvModeText = document.getElementById('tvModeText');
 const btnExitTvMode = document.getElementById('btnExitTvMode');
 
-// Elementos DOM - Cronômetro e Partida
+// Cronômetro e Partida
 const timerDisplay = document.getElementById('timerDisplay');
 const timerDot = document.getElementById('timerDot');
 const btnTimerToggle = document.getElementById('btnTimerToggle');
@@ -27,9 +67,10 @@ const btnFullscreen = document.getElementById('btnFullscreen');
 const fullscreenIcon = document.getElementById('fullscreenIcon');
 const fullscreenText = document.getElementById('fullscreenText');
 
-// Elementos DOM - Menu Superior
+// Menu Superior
 const btnMenuToggle = document.getElementById('btnMenuToggle');
 const menuDropdown = document.getElementById('menuDropdown');
+const menuItemHome = document.getElementById('menuItemHome');
 const menuItemChangeRoom = document.getElementById('menuItemChangeRoom');
 const menuItemHistory = document.getElementById('menuItemHistory');
 const menuHistoryBadge = document.getElementById('menuHistoryBadge');
@@ -41,24 +82,21 @@ const menuWakeLockIcon = document.getElementById('menuWakeLockIcon');
 const menuWakeLockText = document.getElementById('menuWakeLockText');
 const menuItemPro = document.getElementById('menuItemPro');
 
-// Indicador de cadeado na sala ativa
-const roomPillLock = document.getElementById('roomPillLock');
-
-// Elementos DOM - Modais de Sala e Senha
+// Modais de Sala e Senha
 const roomSelectionModal = document.getElementById('roomSelectionModal');
 const btnCloseRoomModal = document.getElementById('btnCloseRoomModal');
 const btnCreateNewRoom = document.getElementById('btnCreateNewRoom');
 const joinRoomForm = document.getElementById('joinRoomForm');
 const inputRoomCode = document.getElementById('inputRoomCode');
 const joinRoomError = document.getElementById('joinRoomError');
+const btnStartOfflineMode = document.getElementById('btnStartOfflineMode');
 
-// Opção de Criar Sala com Senha
+// Senha da Sala
 const toggleCreatePassword = document.getElementById('toggleCreatePassword');
 const createPasswordBox = document.getElementById('createPasswordBox');
 const inputCreatePassword = document.getElementById('inputCreatePassword');
 const btnToggleCreateEye = document.getElementById('btnToggleCreateEye');
 
-// Modal de Desbloqueio por Senha
 const passwordPromptModal = document.getElementById('passwordPromptModal');
 const passwordPromptRoomCode = document.getElementById('passwordPromptRoomCode');
 const passwordPromptForm = document.getElementById('passwordPromptForm');
@@ -69,7 +107,7 @@ const btnCancelPassword = document.getElementById('btnCancelPassword');
 const btnClosePasswordModal = document.getElementById('btnClosePasswordModal');
 const btnTogglePromptEye = document.getElementById('btnTogglePromptEye');
 
-// Modal de Compartilhamento
+// Compartilhamento
 const shareModalBackdrop = document.getElementById('shareModalBackdrop');
 const btnCloseShareModal = document.getElementById('btnCloseShareModal');
 const qrCodeImage = document.getElementById('qrCodeImage');
@@ -82,45 +120,117 @@ const copyBtnIcon = document.getElementById('copyBtnIcon');
 const copyBtnText = document.getElementById('copyBtnText');
 const btnShareWhatsapp = document.getElementById('btnShareWhatsapp');
 
-let lastRoomState = null;
-let pendingJoinRoomId = null;
-
+// Histórico
 const historyModalBackdrop = document.getElementById('historyModalBackdrop');
 const btnCloseHistoryModal = document.getElementById('btnCloseHistoryModal');
 const historyList = document.getElementById('historyList');
 const historyCountBadge = document.getElementById('historyCountBadge');
 const btnClearHistory = document.getElementById('btnClearHistory');
 
+// Monetização PRO
 const proModalBackdrop = document.getElementById('proModalBackdrop');
 const btnCloseProModal = document.getElementById('btnCloseProModal');
 const btnAdCta = document.getElementById('btnAdCta');
 const btnContactPro = document.getElementById('btnContactPro');
 
-// Elementos DOM - Lado A
+// Lado A
 const nameA = document.getElementById('nameA');
 const scoreDigitA = document.getElementById('scoreDigitA');
 const clickAreaA = document.getElementById('clickAreaA');
 const btnAddA = document.getElementById('btnAddA');
 const btnSubA = document.getElementById('btnSubA');
 
-// Elementos DOM - Lado B
+// Lado B
 const nameB = document.getElementById('nameB');
 const scoreDigitB = document.getElementById('scoreDigitB');
 const clickAreaB = document.getElementById('clickAreaB');
 const btnAddB = document.getElementById('btnAddB');
 const btnSubB = document.getElementById('btnSubB');
 
-let previousScoreA = 0;
-let previousScoreB = 0;
+// ============================================================
+// GERENCIAMENTO DE ESTADO LOCAL & OFFLINE-FIRST
+// ============================================================
 
-// Utilitário de formatação de código: 123456 -> "123 456"
+function createDefaultState(roomId = null) {
+  return {
+    roomId: roomId || 'LOCAL',
+    hasPassword: false,
+    scoreA: 0,
+    nameA: 'LADO A',
+    scoreB: 0,
+    nameB: 'LADO B',
+    timer: {
+      seconds: 0,
+      running: false
+    },
+    matchHistory: []
+  };
+}
+
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem('placar_saved_state');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          roomId: parsed.roomId || 'LOCAL',
+          hasPassword: Boolean(parsed.hasPassword),
+          scoreA: Number(parsed.scoreA) || 0,
+          nameA: parsed.nameA || 'LADO A',
+          scoreB: Number(parsed.scoreB) || 0,
+          nameB: parsed.nameB || 'LADO B',
+          timer: {
+            seconds: Number(parsed.timer?.seconds) || 0,
+            running: Boolean(parsed.timer?.running)
+          },
+          matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : []
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Erro ao carregar estado persistido:', e);
+  }
+  return createDefaultState();
+}
+
+let currentState = loadPersistedState();
+let currentRoomId = currentState.roomId === 'LOCAL' ? null : currentState.roomId;
+let lastRoomState = currentState;
+let pendingJoinRoomId = null;
+let previousScoreA = currentState.scoreA;
+let previousScoreB = currentState.scoreB;
+
+// Indicador se há alterações feitas enquanto desconectado que precisam ser enviadas ao reconectar
+let hasOfflineChanges = localStorage.getItem('placar_has_offline_changes') === 'true';
+let isSocketConnected = false;
+
+function persistCurrentState() {
+  try {
+    localStorage.setItem('placar_saved_state', JSON.stringify(currentState));
+    if (currentRoomId && currentRoomId !== 'LOCAL') {
+      localStorage.setItem('placar_current_room', currentRoomId);
+    }
+  } catch (e) {
+    console.warn('Erro ao persistir estado no localStorage:', e);
+  }
+}
+
+function markOfflineChange() {
+  if (!isSocketConnected) {
+    hasOfflineChanges = true;
+    localStorage.setItem('placar_has_offline_changes', 'true');
+  }
+}
+
+// Utilitários de Formatação
 function formatRoomCode(code) {
-  if (!code) return '------';
+  if (!code || code === 'LOCAL') return 'OFFLINE';
   const clean = String(code).replace(/\D/g, '');
   if (clean.length === 6) {
     return `${clean.slice(0, 3)} ${clean.slice(3)}`;
   }
-  return clean;
+  return clean || '------';
 }
 
 function formatTime(totalSeconds) {
@@ -129,22 +239,154 @@ function formatTime(totalSeconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function updateTimerUI(timer) {
-  timerDisplay.textContent = formatTime(timer.seconds);
-  if (timer.running) {
-    timerDot.classList.add('running');
-    btnTimerToggle.classList.add('running');
-    timerToggleIcon.textContent = '⏸';
-    timerToggleText.textContent = 'Pausar';
+// ============================================================
+// FEEDBACK VISUAL DE CONEXÃO & NOTIFICAÇÕES TOAST
+// ============================================================
+
+let toastTimeout = null;
+
+function showToast(message, type = 'warning', autoHideMs = 0) {
+  if (!offlineToastBanner) return;
+  if (toastTimeout) clearTimeout(toastTimeout);
+
+  offlineToastBanner.className = 'offline-toast-banner';
+  if (type === 'online-restored') {
+    offlineToastBanner.classList.add('online-restored');
+    if (offlineToastIcon) offlineToastIcon.textContent = '✅';
   } else {
-    timerDot.classList.remove('running');
-    btnTimerToggle.classList.remove('running');
-    timerToggleIcon.textContent = '▶';
-    timerToggleText.textContent = 'Iniciar';
+    if (offlineToastIcon) offlineToastIcon.textContent = '⚠️';
+  }
+
+  if (offlineToastMsg) offlineToastMsg.textContent = message;
+  offlineToastBanner.style.display = 'flex';
+
+  if (autoHideMs > 0) {
+    toastTimeout = setTimeout(() => {
+      offlineToastBanner.style.display = 'none';
+      toastTimeout = null;
+    }, autoHideMs);
   }
 }
 
-// Renderização do Histórico no Modal
+function hideToast() {
+  if (offlineToastBanner) {
+    offlineToastBanner.style.display = 'none';
+  }
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
+}
+
+function updateConnectionUI(connected) {
+  isSocketConnected = connected;
+
+  if (connected) {
+    if (connectionPill) {
+      connectionPill.className = 'connection-status-pill online';
+      connectionPill.title = 'Status da Conexão: Sincronizado em tempo real';
+    }
+    if (connectionStatusText) {
+      connectionStatusText.textContent = 'Online';
+    }
+  } else {
+    if (connectionPill) {
+      connectionPill.className = 'connection-status-pill offline';
+      connectionPill.title = 'Status da Conexão: Modo Offline (Pontuação e tempo continuam funcionando localmente)';
+    }
+    if (connectionStatusText) {
+      connectionStatusText.textContent = 'Modo Offline';
+    }
+  }
+}
+
+// ============================================================
+// CRONÔMETRO LOCAL AUTÔNOMO (NUNCA PARA SEM REDE)
+// ============================================================
+
+function updateTimerUI(timer) {
+  if (!timerDisplay) return;
+  timerDisplay.textContent = formatTime(timer.seconds);
+  if (timer.running) {
+    if (timerDot) timerDot.classList.add('running');
+    if (btnTimerToggle) btnTimerToggle.classList.add('running');
+    if (timerToggleIcon) timerToggleIcon.textContent = '⏸';
+    if (timerToggleText) timerToggleText.textContent = 'Pausar';
+  } else {
+    if (timerDot) timerDot.classList.remove('running');
+    if (btnTimerToggle) btnTimerToggle.classList.remove('running');
+    if (timerToggleIcon) timerToggleIcon.textContent = '▶';
+    if (timerToggleText) timerToggleText.textContent = 'Iniciar';
+  }
+  updateActionHighlights();
+}
+
+// Loop local de 1 segundo: garante que o cronômetro avance perfeitamente mesmo sem internet
+let timerSaveCounter = 0;
+setInterval(() => {
+  if (currentState.timer && currentState.timer.running) {
+    currentState.timer.seconds += 1;
+    if (timerDisplay) {
+      timerDisplay.textContent = formatTime(currentState.timer.seconds);
+    }
+    timerSaveCounter += 1;
+    if (timerSaveCounter >= 5) {
+      timerSaveCounter = 0;
+      persistCurrentState();
+    }
+  }
+}, 1000);
+
+// ============================================================
+// RENDERIZAÇÃO DA INTERFACE DO PLACAR & DESTAQUES
+// ============================================================
+
+// Destaques contextuais e intuitivos para os botões de ação
+function updateActionHighlights() {
+  // 1. Destaque do botão Iniciar antes de começar a pontuar (placar zerado e cronômetro parado/zerado)
+  const isMatchZero = (currentState.scoreA === 0 && currentState.scoreB === 0);
+  const isTimerZero = (!currentState.timer.running && currentState.timer.seconds === 0);
+
+  if (btnTimerToggle) {
+    if (isMatchZero && isTimerZero) {
+      btnTimerToggle.classList.add('highlight-start-timer');
+    } else {
+      btnTimerToggle.classList.remove('highlight-start-timer');
+    }
+  }
+
+  // 2. Destaque do botão Encerrar Partida quando algum dos times alcançar 15 pontos ou mais
+  if (btnFinishMatch) {
+    if (currentState.scoreA >= 15 || currentState.scoreB >= 15) {
+      btnFinishMatch.classList.add('highlight-finish');
+    } else {
+      btnFinishMatch.classList.remove('highlight-finish');
+    }
+  }
+}
+
+function renderScoreUI() {
+  if (scoreDigitA) {
+    if (previousScoreA !== currentState.scoreA) {
+      scoreDigitA.classList.add('pop');
+      setTimeout(() => scoreDigitA.classList.remove('pop'), 150);
+    }
+    scoreDigitA.textContent = currentState.scoreA;
+    previousScoreA = currentState.scoreA;
+  }
+
+  if (scoreDigitB) {
+    if (previousScoreB !== currentState.scoreB) {
+      scoreDigitB.classList.add('pop');
+      setTimeout(() => scoreDigitB.classList.remove('pop'), 150);
+    }
+    scoreDigitB.textContent = currentState.scoreB;
+    previousScoreB = currentState.scoreB;
+  }
+
+  updateActionHighlights();
+}
+
 function renderHistory(history) {
   const count = history ? history.length : 0;
   if (historyCountBadge) historyCountBadge.textContent = count;
@@ -189,55 +431,295 @@ function renderHistory(history) {
   historyList.innerHTML = html;
 }
 
-// Atualização de Estado Completo da Sala
-function updateState(state) {
-  lastRoomState = state;
+function updateState(state, fromServer = false) {
+  if (!state) return;
+
+  if (fromServer) {
+    // Se o cliente tem alterações offline pendentes, não sobrescreve cegamente
+    if (hasOfflineChanges) {
+      console.log('Alterações offline pendentes detectadas; preservando estado local para sync.');
+      return;
+    }
+  }
+
+  currentState = {
+    ...currentState,
+    ...state,
+    timer: {
+      ...currentState.timer,
+      ...(state.timer || {})
+    },
+    matchHistory: Array.isArray(state.matchHistory) ? state.matchHistory : currentState.matchHistory
+  };
+
+  lastRoomState = currentState;
+
   if (state.roomId) {
     currentRoomId = state.roomId;
-    localStorage.setItem('placar_current_room', state.roomId);
     if (currentRoomCodeDisplay) {
       currentRoomCodeDisplay.textContent = formatRoomCode(state.roomId);
     }
   }
 
-  // Exibe ou oculta ícone de cadeado na sala ativa
   if (roomPillLock) {
     roomPillLock.style.display = state.hasPassword ? 'inline-block' : 'none';
   }
 
-  if (document.activeElement !== nameA) nameA.value = state.nameA;
-  if (document.activeElement !== nameB) nameB.value = state.nameB;
+  if (nameA && document.activeElement !== nameA && state.nameA) nameA.value = state.nameA;
+  if (nameB && document.activeElement !== nameB && state.nameB) nameB.value = state.nameB;
 
-  // Animação Lado A
-  if (previousScoreA !== state.scoreA) {
-    scoreDigitA.classList.add('pop');
-    setTimeout(() => scoreDigitA.classList.remove('pop'), 150);
-  }
-  scoreDigitA.textContent = state.scoreA;
-  previousScoreA = state.scoreA;
+  renderScoreUI();
 
-  // Animação Lado B
-  if (previousScoreB !== state.scoreB) {
-    scoreDigitB.classList.add('pop');
-    setTimeout(() => scoreDigitB.classList.remove('pop'), 150);
-  }
-  scoreDigitB.textContent = state.scoreB;
-  previousScoreB = state.scoreB;
-
-  // Cronômetro
-  if (state.timer) {
-    updateTimerUI(state.timer);
+  if (currentState.timer) {
+    updateTimerUI(currentState.timer);
   }
 
-  // Histórico
-  renderHistory(state.matchHistory || []);
+  renderHistory(currentState.matchHistory || []);
+  persistCurrentState();
+}
+
+// Inicializa a UI imediatamente com o estado em cache (carregamento instantâneo)
+updateState(currentState);
+
+// ============================================================
+// AÇÕES OTIMISTAS (RESPOSTA INSTANTÂNEA LOCAL + EMISSÃO)
+// ============================================================
+
+function triggerHaptic() {
+  if (navigator && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate(25); } catch (_) {}
+  }
+}
+
+// Lado A
+function addPointA() {
+  triggerHaptic();
+  if (window.sound) window.sound.playPointAdd();
+  currentState.scoreA += 1;
+  renderScoreUI();
+  persistCurrentState();
+
+  if (socket && socket.connected) {
+    socket.emit('point:add', 'A');
+  } else {
+    markOfflineChange();
+  }
+}
+
+function subPointA() {
+  triggerHaptic();
+  if (currentState.scoreA > 0) {
+    if (window.sound) window.sound.playPointSub();
+    currentState.scoreA -= 1;
+    renderScoreUI();
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('point:sub', 'A');
+    } else {
+      markOfflineChange();
+    }
+  }
+}
+
+if (btnAddA) btnAddA.addEventListener('click', addPointA);
+if (clickAreaA) clickAreaA.addEventListener('click', addPointA);
+if (btnSubA) btnSubA.addEventListener('click', subPointA);
+
+if (nameA) {
+  nameA.addEventListener('change', () => {
+    currentState.nameA = nameA.value.trim().slice(0, 20) || 'LADO A';
+    persistCurrentState();
+    if (socket && socket.connected) {
+      socket.emit('name:update', { team: 'A', name: currentState.nameA });
+    } else {
+      markOfflineChange();
+    }
+  });
+  nameA.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameA.blur();
+    }
+  });
+}
+
+// Lado B
+function addPointB() {
+  triggerHaptic();
+  if (window.sound) window.sound.playPointAdd();
+  currentState.scoreB += 1;
+  renderScoreUI();
+  persistCurrentState();
+
+  if (socket && socket.connected) {
+    socket.emit('point:add', 'B');
+  } else {
+    markOfflineChange();
+  }
+}
+
+function subPointB() {
+  triggerHaptic();
+  if (currentState.scoreB > 0) {
+    if (window.sound) window.sound.playPointSub();
+    currentState.scoreB -= 1;
+    renderScoreUI();
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('point:sub', 'B');
+    } else {
+      markOfflineChange();
+    }
+  }
+}
+
+if (btnAddB) btnAddB.addEventListener('click', addPointB);
+if (clickAreaB) clickAreaB.addEventListener('click', addPointB);
+if (btnSubB) btnSubB.addEventListener('click', subPointB);
+
+if (nameB) {
+  nameB.addEventListener('change', () => {
+    currentState.nameB = nameB.value.trim().slice(0, 20) || 'LADO B';
+    persistCurrentState();
+    if (socket && socket.connected) {
+      socket.emit('name:update', { team: 'B', name: currentState.nameB });
+    } else {
+      markOfflineChange();
+    }
+  });
+  nameB.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameB.blur();
+    }
+  });
+}
+
+// Cronômetro
+if (btnTimerToggle) {
+  btnTimerToggle.addEventListener('click', () => {
+    triggerHaptic();
+    const wasRunning = currentState.timer.running;
+    currentState.timer.running = !wasRunning;
+
+    if (!wasRunning && window.sound) {
+      window.sound.playWhistle();
+    }
+
+    updateTimerUI(currentState.timer);
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('timer:toggle');
+    } else {
+      markOfflineChange();
+    }
+  });
+}
+
+if (btnTimerRestart) {
+  btnTimerRestart.addEventListener('click', () => {
+    currentState.timer.seconds = 0;
+    updateTimerUI(currentState.timer);
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('timer:restart');
+    } else {
+      markOfflineChange();
+    }
+  });
+}
+
+// Encerrar Partida
+if (btnFinishMatch) {
+  btnFinishMatch.addEventListener('click', () => {
+    if (currentState.scoreA === 0 && currentState.scoreB === 0) {
+      if (!confirm('O placar ainda está em 0 x 0. Deseja encerrar mesmo assim?')) return;
+    } else {
+      if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico desta sala?')) return;
+    }
+
+    if (window.sound) window.sound.playFinalWhistle();
+
+    let winner = 'Empate';
+    if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA;
+    else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB;
+
+    const matchRecord = {
+      id: Date.now(),
+      matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
+      nameA: currentState.nameA,
+      scoreA: currentState.scoreA,
+      nameB: currentState.nameB,
+      scoreB: currentState.scoreB,
+      winner: winner,
+      durationSeconds: currentState.timer.seconds,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    if (!currentState.matchHistory) currentState.matchHistory = [];
+    currentState.matchHistory.unshift(matchRecord);
+
+    currentState.scoreA = 0;
+    currentState.scoreB = 0;
+    currentState.timer.running = false;
+    currentState.timer.seconds = 0;
+
+    renderScoreUI();
+    updateTimerUI(currentState.timer);
+    renderHistory(currentState.matchHistory);
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('match:finish');
+    } else {
+      markOfflineChange();
+    }
+  });
+}
+
+// Resetar Placar
+if (btnScoreReset) {
+  btnScoreReset.addEventListener('click', () => {
+    if (confirm('Deseja zerar o placar atual das duas equipes sem salvar no histórico?')) {
+      currentState.scoreA = 0;
+      currentState.scoreB = 0;
+      renderScoreUI();
+      persistCurrentState();
+
+      if (socket && socket.connected) {
+        socket.emit('score:reset');
+      } else {
+        markOfflineChange();
+      }
+    }
+  });
+}
+
+// Limpar Histórico
+if (btnClearHistory) {
+  btnClearHistory.addEventListener('click', () => {
+    if (confirm('Deseja realmente apagar o histórico de partidas desta sala?')) {
+      currentState.matchHistory = [];
+      renderHistory(currentState.matchHistory);
+      persistCurrentState();
+
+      if (socket && socket.connected) {
+        socket.emit('history:clear');
+      } else {
+        markOfflineChange();
+      }
+    }
+  });
 }
 
 // ============================================================
-// GERENCIAMENTO DE SESSÕES / SALAS (6 DÍGITOS E SENHA)
+// GERENCIAMENTO DE SALAS, SENHAS E MODO OFFLINE DIRETO
 // ============================================================
 
-// Utilitários de Senha na Sessão do Navegador
 function getSavedRoomPassword(roomId) {
   try {
     return sessionStorage.getItem(`placar_pwd_${roomId}`) || '';
@@ -256,8 +738,8 @@ function saveRoomPassword(roomId, password) {
 
 function openRoomModal() {
   if (roomSelectionModal) {
-    joinRoomError.textContent = '';
-    inputRoomCode.value = '';
+    if (joinRoomError) joinRoomError.textContent = '';
+    if (inputRoomCode) inputRoomCode.value = '';
     if (toggleCreatePassword) toggleCreatePassword.checked = false;
     if (createPasswordBox) createPasswordBox.style.display = 'none';
     if (inputCreatePassword) {
@@ -279,6 +761,14 @@ function closeRoomModal() {
   }
 }
 
+if (btnGoHome) btnGoHome.addEventListener('click', openRoomModal);
+if (menuItemHome) menuItemHome.addEventListener('click', openRoomModal);
+if (headerTitleArea) {
+  headerTitleArea.addEventListener('click', (e) => {
+    if (e.target.closest('#roomPill') || e.target.closest('#connectionPill')) return;
+    openRoomModal();
+  });
+}
 if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', openRoomModal);
 if (btnCloseRoomModal) btnCloseRoomModal.addEventListener('click', closeRoomModal);
 
@@ -290,6 +780,22 @@ if (roomSelectionModal) {
   });
 }
 
+// Modo Offline Rápido (Inicia imediatamente sem depender de rede)
+function startOfflineMode() {
+  currentRoomId = 'LOCAL';
+  currentState.roomId = 'LOCAL';
+  closeRoomModal();
+  updateUrlWithRoom(null);
+  updateState(currentState);
+  updateConnectionUI(false);
+  showToast('⚡ Modo Offline ativo: pontuação e cronômetro funcionam direto no seu aparelho!', 'warning', 4000);
+}
+
+if (btnStartOfflineMode) {
+  btnStartOfflineMode.addEventListener('click', startOfflineMode);
+}
+
+// Modal de Desbloqueio por Senha
 function openPasswordPrompt(roomId, initialError = '') {
   pendingJoinRoomId = roomId;
   if (passwordPromptRoomCode) {
@@ -319,7 +825,6 @@ function closePasswordPrompt() {
   pendingJoinRoomId = null;
 }
 
-// Alternar visualização da senha (olho)
 if (btnToggleCreateEye && inputCreatePassword) {
   btnToggleCreateEye.addEventListener('click', () => {
     const isPass = inputCreatePassword.type === 'password';
@@ -336,7 +841,6 @@ if (btnTogglePromptEye && inputPromptPassword) {
   });
 }
 
-// Alternar campo de senha ao criar nova sala
 if (toggleCreatePassword) {
   toggleCreatePassword.addEventListener('change', () => {
     if (toggleCreatePassword.checked) {
@@ -351,7 +855,6 @@ if (toggleCreatePassword) {
   });
 }
 
-// Formatação automática do input de 6 dígitos no modal (ex: 123 456)
 if (inputRoomCode) {
   inputRoomCode.addEventListener('input', (e) => {
     let val = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -363,9 +866,16 @@ if (inputRoomCode) {
   });
 }
 
-// Criar nova sala com opção de senha
+// Criar nova sala com o servidor
 if (btnCreateNewRoom) {
   btnCreateNewRoom.addEventListener('click', () => {
+    if (!socket || !socket.connected) {
+      if (confirm('Você está sem conexão com o servidor. Deseja jogar no Modo Offline agora?')) {
+        startOfflineMode();
+      }
+      return;
+    }
+
     let passwordToSet = null;
     if (toggleCreatePassword && toggleCreatePassword.checked) {
       const typed = inputCreatePassword ? inputCreatePassword.value.trim() : '';
@@ -386,12 +896,14 @@ if (btnCreateNewRoom) {
           saveRoomPassword(res.roomId, passwordToSet);
         }
         localStorage.setItem('placar_current_room', res.roomId);
+        hasOfflineChanges = false;
+        localStorage.removeItem('placar_has_offline_changes');
         updateUrlWithRoom(res.roomId);
         updateState(res.state);
         closeRoomModal();
         openShareModal();
       } else {
-        alert('Erro ao criar sala. Tente novamente.');
+        alert('Erro ao criar sala. Verifique sua conexão e tente novamente.');
       }
     });
   });
@@ -407,6 +919,13 @@ if (joinRoomForm) {
       return;
     }
 
+    if (!socket || !socket.connected) {
+      if (joinRoomError) {
+        joinRoomError.textContent = 'Sem conexão no momento. Use o Modo Offline abaixo.';
+      }
+      return;
+    }
+
     const btnSubmit = document.getElementById('btnSubmitJoin');
     if (btnSubmit) btnSubmit.disabled = true;
 
@@ -417,6 +936,8 @@ if (joinRoomForm) {
       if (res && res.success) {
         currentRoomId = res.roomId;
         localStorage.setItem('placar_current_room', res.roomId);
+        hasOfflineChanges = false;
+        localStorage.removeItem('placar_has_offline_changes');
         updateUrlWithRoom(res.roomId);
         updateState(res.state);
         closeRoomModal();
@@ -431,7 +952,7 @@ if (joinRoomForm) {
   });
 }
 
-// Envio do formulário de solicitação de senha (quando a sala tem senha)
+// Prompt de senha para sala protegida
 if (passwordPromptForm) {
   passwordPromptForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -454,6 +975,8 @@ if (passwordPromptForm) {
         saveRoomPassword(targetRoom, enteredPassword);
         currentRoomId = res.roomId;
         localStorage.setItem('placar_current_room', res.roomId);
+        hasOfflineChanges = false;
+        localStorage.removeItem('placar_has_offline_changes');
         updateUrlWithRoom(res.roomId);
         updateState(res.state);
         closePasswordPrompt();
@@ -486,75 +1009,151 @@ if (btnClosePasswordModal) {
 
 function updateUrlWithRoom(roomId) {
   const url = new URL(window.location);
-  url.searchParams.set('sala', roomId);
+  if (roomId && roomId !== 'LOCAL') {
+    url.searchParams.set('sala', roomId);
+  } else {
+    url.searchParams.delete('sala');
+    url.searchParams.delete('room');
+  }
   window.history.replaceState({}, '', url);
 }
 
-// Inicialização da Sala ao abrir a página
+// ============================================================
+// CONEXÃO & SINCRONIZAÇÃO INTELIGENTE COM O SERVIDOR
+// ============================================================
+
 function initRoomConnection() {
+  if (!socket) return;
+
   const params = new URLSearchParams(window.location.search);
   const paramRoom = params.get('sala') || params.get('room');
   const savedRoom = localStorage.getItem('placar_current_room');
 
-  if (paramRoom && paramRoom.replace(/\D/g, '').length === 6) {
-    const clean = paramRoom.replace(/\D/g, '');
-    const savedPwd = getSavedRoomPassword(clean);
+  const targetRoom = (paramRoom && paramRoom.replace(/\D/g, '').length === 6)
+    ? paramRoom.replace(/\D/g, '')
+    : (savedRoom && savedRoom.replace(/\D/g, '').length === 6 ? savedRoom.replace(/\D/g, '') : null);
 
-    socket.emit('room:join', { roomId: clean, password: savedPwd, autoCreate: false }, (res) => {
+  if (targetRoom) {
+    const savedPwd = getSavedRoomPassword(targetRoom);
+
+    socket.emit('room:join', { roomId: targetRoom, password: savedPwd, autoCreate: false }, (res) => {
       if (res && res.success) {
         currentRoomId = res.roomId;
-        localStorage.setItem('placar_current_room', res.roomId);
         updateUrlWithRoom(res.roomId);
-        updateState(res.state);
+
+        // Se o usuário fez alterações offline enquanto estava desconectado, envia para o servidor
+        if (hasOfflineChanges) {
+          socket.emit('room:sync', currentState, (syncRes) => {
+            if (syncRes && syncRes.success) {
+              hasOfflineChanges = false;
+              localStorage.removeItem('placar_has_offline_changes');
+              showToast('✅ Conexão restabelecida! Placar sincronizado com a sala.', 'online-restored', 3500);
+            }
+          });
+        } else {
+          updateState(res.state, true);
+        }
       } else if (res && res.requiresPassword) {
-        // Sala protegida: abre prompt de senha
-        openPasswordPrompt(clean, res.error);
+        openPasswordPrompt(targetRoom, res.error);
       } else {
-        openRoomModal();
+        if (!currentState.scoreA && !currentState.scoreB) {
+          openRoomModal();
+        }
       }
     });
     return;
   }
 
-  if (savedRoom && savedRoom.replace(/\D/g, '').length === 6) {
-    const clean = savedRoom.replace(/\D/g, '');
-    const savedPwd = getSavedRoomPassword(clean);
-
-    socket.emit('room:join', { roomId: clean, password: savedPwd }, (res) => {
-      if (res && res.success) {
-        currentRoomId = res.roomId;
-        updateUrlWithRoom(res.roomId);
-        updateState(res.state);
-      } else if (res && res.requiresPassword) {
-        openPasswordPrompt(clean, res.error);
-      } else {
-        openRoomModal();
-      }
-    });
-    return;
+  // Se não houver sala salva e a pontuação estiver zerada, abre modal de seleção
+  if (!currentState.scoreA && !currentState.scoreB && currentState.roomId === 'LOCAL') {
+    openRoomModal();
   }
+}
 
-  // Se não houver código na URL nem no cache, abre o modal de seleção
-  openRoomModal();
+// ============================================================
+// LISTENERS DO SOCKET.IO E DO NAVEGADOR (ONLINE / OFFLINE)
+// ============================================================
+
+if (socket) {
+  socket.on('connect', () => {
+    updateConnectionUI(true);
+    if (hasOfflineChanges) {
+      showToast('🔄 Conectando... Sincronizando dados offline com o servidor...', 'warning', 2500);
+    } else {
+      hideToast();
+    }
+    initRoomConnection();
+  });
+
+  socket.on('disconnect', (reason) => {
+    updateConnectionUI(false);
+    showToast('⚠️ Desconectado do servidor. O placar continua funcionando offline!', 'warning');
+  });
+
+  socket.on('connect_error', () => {
+    updateConnectionUI(false);
+  });
+
+  socket.on('state:update', (state) => {
+    updateState(state, true);
+  });
+
+  socket.on('timer:tick', (timer) => {
+    // Calibra o cronômetro local com o tempo do servidor para evitar desvio entre múltiplos aparelhos
+    if (currentState.timer) {
+      currentState.timer.seconds = timer.seconds;
+      currentState.timer.running = timer.running;
+      updateTimerUI(timer);
+    }
+  });
+
+  socket.on('sound:play', ({ type }) => {
+    if (!window.sound) return;
+    if (type === 'whistle') window.sound.playWhistle();
+    if (type === 'whistle_final') window.sound.playFinalWhistle();
+    if (type === 'point_add') window.sound.playPointAdd();
+    if (type === 'point_sub') window.sound.playPointSub();
+  });
+}
+
+// Detecção nativa do navegador
+window.addEventListener('online', () => {
+  if (socket && !socket.connected) {
+    socket.connect();
+  }
+  showToast('✅ Internet restabelecida! Conectando...', 'online-restored', 3000);
+});
+
+window.addEventListener('offline', () => {
+  updateConnectionUI(false);
+  showToast('⚠️ Você está sem internet. O placar continua funcionando normalmente!', 'warning');
+});
+
+// Checagem inicial de rede ao abrir a página
+if (!navigator.onLine) {
+  updateConnectionUI(false);
+  showToast('⚠️ Modo Offline: O placar funciona 100% mesmo sem internet!', 'warning');
 }
 
 // ============================================================
 // COMPARTILHAMENTO & QR CODE
 // ============================================================
 function openShareModal() {
-  if (!currentRoomId) return;
+  if (!currentRoomId || currentRoomId === 'LOCAL') {
+    alert('Esta partida está em Modo Offline (apenas neste dispositivo). Para conectar outros celulares ou Smart TVs, crie uma Sessão Online.');
+    openRoomModal();
+    return;
+  }
 
   const url = `${window.location.origin}/?sala=${currentRoomId}`;
   if (shareUrlInput) shareUrlInput.value = url;
   if (shareModalRoomCode) shareModalRoomCode.textContent = formatRoomCode(currentRoomId);
 
-  // Exibe aviso e badge caso a sala tenha senha
   const isProtected = Boolean(lastRoomState && lastRoomState.hasPassword);
   if (shareModalLockBadge) shareModalLockBadge.style.display = isProtected ? 'inline-block' : 'none';
   if (sharePasswordAlertTip) sharePasswordAlertTip.style.display = isProtected ? 'block' : 'none';
 
   if (qrCodeImage) {
-    // Gera QR Code nítido e veloz usando endpoint padrão
     qrCodeImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(url)}`;
   }
 
@@ -598,10 +1197,9 @@ if (btnCopyShareUrl) {
   });
 }
 
-// Compartilhamento direto no WhatsApp
 if (btnShareWhatsapp) {
   btnShareWhatsapp.addEventListener('click', () => {
-    if (!currentRoomId) return;
+    if (!currentRoomId || currentRoomId === 'LOCAL') return;
     const url = `${window.location.origin}/?sala=${currentRoomId}`;
     let msg = `🏐 *Placar de Vôlei Online* 🏐\n\n`;
     msg += `Acesse para acompanhar o placar e cronômetro em tempo real:\n${url}\n`;
@@ -616,7 +1214,6 @@ if (btnShareWhatsapp) {
     }
 
     msg += `\n📺 Abra no navegador do celular, tablet ou Smart TV!`;
-
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, '_blank');
   });
@@ -836,132 +1433,6 @@ if (btnFullscreen) {
   document.addEventListener('fullscreenchange', updateFullscreenUI);
 }
 
-// ============================================================
-// SOCKET.IO LISTENERS
-// ============================================================
-socket.on('connect', () => {
-  initRoomConnection();
-});
-
-socket.on('state:update', (state) => {
-  updateState(state);
-});
-
-socket.on('timer:tick', (timer) => {
-  timerDisplay.textContent = formatTime(timer.seconds);
-});
-
-socket.on('sound:play', ({ type }) => {
-  if (!window.sound) return;
-  if (type === 'whistle') window.sound.playWhistle();
-  if (type === 'whistle_final') window.sound.playFinalWhistle();
-  if (type === 'point_add') window.sound.playPointAdd();
-  if (type === 'point_sub') window.sound.playPointSub();
-});
-
-// Feedback tátil
-function triggerHaptic() {
-  if (navigator && typeof navigator.vibrate === 'function') {
-    try { navigator.vibrate(25); } catch (_) {}
-  }
-}
-
-// Ações Lado A
-function addPointA() {
-  triggerHaptic();
-  if (window.sound) window.sound.playPointAdd();
-  socket.emit('point:add', 'A');
-}
-
-function subPointA() {
-  triggerHaptic();
-  const current = parseInt(scoreDigitA.textContent) || 0;
-  if (current > 0 && window.sound) window.sound.playPointSub();
-  socket.emit('point:sub', 'A');
-}
-
-btnAddA.addEventListener('click', addPointA);
-clickAreaA.addEventListener('click', addPointA);
-btnSubA.addEventListener('click', subPointA);
-
-nameA.addEventListener('change', () => {
-  socket.emit('name:update', { team: 'A', name: nameA.value });
-});
-nameA.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    nameA.blur();
-  }
-});
-
-// Ações Lado B
-function addPointB() {
-  triggerHaptic();
-  if (window.sound) window.sound.playPointAdd();
-  socket.emit('point:add', 'B');
-}
-
-function subPointB() {
-  triggerHaptic();
-  const current = parseInt(scoreDigitB.textContent) || 0;
-  if (current > 0 && window.sound) window.sound.playPointSub();
-  socket.emit('point:sub', 'B');
-}
-
-btnAddB.addEventListener('click', addPointB);
-clickAreaB.addEventListener('click', addPointB);
-btnSubB.addEventListener('click', subPointB);
-
-nameB.addEventListener('change', () => {
-  socket.emit('name:update', { team: 'B', name: nameB.value });
-});
-nameB.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    nameB.blur();
-  }
-});
-
-// Ações Cronômetro
-btnTimerToggle.addEventListener('click', () => {
-  triggerHaptic();
-  if (!btnTimerToggle.classList.contains('running') && window.sound) {
-    window.sound.playWhistle();
-  }
-  socket.emit('timer:toggle');
-});
-
-btnTimerRestart.addEventListener('click', () => {
-  socket.emit('timer:restart');
-});
-
-// Encerrar Partida
-btnFinishMatch.addEventListener('click', () => {
-  const currentPtsA = parseInt(scoreDigitA.textContent) || 0;
-  const currentPtsB = parseInt(scoreDigitB.textContent) || 0;
-  if (currentPtsA === 0 && currentPtsB === 0) {
-    if (!confirm('O placar ainda está em 0 x 0. Deseja encerrar mesmo assim?')) return;
-  } else {
-    if (!confirm('Deseja encerrar a partida atual e salvar o resultado no histórico desta sala?')) return;
-  }
-  if (window.sound) window.sound.playFinalWhistle();
-  socket.emit('match:finish');
-});
-
-// Limpar Histórico
-btnClearHistory.addEventListener('click', () => {
-  if (confirm('Deseja realmente apagar o histórico de partidas desta sala?')) {
-    socket.emit('history:clear');
-  }
-});
-
-// Resetar Placar Geral
-btnScoreReset.addEventListener('click', () => {
-  if (confirm('Deseja zerar o placar atual das duas equipes sem salvar no histórico?')) {
-    socket.emit('score:reset');
-  }
-});
-
 // Atalhos de Teclado
 document.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -975,7 +1446,7 @@ document.addEventListener('keydown', (e) => {
     addPointB();
   } else if (e.code === 'Space') {
     e.preventDefault();
-    socket.emit('timer:toggle');
+    if (btnTimerToggle) btnTimerToggle.click();
   } else if (key === 'f') {
     e.preventDefault();
     toggleFullscreen();

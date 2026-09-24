@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="ballGrad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="65%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </radialGradient>
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#020617" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  
+  <!-- Fundo com cantos arredondados -->
+  <rect width="512" height="512" rx="112" fill="#07090e"/>
+  
+  <!-- Glow suave de fundo -->
+  <circle cx="256" cy="256" r="230" fill="url(#glowGrad)"/>
+  
+  <!-- Bola de Vôlei estilizada -->
+  <g filter="url(#shadow)">
+    <!-- Base da Bola -->
+    <circle cx="256" cy="256" r="180" fill="url(#ballGrad)" stroke="#1e293b" stroke-width="12"/>
+    
+    <!-- Painéis característicos de vôlei -->
+    <!-- Seção Azul (Team A) -->
+    <path d="M 256 76 C 256 160 196 220 112 220 C 86 220 80 200 76 256 C 76 156.5 156.5 76 256 76 Z" fill="#2563eb" opacity="0.9"/>
+    
+    <!-- Seção Amarela/Dourada -->
+    <path d="M 256 436 C 256 352 316 292 400 292 C 426 292 432 312 436 256 C 436 355.5 355.5 436 256 436 Z" fill="#f59e0b" opacity="0.9"/>
+    
+    <!-- Seção Vermelha (Team B) -->
+    <path d="M 436 256 C 352 256 292 196 292 112 C 292 86 312 80 256 76 C 355.5 76 436 156.5 436 256 Z" fill="#ef4444" opacity="0.85"/>
+    
+    <!-- Linhas de costura da bola -->
+    <path d="M 76 256 C 180 256 256 180 256 76" fill="none" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 256 76 C 256 180 332 256 436 256" fill="none" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 436 256 C 332 256 256 332 256 436" fill="none" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 256 436 C 256 332 180 256 76 256" fill="none" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
+    
+    <path d="M 128 128 C 170 170 200 215 256 256 C 312 297 357 327 384 384" fill="none" stroke="#0f172a" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 384 128 C 342 170 312 215 256 256 C 200 297 155 327 128 384" fill="none" stroke="#0f172a" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

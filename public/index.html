@@ -5,7 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Placar de Vôlei Online em Tempo Real</title>
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#07090e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
 </head>
 <body>
 
@@ -16,17 +21,28 @@
         <span class="logo-emoji">🏐</span>
         <div>
           <h1 class="app-title">Placar de Vôlei</h1>
-          <div class="room-status-pill" id="roomPill" title="Clique para compartilhar ou trocar de sala">
-            <span class="pulse-indicator"></span>
-            <span class="room-pill-label">SALA:</span>
-            <strong class="room-pill-code" id="currentRoomCodeDisplay">------</strong>
-            <span class="room-pill-lock" id="roomPillLock" style="display: none;" title="Sala protegida por senha">🔒</span>
+          <div class="room-pill-row">
+            <div class="room-status-pill" id="roomPill" title="Clique para compartilhar ou trocar de sala">
+              <span class="pulse-indicator"></span>
+              <span class="room-pill-label">SALA:</span>
+              <strong class="room-pill-code" id="currentRoomCodeDisplay">------</strong>
+              <span class="room-pill-lock" id="roomPillLock" style="display: none;" title="Sala protegida por senha">🔒</span>
+            </div>
+            <div class="connection-status-pill online" id="connectionPill" title="Status da Conexão: Sincronizado em tempo real">
+              <span class="conn-dot"></span>
+              <span class="conn-text" id="connectionStatusText">Online</span>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- BOTÕES DE AÇÃO RÁPIDA NO HEADER -->
       <div class="header-quick-actions">
+        <button type="button" class="btn btn-action-pill btn-home" id="btnGoHome" title="Voltar para a Página Inicial com apresentação do produto e salas">
+          <span>🏠</span>
+          <span class="action-text">Início</span>
+        </button>
+
         <button type="button" class="btn btn-action-pill btn-new-session" id="btnHeaderNewSession" title="Criar ou entrar em uma nova sessão do placar">
           <span>➕</span>
           <span class="action-text">Nova Sessão</span>
@@ -50,6 +66,10 @@
           </button>
 
           <div class="menu-dropdown" id="menuDropdown">
+            <button type="button" class="menu-item" id="menuItemHome">
+              <span class="menu-item-icon">🏠</span>
+              <span class="menu-item-text">Página Inicial / Informações</span>
+            </button>
             <button type="button" class="menu-item" id="menuItemChangeRoom">
               <span class="menu-item-icon">🔄</span>
               <span class="menu-item-text">Trocar / Nova Sala</span>
@@ -104,6 +124,12 @@
       </div>
     </div>
   </header>
+
+  <!-- BANNER TOAST DE STATUS DE REDE (ONLINE / OFFLINE) -->
+  <div class="offline-toast-banner" id="offlineToastBanner" style="display: none;">
+    <span class="offline-toast-icon" id="offlineToastIcon">⚠️</span>
+    <span class="offline-toast-msg" id="offlineToastMsg">Você está sem internet. O placar continua funcionando offline e salvará seus pontos!</span>
+  </div>
 
   <!-- BANNER NOTIFICAÇÃO MODO TELÃO (VISÍVEL APENAS QUANDO O MODO TELÃO ESTIVER ATIVO) -->
   <div class="tv-mode-banner" id="tvModeBanner">
@@ -250,6 +276,13 @@
             <span>➔</span>
           </button>
         </form>
+
+        <!-- MODO OFFLINE RÁPIDO (SEM INTERNET) -->
+        <div class="offline-opt-box">
+          <button type="button" class="btn-offline-mode" id="btnStartOfflineMode" title="Usar o placar apenas neste aparelho sem precisar de conexão">
+            <span>⚡ Jogar no Modo Offline (Sem Internet)</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -411,7 +444,7 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket.io.min.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/scoreboard.js"></script>
 </body>
