@@ -17,7 +17,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
 const LEGACY_FILE = path.join(DATA_DIR, 'game_state.json');
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -190,6 +191,14 @@ setInterval(() => {
 }, 1000);
 
 // Rotas de Páginas
+app.get('/placar', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'placar.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.get('/pelada', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pelada.html'));
 });
@@ -214,25 +223,155 @@ app.get('/api/room/:roomId', (req, res) => {
 // REST API: JOGADORES, AVALIAÇÕES E PELADA
 // ==========================================
 
-// Listar todos os jogadores com médias de estrelas e overall
+// ==========================================
+// ROTAS DE AUTENTICAÇÃO E USUÁRIOS
+// ==========================================
+
+// Cadastro de novo usuário (Admin ou Votante)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, name, role } = req.body;
+    const user = await db.createUser(username, password, name, role || 'user');
+    res.status(201).json({ success: true, user });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Login de usuário
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await db.authenticateUser(username, password);
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(401).json({ success: false, error: err.message });
+  }
+});
+
+// Obter dados do usuário autenticado
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'] || req.query.userId;
+    if (!userId) {
+      return res.json({ success: true, user: null });
+    }
+    const user = await db.getUserById(userId);
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Obter os votos dados pelo usuário logado para exibir e editar estrelas na tela
+app.get('/api/players/my-ratings', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'] || req.query.userId;
+    if (!userId) {
+      return res.json({ success: true, ratings: {} });
+    }
+    const ratings = await db.getUserRatingsMap(userId);
+    res.json({ success: true, ratings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// ROTAS DE PELADAS (SESSÕES / GRUPOS COM ID E NOME)
+// ==========================================
+
+// Listar todas as peladas com ID, Nome e quantidade de jogadores
+app.get('/api/peladas', async (req, res) => {
+  try {
+    const peladas = await db.getPeladas();
+    res.json({ success: true, peladas });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Obter dados de uma pelada específica
+app.get('/api/peladas/:id', async (req, res) => {
+  try {
+    const pelada = await db.getPeladaById(req.params.id);
+    if (!pelada) {
+      return res.status(404).json({ success: false, error: 'Pelada não encontrada.' });
+    }
+    res.json({ success: true, pelada });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cadastrar nova pelada (ID e Nome da pelada definidos pelo administrador)
+app.post('/api/peladas', async (req, res) => {
+  try {
+    const { name, adminName } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'O nome da pelada é obrigatório.' });
+    }
+    const pelada = await db.createPelada(name, adminName);
+    res.status(201).json({ success: true, pelada });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Atualizar nome da pelada
+app.put('/api/peladas/:id', async (req, res) => {
+  try {
+    const { name, adminName } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'O nome da pelada não pode ser vazio.' });
+    }
+    const pelada = await db.updatePelada(req.params.id, name, adminName);
+    res.json({ success: true, pelada });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Excluir pelada
+app.delete('/api/peladas/:id', async (req, res) => {
+  try {
+    await db.deletePelada(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Listar jogadores com médias de estrelas e overall (com suporte a filtro por peladaId)
 app.get('/api/players', async (req, res) => {
   try {
-    const players = await db.getPlayersWithRatings();
+    const { peladaId } = req.query;
+    const players = await db.getPlayersWithRatings(peladaId);
     res.json({ success: true, players });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Cadastrar novo jogador
+// Cadastrar novo jogador vinculado a uma pelada
 app.post('/api/players', async (req, res) => {
   try {
-    const { name, nickname, position, photoUrl } = req.body;
+    const { name, nickname, position, photoUrl, peladaId } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, error: 'O nome do jogador é obrigatório.' });
     }
-    const player = await db.addPlayer(name, nickname, position, photoUrl);
+    const player = await db.addPlayer(name, nickname, position, photoUrl, peladaId);
     res.status(201).json({ success: true, player });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Atualizar dados de um jogador (nome, apelido, posição, foto, etc.)
+app.put('/api/players/:id', async (req, res) => {
+  try {
+    const player = await db.updatePlayer(req.params.id, req.body);
+    res.json({ success: true, player });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -258,10 +397,12 @@ app.get('/api/players/:id/ratings', async (req, res) => {
   }
 });
 
-// Enviar avaliação para um jogador (Ataque, Defesa, Passe, Movimentação: 1 a 5 estrelas)
+// Enviar ou editar avaliação de um jogador (1 voto por usuário com edição garantida)
 app.post('/api/players/:id/rate', async (req, res) => {
   try {
-    const { voterName, attack, defense, setPass, movement } = req.body;
+    const { voterName, attack, defense, setPass, movement, userId } = req.body;
+    const effectiveUserId = userId || req.headers['x-user-id'] || null;
+
     if (attack === undefined || defense === undefined || setPass === undefined || movement === undefined) {
       return res.status(400).json({ success: false, error: 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.' });
     }
@@ -271,7 +412,8 @@ app.post('/api/players/:id/rate', async (req, res) => {
       attack,
       defense,
       setPass,
-      movement
+      movement,
+      effectiveUserId
     );
     res.status(201).json({ success: true, rating });
   } catch (err) {
@@ -282,12 +424,12 @@ app.post('/api/players/:id/rate', async (req, res) => {
 // Algoritmo de Equilíbrio de Times
 app.post('/api/pelada/balance', async (req, res) => {
   try {
-    const { playerIds, numTeams = 2, maxPerTeam = null } = req.body;
+    const { playerIds, numTeams = 2, maxPerTeam = null, peladaId = null } = req.body;
     if (!Array.isArray(playerIds) || playerIds.length < 2) {
       return res.status(400).json({ success: false, error: 'Selecione pelo menos 2 jogadores para equilibrar os times.' });
     }
 
-    const allPlayers = await db.getPlayersWithRatings();
+    const allPlayers = await db.getPlayersWithRatings(peladaId);
     const idSet = new Set(playerIds.map(id => Number(id)));
     const selectedPlayers = allPlayers.filter(p => idSet.has(Number(p.id)));
 
@@ -305,8 +447,8 @@ app.post('/api/pelada/balance', async (req, res) => {
 // Salvar sessão/escalação de pelada
 app.post('/api/pelada/save', async (req, res) => {
   try {
-    const { title, format, teams, bench } = req.body;
-    const session = await db.savePeladaSession(title, format, teams, bench);
+    const { title, format, teams, bench, peladaId } = req.body;
+    const session = await db.savePeladaSession(title, format, teams, bench, peladaId);
     res.status(201).json({ success: true, session });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

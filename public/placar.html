@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Placar de Vôlei Online em Tempo Real</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#07090e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+</head>
+<body>
+
+  <!-- BARRA SUPERIOR COM INFORMAÇÕES DA SALA, MENU E CRONÔMETRO -->
+  <header class="app-header">
+    <div class="header-top-row">
+      <div class="title-area">
+        <span class="logo-emoji">🏐</span>
+        <div>
+          <h1 class="app-title">Placar de Vôlei</h1>
+          <div class="room-pill-row">
+            <div class="room-status-pill" id="roomPill" title="Clique para compartilhar ou trocar de sala">
+              <span class="pulse-indicator"></span>
+              <span class="room-pill-label">SALA:</span>
+              <strong class="room-pill-code" id="currentRoomCodeDisplay">------</strong>
+              <span class="room-pill-lock" id="roomPillLock" style="display: none;" title="Sala protegida por senha">🔒</span>
+            </div>
+            <div class="connection-status-pill online" id="connectionPill" title="Status da Conexão: Sincronizado em tempo real">
+              <span class="conn-dot"></span>
+              <span class="conn-text" id="connectionStatusText">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTÕES DE AÇÃO RÁPIDA NO HEADER -->
+      <div class="header-quick-actions">
+        <button type="button" class="btn btn-action-pill btn-home" id="btnGoHome" title="Voltar para a Página Inicial com apresentação do produto e salas">
+          <span>🏠</span>
+          <span class="action-text">Início</span>
+        </button>
+
+        <button type="button" class="btn btn-action-pill btn-new-session" id="btnHeaderNewSession" title="Criar ou entrar em uma nova sessão do placar">
+          <span>➕</span>
+          <span class="action-text">Nova Sessão</span>
+        </button>
+
+        <button type="button" class="btn btn-action-pill" id="btnShareModal" title="Compartilhar link da sala ou abrir QR Code">
+          <span>📲</span>
+          <span class="action-text">Compartilhar Link</span>
+        </button>
+
+        <button type="button" class="btn btn-action-pill" id="btnTvMode" title="Ativar Modo Telão / Smart TV (Oculta botões de controle)">
+          <span id="tvModeIcon">📺</span>
+          <span class="action-text" id="tvModeText">Modo Telão</span>
+        </button>
+
+        <button type="button" class="btn btn-action-pill" id="btnFullscreen" title="Alternar Modo Tela Cheia">
+          <span id="fullscreenIcon">⛶</span>
+          <span class="action-text" id="fullscreenText">Tela Cheia</span>
+        </button>
+
+        <!-- MENU DROPDOWN -->
+        <div class="menu-container">
+          <button type="button" class="btn btn-menu" id="btnMenuToggle" title="Abrir Menu">
+            <span>☰</span>
+            <span class="menu-label">Menu</span>
+          </button>
+
+          <div class="menu-dropdown" id="menuDropdown">
+            <a href="/" class="menu-item" style="text-decoration: none;">
+              <span class="menu-item-icon">🏠</span>
+              <span class="menu-item-text">Início / Portal</span>
+            </a>
+            <a href="/avaliar" class="menu-item" style="text-decoration: none;">
+              <span class="menu-item-icon">⭐</span>
+              <span class="menu-item-text">Votação de Jogadores</span>
+            </a>
+            <a href="/pelada" class="menu-item menu-item-pelada" id="menuItemPelada" style="text-decoration: none;">
+              <span class="menu-item-icon">🏐</span>
+              <span class="menu-item-text">Controle da Pelada</span>
+              <span class="menu-badge" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 700; font-size: 0.65rem; padding: 2px 7px; border-radius: 999px; margin-left: auto;">NOVO</span>
+            </a>
+            <button type="button" class="menu-item" id="menuItemHome">
+              <span class="menu-item-icon">🏠</span>
+              <span class="menu-item-text">Página Inicial / Informações</span>
+            </button>
+            <button type="button" class="menu-item" id="menuItemChangeRoom">
+              <span class="menu-item-icon">🔄</span>
+              <span class="menu-item-text">Trocar / Nova Sala</span>
+            </button>
+            <button type="button" class="menu-item" id="menuItemHistory">
+              <span class="menu-item-icon">📜</span>
+              <span class="menu-item-text">Histórico das Partidas</span>
+              <span class="menu-badge" id="menuHistoryBadge">0</span>
+            </button>
+            <button type="button" class="menu-item" id="menuItemMute">
+              <span class="menu-item-icon" id="menuMuteIcon">🔊</span>
+              <span class="menu-item-text" id="menuMuteText">Som: Ativado</span>
+            </button>
+            <button type="button" class="menu-item" id="menuItemWakeLock">
+              <span class="menu-item-icon" id="menuWakeLockIcon">💡</span>
+              <span class="menu-item-text" id="menuWakeLockText">Tela Sempre Ativa: Ligada</span>
+            </button>
+            <button type="button" class="menu-item menu-item-pro" id="menuItemPro">
+              <span class="menu-item-icon">👑</span>
+              <span class="menu-item-text">Planos Arenas & PRO</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BANNER TOAST DE STATUS DE REDE (ONLINE / OFFLINE) -->
+  <div class="offline-toast-banner" id="offlineToastBanner" style="display: none;">
+    <span class="offline-toast-icon" id="offlineToastIcon">⚠️</span>
+    <span class="offline-toast-msg" id="offlineToastMsg">Você está sem internet. O placar continua funcionando offline e salvará seus pontos!</span>
+  </div>
+
+  <!-- BANNER NOTIFICAÇÃO MODO TELÃO (VISÍVEL APENAS QUANDO O MODO TELÃO ESTIVER ATIVO) -->
+  <div class="tv-mode-banner" id="tvModeBanner">
+    <span>📺 MODO TELÃO ATIVO — Exibição sincronizada em tempo real</span>
+    <button type="button" class="btn btn-exit-tv" id="btnExitTvMode">Sair do Modo Telão</button>
+  </div>
+
+  <!-- CORPO PRINCIPAL DO PLACAR -->
+  <main class="scoreboard-main">
+
+    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA (ACIMA DOS PLACARES) -->
+    <div class="timer-container" id="timerContainer">
+      <div class="timer-box">
+        <span class="timer-dot" id="timerDot"></span>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+      </div>
+
+      <div class="timer-controls" id="timerControls">
+        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar cronômetro">
+          <span id="timerToggleIcon">▶</span>
+          <span id="timerToggleText">Iniciar</span>
+        </button>
+        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Reiniciar cronômetro para 00:00">
+          <span>↺ Reiniciar</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="scoreboard-grid">
+
+      <!-- LADO A (AZUL) -->
+      <section class="team-card team-a">
+        <input type="text" id="nameA" class="team-title-input" value="LADO A" maxlength="20" title="Clique para editar o nome da equipe A">
+        
+        <div class="score-number-box" id="clickAreaA" title="Toque para +1 ou deslize o dedo para cima (+1) ou para baixo (-1)">
+          <span class="score-digit" id="scoreDigitA">0</span>
+        </div>
+
+        <div class="team-btn-group" id="btnGroupA">
+          <button type="button" class="btn-point-add" id="btnAddA">
+            <span>▲ +1 PONTO</span>
+          </button>
+          <button type="button" class="btn-point-sub" id="btnSubA">
+            <span>▼ -1 Ponto</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- DIVISOR VERSUS -->
+      <div class="versus-divider">
+        <div class="versus-line"></div>
+        <span>VS</span>
+        <div class="versus-line"></div>
+      </div>
+
+      <!-- LADO B (VERMELHO) -->
+      <section class="team-card team-b">
+        <input type="text" id="nameB" class="team-title-input" value="LADO B" maxlength="20" title="Clique para editar o nome da equipe B">
+        
+        <div class="score-number-box" id="clickAreaB" title="Toque para +1 ou deslize o dedo para cima (+1) ou para baixo (-1)">
+          <span class="score-digit" id="scoreDigitB">0</span>
+        </div>
+
+        <div class="team-btn-group" id="btnGroupB">
+          <button type="button" class="btn-point-add" id="btnAddB">
+            <span>▲ +1 PONTO</span>
+          </button>
+          <button type="button" class="btn-point-sub" id="btnSubB">
+            <span>▼ -1 Ponto</span>
+          </button>
+        </div>
+      </section>
+
+    </div>
+    
+    <!-- AÇÕES DA PARTIDA (PERFEITAMENTE ALINHADAS LADO A LADO EMBAIXO DOS PLACARES) -->
+    <div class="match-actions-bar" id="matchActionsBar">
+      <button type="button" class="btn btn-match-action btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+        <span class="match-btn-icon">🏁</span>
+        <span class="match-btn-text">Encerrar Partida</span>
+      </button>
+
+      <span class="match-actions-divider"></span>
+
+      <button type="button" class="btn btn-match-action btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
+        <span class="match-btn-icon">⚠️</span>
+        <span class="match-btn-text">Zerar Placar</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- ============================================================
+       MODAIS
+       ============================================================ -->
+
+  <!-- MODAL DE ESCOLHA DE SALA (ENTRAR / CRIAR SALA) -->
+  <div class="modal-backdrop" id="roomSelectionModal">
+    <div class="modal-card room-entry-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🏐</span>
+          <span>Placar de Vôlei Online</span>
+        </div>
+        <button type="button" class="btn-close-modal" id="btnCloseRoomModal" style="display: none;" title="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- DESCRIÇÃO COMPLETA DAS FUNCIONALIDADES DO SITE -->
+        <div class="app-intro-card">
+          <p class="app-intro-tagline">Sistema esportivo em tempo real para contagem de pontos e controle de tempo em jogos e treinos de vôlei.</p>
+          <div class="app-features-grid">
+            <div class="feature-item">
+              <span class="feature-icon">🔢</span>
+              <div class="feature-info">
+                <strong>Contar o Placar</strong>
+                <small>Marque a pontuação ponto a ponto para os dois times com visual LED gigante e atalhos rápidos de teclado.</small>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">⏱️</span>
+              <div class="feature-info">
+                <strong>Cronometrar a Partida</strong>
+                <small>Acompanhe o tempo de cada set com cronômetro sincronizado no servidor e efeitos sonoros de apito oficial de árbitro.</small>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">📺</span>
+              <div class="feature-info">
+                <strong>Modo Telão / Smart TV</strong>
+                <small>Conecte o celular na quadra via QR Code e transmita o placar ampliado em Smart TVs, projetores ou notebooks.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CRIAR NOVA SALA COM OPÇÃO DE SENHA -->
+        <div class="create-room-box">
+          <button type="button" class="btn-create-room" id="btnCreateNewRoom">
+            <span class="btn-create-icon">➕</span>
+            <div class="btn-create-text">
+              <strong>Criar Nova Sessão</strong>
+              <small id="createRoomSubtitle">Inicie uma nova sala com placar e cronômetro isolados</small>
+            </div>
+          </button>
+
+          <!-- OPÇÃO DE DEFINIR SENHA -->
+          <div class="room-password-opt-card">
+            <label class="password-opt-toggle" for="toggleCreatePassword">
+              <input type="checkbox" id="toggleCreatePassword" class="password-opt-checkbox">
+              <span class="password-opt-switch"></span>
+              <span class="password-opt-label">
+                <strong>🔒 Proteger sala com senha</strong>
+                <small>Evita que pessoas com o link acessem sem permissão</small>
+              </span>
+            </label>
+
+            <div class="password-input-collapsible" id="createPasswordBox" style="display: none;">
+              <div class="password-field-wrapper">
+                <input type="password" id="inputCreatePassword" class="input-password-field" placeholder="Defina uma senha (ex: 1234)" maxlength="30" autocomplete="new-password">
+                <button type="button" class="btn-toggle-eye" id="btnToggleCreateEye" title="Mostrar/Ocultar senha" tabindex="-1">👁️</button>
+              </div>
+              <small class="password-field-hint">Quem entrar por link ou código precisará digitar esta senha.</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-or-divider">
+          <span>OU ENTRE COM O CÓDIGO DE 6 NÚMEROS</span>
+        </div>
+
+        <!-- ENTRAR COM CÓDIGO EXISTENTE -->
+        <form id="joinRoomForm" class="join-room-form">
+          <div class="code-input-wrapper">
+            <input type="text" id="inputRoomCode" class="input-room-code" placeholder="000 000" maxlength="7" autocomplete="off" inputmode="numeric">
+          </div>
+          <div class="form-error-msg" id="joinRoomError"></div>
+          <button type="submit" class="btn btn-join-room" id="btnSubmitJoin">
+            <span>Entrar na Sessão</span>
+            <span>➔</span>
+          </button>
+        </form>
+
+        <!-- MODO OFFLINE RÁPIDO (SEM INTERNET) -->
+        <div class="offline-opt-box">
+          <button type="button" class="btn-offline-mode" id="btnStartOfflineMode" title="Usar o placar apenas neste aparelho sem precisar de conexão">
+            <span>⚡ Jogar no Modo Offline (Sem Internet)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE SENHA PARA ENTRAR NA SALA PROTEGIDA -->
+  <div class="modal-backdrop" id="passwordPromptModal">
+    <div class="modal-card password-prompt-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🔒</span>
+          <span>Sala Protegida por Senha</span>
+        </div>
+        <button type="button" class="btn-close-modal" id="btnClosePasswordModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="password-prompt-banner">
+          <span class="password-prompt-badge">SALA <strong id="passwordPromptRoomCode">------</strong></span>
+        </div>
+        <p class="modal-desc" id="passwordPromptDesc">Esta sala é privada e exige uma senha de segurança para acessar o placar. Digite a senha definida pelo anfitrião:</p>
+
+        <form id="passwordPromptForm" class="password-prompt-form">
+          <div class="password-field-wrapper large">
+            <input type="password" id="inputPromptPassword" class="input-password-field" placeholder="Digite a senha da sala" autocomplete="current-password" autofocus>
+            <button type="button" class="btn-toggle-eye" id="btnTogglePromptEye" title="Mostrar/Ocultar senha" tabindex="-1">👁️</button>
+          </div>
+          <div class="form-error-msg" id="passwordPromptError"></div>
+
+          <div class="password-prompt-actions">
+            <button type="submit" class="btn btn-join-room btn-confirm-pwd" id="btnSubmitPassword">
+              <span>Desbloquear Placar</span>
+              <span>🔓</span>
+            </button>
+            <button type="button" class="btn-cancel-pwd" id="btnCancelPassword">
+              <span>Cancelar e trocar de sala</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE COMPARTILHAMENTO / CONECTAR DISPOSITIVOS (QR CODE + LINK) -->
+  <div class="modal-backdrop" id="shareModalBackdrop">
+    <div class="modal-card share-modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📲</span>
+          <span>Conectar Dispositivos</span>
+        </div>
+        <button type="button" class="btn-close-modal" id="btnCloseShareModal">&times;</button>
+      </div>
+      <div class="modal-body share-modal-body">
+        <p class="modal-desc">Aponte a câmera do celular ou Smart TV para abrir este mesmo placar simultaneamente:</p>
+        
+        <div class="qr-code-box">
+          <img id="qrCodeImage" src="" alt="QR Code da Sala" class="qr-code-img">
+          <div class="room-share-badge">
+            <span>Código da Sala:</span>
+            <strong id="shareModalRoomCode">------</strong>
+            <span id="shareModalLockBadge" class="share-lock-badge" style="display: none;">🔒 Protegida com senha</span>
+          </div>
+        </div>
+
+        <div class="share-actions-group">
+          <div class="share-link-group">
+            <input type="text" id="shareUrlInput" class="share-url-input" readonly>
+            <button type="button" class="btn btn-copy-link" id="btnCopyShareUrl" title="Copiar link para a área de transferência">
+              <span id="copyBtnIcon">📋</span>
+              <span id="copyBtnText">Copiar URL</span>
+            </button>
+          </div>
+
+          <button type="button" class="btn btn-whatsapp-share" id="btnShareWhatsapp" title="Enviar link diretamente pelo WhatsApp">
+            <span class="whatsapp-icon">💬</span>
+            <span class="whatsapp-label">Compartilhar no WhatsApp</span>
+          </button>
+        </div>
+
+        <div class="share-tips">
+          <div class="tip-item" id="sharePasswordAlertTip" style="display: none;">
+            🔒 <strong>Sala com Senha:</strong> Quem acessar este link precisará digitar a senha da sala que você definiu.
+          </div>
+          <div class="tip-item">💡 <strong>Dica Telão:</strong> Abra este link na sua Smart TV e ative o <em>Modo Telão</em> no topo.</div>
+          <div class="tip-item">⚡ <strong>Controle Remoto:</strong> Qualquer pontuação feita pelo celular reflete na TV na mesma hora.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE HISTÓRICO DE PARTIDAS -->
+  <div class="modal-backdrop" id="historyModalBackdrop">
+    <div class="modal-card history-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📜</span>
+          <span>Histórico de Partidas</span>
+          <span class="history-modal-badge" id="historyCountBadge">0</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" class="btn-clear-history" id="btnClearHistory" title="Limpar todo o histórico">Limpar Histórico</button>
+          <button type="button" class="btn-close-modal" id="btnCloseHistoryModal" title="Fechar">&times;</button>
+        </div>
+      </div>
+      <div class="history-modal-body">
+        <div class="history-list" id="historyList">
+          <div class="history-empty">Nenhuma partida finalizada ainda nesta sala. Use "Encerrar Partida" para salvar o placar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE PLANOS PRO & MONETIZAÇÃO -->
+  <div class="modal-backdrop" id="proModalBackdrop">
+    <div class="modal-card pro-modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>👑</span>
+          <span>Planos Arenas & PRO</span>
+        </div>
+        <button type="button" class="btn-close-modal" id="btnCloseProModal">&times;</button>
+      </div>
+      <div class="modal-body pro-modal-body">
+        <p class="modal-desc">Leve seu torneio e sua arena de vôlei para o próximo nível com os recursos premium:</p>
+        
+        <div class="pro-features-grid">
+          <div class="pro-feature-card">
+            <span class="pro-icon">📺</span>
+            <strong>Modo Telão 100% Limpo</strong>
+            <p>Sem banners e sem propagandas nas telas e TVs da sua arena.</p>
+          </div>
+          <div class="pro-feature-card highlight">
+            <span class="pro-icon">🎥</span>
+            <strong>Overlay para Transmissão OBS</strong>
+            <p>Placar com fundo transparente pronto para lives no YouTube, Twitch e Instagram.</p>
+          </div>
+          <div class="pro-feature-card">
+            <span class="pro-icon">🏷️</span>
+            <strong>Logo da sua Arena / Patrocínio</strong>
+            <p>Exiba a marca da sua arena ou patrocinadores oficiais em destaque no telão.</p>
+          </div>
+          <div class="pro-feature-card">
+            <span class="pro-icon">📊</span>
+            <strong>Súmula Digital em PDF</strong>
+            <p>Exportação profissional de relatório de jogos para campeonatos amadores e ligas.</p>
+          </div>
+        </div>
+
+        <div class="pro-cta-box">
+          <div class="pro-price-info">
+            <span class="pro-tag">Licença Arena ou Mensal</span>
+            <span class="pro-contact-text">Quer ativar o plano PRO ou anunciar sua arena?</span>
+          </div>
+          <button type="button" class="btn btn-pro-contact" id="btnContactPro">
+            <span>💬 Falar no WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="/js/socket.io.min.js"></script>
+  <script src="/js/audio.js"></script>
+  <script src="/js/scoreboard.js"></script>
+</body>
+</html>

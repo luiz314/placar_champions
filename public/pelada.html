@@ -282,18 +282,18 @@
       font-weight: 700;
     }
 
-    .player-select-grid {
+        .player-select-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 14px;
       margin-bottom: 24px;
     }
 
     .player-card-pick {
-      background: rgba(30, 41, 59, 0.5);
+      background: rgba(30, 41, 59, 0.55);
       border: 2px solid rgba(255, 255, 255, 0.08);
       border-radius: 14px;
-      padding: 14px;
+      padding: 12px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -301,6 +301,7 @@
       transition: all 0.18s ease;
       position: relative;
       user-select: none;
+      min-height: 74px;
     }
 
     .player-card-pick:hover {
@@ -337,15 +338,24 @@
     .player-info {
       flex: 1;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-right: 16px;
     }
 
     .player-name {
       font-weight: 700;
-      font-size: 0.95rem;
-      white-space: nowrap;
+      font-size: 1rem;
+      color: #ffffff;
+      margin-bottom: 4px;
+      line-height: 1.25;
+      white-space: normal;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 2px;
     }
 
     .player-sub {
@@ -354,12 +364,42 @@
       gap: 6px;
       font-size: 0.75rem;
       color: #94a3b8;
+      flex-wrap: wrap;
     }
 
     .player-pos-badge {
       background: rgba(255, 255, 255, 0.08);
-      padding: 1px 6px;
+      padding: 1px 7px;
       border-radius: 6px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .player-stars-badge {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--pelada-gold);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      padding: 1px 7px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .player-stars-badge.empty {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      border-color: rgba(148, 163, 184, 0.2);
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    .player-nickname-tag {
+      color: #64748b;
+      font-style: italic;
+      font-size: 0.72rem;
     }
 
     .player-overall-pill {
@@ -722,6 +762,337 @@
       transform: translateX(-50%) translateY(0);
       opacity: 1;
     }
+
+    /* ESTILOS DA GESTÃO DE PELADAS / SESSÕES */
+    .pelada-active-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 242, 254, 0.12);
+      padding: 12px 18px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .active-pelada-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pelada-id-badge {
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #051329;
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0, 242, 254, 0.3);
+    }
+
+    .pelada-name-heading {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    .active-pelada-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .active-pelada-select {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .active-pelada-select:focus {
+      border-color: var(--pelada-primary);
+    }
+
+    .status-tag-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .table-actions-cell {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .btn-action-small {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--pelada-border);
+      background: rgba(30, 41, 59, 0.8);
+      color: #f8fafc;
+      transition: all 0.15s;
+    }
+
+    .btn-action-small:hover {
+      background: rgba(51, 65, 85, 0.95);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-select {
+      background: rgba(0, 242, 254, 0.15);
+      border-color: rgba(0, 242, 254, 0.4);
+      color: #38bdf8;
+    }
+
+    .btn-action-select:hover {
+      background: rgba(0, 242, 254, 0.3);
+      color: #ffffff;
+    }
+
+    .btn-action-delete {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
+    }
+
+    .btn-action-delete:hover {
+      background: rgba(239, 68, 68, 0.35);
+      color: #fecaca;
+    }
+
+
+    /* ESTILOS DE FOTO DO JOGADOR */
+    .player-avatar img, .player-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+
+    .player-table-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1.5px solid rgba(0, 242, 254, 0.4);
+      flex-shrink: 0;
+    }
+
+    .photo-preview-circle {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border: 2px dashed rgba(0, 242, 254, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.2);
+    }
+
+
+    .btn-action-share {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+
+    .btn-action-share:hover {
+      background: rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    .btn-player-quick-share {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: #38bdf8;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s ease;
+      z-index: 2;
+    }
+
+    .btn-player-quick-share:hover {
+      background: rgba(0, 242, 254, 0.25);
+      border-color: rgba(0, 242, 254, 0.6);
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+
+    /* ESTILOS DE AUTENTICAÇÃO E VOTAÇÃO DIRETA */
+    .user-auth-widget {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-logged-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      padding: 6px 14px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .user-avatar-mini {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #07090e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-left: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-logout:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fecaca;
+    }
+
+    .btn-action-rate {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15));
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      color: var(--pelada-gold);
+      font-weight: 700;
+    }
+
+    .btn-action-rate:hover {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.35), rgba(245, 158, 11, 0.25));
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .btn-action-rate.voted {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    /* ESTRELAS INTERATIVAS NO MODAL */
+    .direct-rating-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+
+    .direct-rating-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .direct-rating-stars {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .direct-star-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 1.8rem;
+      color: #334155;
+      transition: all 0.15s ease;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    .direct-star-btn.active {
+      color: #fbbf24;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+    }
+
+    .direct-star-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .auth-tab-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .auth-tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--pelada-border);
+      border-radius: 10px;
+      color: #94a3b8;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .auth-tab-btn.active {
+      background: rgba(0, 242, 254, 0.15);
+      border-color: rgba(0, 242, 254, 0.5);
+      color: #38bdf8;
+    }
+
   </style>
 </head>
 <body>
@@ -739,20 +1110,64 @@
       </div>
 
       <div class="pelada-nav-actions">
-        <a href="/" class="btn-pelada" title="Voltar para a tela do Placar">
-          <span>⬅</span>
-          <span>Voltar ao Placar</span>
+        <a href="/" class="btn-pelada" title="Ir para o Portal Inicial">
+          <span>🏠</span>
+          <span>Início</span>
+        </a>
+        <a href="/placar" class="btn-pelada" title="Abrir o Placar do Jogo">
+          <span>🏐</span>
+          <span>Placar</span>
         </a>
         <a href="/avaliar" target="_blank" class="btn-pelada btn-pelada-share" id="btnOpenPublicVote" title="Abrir página pública de votação">
           <span>⭐</span>
           <span>Votar em Jogadores</span>
         </a>
+        <!-- WIDGET DE LOGIN / USUÁRIO -->
+        <div class="user-auth-widget" id="userAuthWidget">
+          <button type="button" class="btn-pelada btn-pelada-primary" id="btnOpenAuthModal">
+            <span>🔑</span>
+            <span>Entrar / Cadastrar</span>
+          </button>
+          <div class="user-logged-info" id="userLoggedInfo" style="display: none;">
+            <div class="user-avatar-mini" id="userAvatarMini">A</div>
+            <div>
+              <div id="userDisplayName" style="font-weight: 700; font-size: 0.85rem; color: #ffffff;">Admin</div>
+              <div id="userRoleTag" style="font-size: 0.7rem; color: #38bdf8; font-weight: 600;">👑 Administrador</div>
+            </div>
+            <button type="button" class="btn-logout" id="btnLogout" title="Sair da conta">Sair</button>
+          </div>
+        </div>
         <button type="button" class="btn-pelada btn-pelada-primary" id="btnModalAddPlayer">
           <span>➕</span>
           <span>Cadastrar Jogador</span>
         </button>
       </div>
     </header>
+
+    <!-- BARRA DA PELADA ATIVA / SELETOR DE SESSÃO -->
+    <div class="pelada-active-bar">
+      <div class="active-pelada-info">
+        <span style="font-size: 1.4rem;">🏐</span>
+        <div>
+          <span style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Sessão Ativa:</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="pelada-id-badge" id="activePeladaIdBadge">#1</span>
+            <span class="pelada-name-heading" id="activePeladaNameHeading">Pelada Principal</span>
+          </div>
+        </div>
+      </div>
+      <div class="active-pelada-controls">
+        <label for="selectActivePeladaDropdown" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Trocar Pelada:</label>
+        <select id="selectActivePeladaDropdown" class="active-pelada-select">
+          <option value="1">Carregando peladas...</option>
+        </select>
+        <button type="button" class="btn-pelada btn-pelada-primary" id="btnQuickNewPelada" style="padding: 8px 14px; font-size: 0.85rem;">
+          <span>➕</span>
+          <span>Nova Pelada</span>
+        </button>
+      </div>
+    </div>
+
 
     <!-- BANNER DE COMPARTILHAMENTO DE VOTAÇÃO -->
     <div class="voting-link-banner">
@@ -775,6 +1190,10 @@
 
     <!-- TABS -->
     <div class="pelada-tabs">
+      <button type="button" class="tab-btn" data-tab="tab-peladas">
+        <span>📋</span>
+        <span>Peladas & Sessões</span>
+      </button>
       <button type="button" class="tab-btn active" data-tab="tab-sorteador">
         <span>⚡</span>
         <span>Sorteador & Equilíbrio</span>
@@ -788,6 +1207,62 @@
         <span>Histórico de Partidas (Postgres)</span>
       </button>
     </div>
+
+    
+    <!-- ABA 0: ORGANIZAÇÃO DE PELADAS / SESSÕES COM ID E NOME -->
+    <section id="tab-peladas" class="tab-content">
+      <div class="pelada-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>📋</span> Peladas & Sessões Cadastradas
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
+              Cada pelada possui um <strong>ID único</strong>, um <strong>Nome definido pelo administrador</strong> e seu próprio elenco de jogadores.
+            </p>
+          </div>
+          <div>
+            <button type="button" class="btn-pelada btn-pelada-primary" id="btnOpenModalAddPelada">
+              <span>➕</span>
+              <span>Cadastrar Nova Pelada</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="players-table-card">
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ID</th>
+                <th>Nome da Pelada</th>
+                <th>Administrador</th>
+                <th>Jogadores Cadastrados</th>
+                <th>Status</th>
+                <th>Data de Criação</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="peladasTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: #94a3b8; padding: 20px;">
+                  Carregando peladas...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 18px; padding: 14px 18px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #cbd5e1;">
+          <span style="font-size: 1.4rem;">💡</span>
+          <div>
+            <strong style="color: #38bdf8;">Em breve: Login e Senha de Acesso por Pelada</strong>
+            <p style="margin: 2px 0 0 0; color: #94a3b8;">
+              Cada administrador de sessão poderá definir login e senha para gerenciar com segurança os jogadores e o sorteio da sua pelada.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ABA 1: SORTEADOR INTELIGENTE DE TIMES -->
     <section id="tab-sorteador" class="tab-content active">
@@ -984,6 +1459,53 @@
 
   </div>
 
+  
+  <!-- MODAL DE CADASTRO DE NOVA PELADA -->
+  <div class="modal-overlay" id="modalAddPelada">
+    <div class="modal-card">
+      <h3 class="modal-title">
+        <span>🏐</span> Cadastrar Nova Pelada / Sessão
+      </h3>
+      <form id="formAddPelada">
+        <div class="form-group">
+          <label for="inputPeladaName">Nome da Pelada *</label>
+          <input type="text" id="inputPeladaName" class="form-input" placeholder="Ex: Pelada de Terça 19h" required>
+        </div>
+        <div class="form-group">
+          <label for="inputPeladaAdmin">Nome do Administrador</label>
+          <input type="text" id="inputPeladaAdmin" class="form-input" placeholder="Ex: Luiz (Admin)">
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: rgba(56, 189, 248, 0.08); border-radius: 8px; font-size: 0.8rem; color: #94a3b8;">
+          ℹ️ Esta pelada terá um ID único gerado automaticamente e um elenco exclusivo de jogadores.
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelAddPelada">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary">Salvar Pelada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO / RENOMEAR PELADA -->
+  <div class="modal-overlay" id="modalEditPelada">
+    <div class="modal-card">
+      <h3 class="modal-title">
+        <span>✏️</span> Renomear Pelada
+      </h3>
+      <form id="formEditPelada">
+        <input type="hidden" id="inputEditPeladaId">
+        <div class="form-group">
+          <label for="inputEditPeladaName">Nome da Pelada *</label>
+          <input type="text" id="inputEditPeladaName" class="form-input" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelEditPelada">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL DE CADASTRO DE NOVO JOGADOR -->
   <div class="modal-overlay" id="modalAddPlayer">
     <div class="modal-card">
@@ -1010,9 +1532,218 @@
             <option value="Líbero">Líbero</option>
           </select>
         </div>
+        <div class="form-group">
+          <label for="inputAddPlayerPhotoFile">Foto do Jogador (Opcional):</label>
+          <input type="file" id="inputAddPlayerPhotoFile" accept="image/*" class="form-input" style="padding: 8px;">
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-pelada" id="btnCancelAddPlayer">Cancelar</button>
           <button type="submit" class="btn-pelada btn-pelada-primary">Salvar no Banco</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  
+  <!-- MODAL DE FOTO DO JOGADOR -->
+  <div class="modal-overlay" id="modalEditPlayerPhoto">
+    <div class="modal-card">
+      <h3 class="modal-title">
+        <span>📷</span> Foto do Jogador
+      </h3>
+      <form id="formEditPlayerPhoto">
+        <input type="hidden" id="editPhotoPlayerId">
+        <p style="margin: 0 0 16px 0; color: #94a3b8; font-size: 0.85rem;">
+          Adicione uma foto de <strong id="editPhotoPlayerNameDisplay" style="color: #ffffff;"></strong> para facilitar o reconhecimento na votação da galera.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 20px;">
+          <div class="photo-preview-circle" id="editPhotoPreviewContainer">
+            <img id="editPhotoPreviewImg" src="" alt="Foto" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            <span id="editPhotoPreviewPlaceholder" style="font-size: 2.2rem; font-weight: 800; color: #38bdf8;">J</span>
+          </div>
+          <button type="button" class="btn-pelada btn-action-small" id="btnRemovePlayerPhoto" style="display: none; color: #f87171; border-color: rgba(239,68,68,0.3);">
+            🗑️ Remover Foto
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="inputPlayerPhotoFile">Escolher Foto (Arquivo ou Câmera):</label>
+          <input type="file" id="inputPlayerPhotoFile" accept="image/*" class="form-input" style="padding: 8px;">
+        </div>
+
+        <div class="form-group">
+          <label for="inputPlayerPhotoUrl">Ou Link da Imagem (URL na web):</label>
+          <input type="url" id="inputPlayerPhotoUrl" class="form-input" placeholder="https://exemplo.com/foto.jpg">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelEditPlayerPhoto">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary" id="btnSavePlayerPhoto">Salvar Foto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MODAL DE AUTENTICAÇÃO (LOGIN / CADASTRO) -->
+  <div class="modal-overlay" id="modalAuth">
+    <div class="modal-card">
+      <div class="auth-tab-buttons">
+        <button type="button" class="auth-tab-btn active" id="btnAuthTabLogin">Entrar (Login)</button>
+        <button type="button" class="auth-tab-btn" id="btnAuthTabRegister">Criar Conta</button>
+      </div>
+
+      <!-- FORMULÁRIO DE LOGIN -->
+      <form id="formLogin">
+        <h3 class="modal-title" style="margin-top: 0;">
+          <span>🔑</span> Entrar no Placar
+        </h3>
+        <div class="form-group">
+          <label for="inputLoginUsername">Nome de Usuário *</label>
+          <input type="text" id="inputLoginUsername" class="form-input" placeholder="Seu usuário" required>
+        </div>
+        <div class="form-group">
+          <label for="inputLoginPassword">Senha *</label>
+          <input type="password" id="inputLoginPassword" class="form-input" placeholder="Sua senha" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelLogin">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary">Entrar</button>
+        </div>
+      </form>
+
+      <!-- FORMULÁRIO DE CADASTRO -->
+      <form id="formRegister" style="display: none;">
+        <h3 class="modal-title" style="margin-top: 0;">
+          <span>👤</span> Criar Nova Conta
+        </h3>
+        <div class="form-group">
+          <label for="inputRegisterName">Nome Completo *</label>
+          <input type="text" id="inputRegisterName" class="form-input" placeholder="Ex: Gabriel Costa" required>
+        </div>
+        <div class="form-group">
+          <label for="inputRegisterUsername">Nome de Usuário (Login) *</label>
+          <input type="text" id="inputRegisterUsername" class="form-input" placeholder="Ex: gabriel" required>
+        </div>
+        <div class="form-group">
+          <label for="inputRegisterPassword">Senha (mínimo 4 caracteres) *</label>
+          <input type="password" id="inputRegisterPassword" class="form-input" placeholder="Sua senha secreta" required>
+        </div>
+        <div class="form-group">
+          <label for="selectRegisterRole">Tipo de Acesso:</label>
+          <select id="selectRegisterRole" class="form-input">
+            <option value="user" selected>Votante / Participante (Avalia jogadores)</option>
+            <option value="admin">Administrador da Sessão (Gerencia pelada e jogadores)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelRegister">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary">Criar Conta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE AVALIAÇÃO DIRETA DO JOGADOR NA MESMA TELA -->
+  <div class="modal-overlay" id="modalRatePlayerDirect">
+    <div class="modal-card">
+      <h3 class="modal-title">
+        <span>⭐</span> Avaliar Habilidades do Jogador
+      </h3>
+      
+      <!-- CARD PREVIEW DO JOGADOR -->
+      <div style="display: flex; align-items: center; gap: 14px; background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 14px; margin-bottom: 16px; border: 1px solid rgba(0, 242, 254, 0.25);">
+        <div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #38bdf8; flex-shrink: 0; border: 1.5px solid rgba(0, 242, 254, 0.4);">
+          <img id="directRatePlayerPhoto" src="" alt="Foto" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+          <span id="directRatePlayerInitial">J</span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <h4 id="directRatePlayerName" style="margin: 0 0 2px 0; font-size: 1.1rem; color: #ffffff;">Nome do Jogador</h4>
+          <div style="font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+            <span id="directRatePlayerPos" class="player-pos-badge">Geral</span>
+            <span id="directRatePlayerNick"></span>
+          </div>
+        </div>
+        <div id="directRateOverallBadge" class="player-overall-pill" style="font-size: 0.9rem; padding: 4px 10px;">
+          ★ 3.0
+        </div>
+      </div>
+
+      <div id="directRateUserVoteStatus" style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 16px; background: rgba(56, 189, 248, 0.08); padding: 8px 12px; border-radius: 8px;">
+        💡 Cada usuário possui 1 voto por jogador. Você pode editar suas estrelas a qualquer momento!
+      </div>
+
+      <form id="formDirectRatePlayer">
+        <input type="hidden" id="directRatePlayerId">
+        
+        <!-- 1. ATAQUE -->
+        <div class="direct-rating-card">
+          <div class="direct-rating-head">
+            <strong style="color: #ffffff; font-size: 0.9rem;">💥 ATAQUE</strong>
+            <span id="scoreDisplayAttackDirect" style="color: #fbbf24; font-weight: 800;">3★</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Corte, largada e potência de finalização.</div>
+          <div class="direct-rating-stars" data-attr="attack">
+            <button type="button" class="direct-star-btn active" data-val="1">★</button>
+            <button type="button" class="direct-star-btn active" data-val="2">★</button>
+            <button type="button" class="direct-star-btn active" data-val="3">★</button>
+            <button type="button" class="direct-star-btn" data-val="4">★</button>
+            <button type="button" class="direct-star-btn" data-val="5">★</button>
+          </div>
+        </div>
+
+        <!-- 2. DEFESA -->
+        <div class="direct-rating-card">
+          <div class="direct-rating-head">
+            <strong style="color: #ffffff; font-size: 0.9rem;">🛡️ DEFESA</strong>
+            <span id="scoreDisplayDefenseDirect" style="color: #fbbf24; font-weight: 800;">3★</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Bloqueio, recepção e posicionamento defensivo.</div>
+          <div class="direct-rating-stars" data-attr="defense">
+            <button type="button" class="direct-star-btn active" data-val="1">★</button>
+            <button type="button" class="direct-star-btn active" data-val="2">★</button>
+            <button type="button" class="direct-star-btn active" data-val="3">★</button>
+            <button type="button" class="direct-star-btn" data-val="4">★</button>
+            <button type="button" class="direct-star-btn" data-val="5">★</button>
+          </div>
+        </div>
+
+        <!-- 3. PASSE -->
+        <div class="direct-rating-card">
+          <div class="direct-rating-head">
+            <strong style="color: #ffffff; font-size: 0.9rem;">🎯 PASSE / LEVANTAMENTO</strong>
+            <span id="scoreDisplaySetPassDirect" style="color: #fbbf24; font-weight: 800;">3★</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Manchete, toque e precisão no levantamento.</div>
+          <div class="direct-rating-stars" data-attr="set_pass">
+            <button type="button" class="direct-star-btn active" data-val="1">★</button>
+            <button type="button" class="direct-star-btn active" data-val="2">★</button>
+            <button type="button" class="direct-star-btn active" data-val="3">★</button>
+            <button type="button" class="direct-star-btn" data-val="4">★</button>
+            <button type="button" class="direct-star-btn" data-val="5">★</button>
+          </div>
+        </div>
+
+        <!-- 4. MOVIMENTAÇÃO -->
+        <div class="direct-rating-card">
+          <div class="direct-rating-head">
+            <strong style="color: #ffffff; font-size: 0.9rem;">⚡ MOVIMENTAÇÃO</strong>
+            <span id="scoreDisplayMovementDirect" style="color: #fbbf24; font-weight: 800;">3★</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Agilidade, cobertura de quadra e fôlego.</div>
+          <div class="direct-rating-stars" data-attr="movement">
+            <button type="button" class="direct-star-btn active" data-val="1">★</button>
+            <button type="button" class="direct-star-btn active" data-val="2">★</button>
+            <button type="button" class="direct-star-btn active" data-val="3">★</button>
+            <button type="button" class="direct-star-btn" data-val="4">★</button>
+            <button type="button" class="direct-star-btn" data-val="5">★</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-pelada" id="btnCancelDirectRate">Cancelar</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary" id="btnSubmitDirectRate">Salvar Avaliação</button>
         </div>
       </form>
     </div>
