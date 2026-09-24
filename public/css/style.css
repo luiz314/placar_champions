@@ -91,6 +91,12 @@ body {
   text-transform: uppercase;
   color: #ffffff;
   line-height: 1.1;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.app-title:hover {
+  opacity: 0.85;
 }
 
 /* INDICADOR DA SALA E CONEXÃO */

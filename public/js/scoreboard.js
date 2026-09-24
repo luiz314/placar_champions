@@ -873,7 +873,9 @@ function openRoomModal() {
 
 function closeRoomModal() {}
 
-// Navegação direta: botão Início volta para o portal inicial
+// Navegação direta: botão Início ou título "Placar Champions" voltam para o portal inicial
+const headerAppTitle = document.getElementById('headerAppTitle');
+if (headerAppTitle) headerAppTitle.addEventListener('click', () => { window.location.href = '/'; });
 if (btnGoHome) btnGoHome.addEventListener('click', () => { window.location.href = '/'; });
 if (menuItemHome) menuItemHome.addEventListener('click', () => { window.location.href = '/'; });
 

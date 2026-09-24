@@ -18,9 +18,13 @@
   <header class="app-header">
     <div class="header-top-row">
       <div class="title-area">
-        <span class="logo-emoji">🏐</span>
+        <a href="/" title="Ir para a Página Inicial / Portal" style="display: contents; text-decoration: none; color: inherit;">
+          <span class="logo-emoji" style="cursor: pointer;">🏐</span>
+        </a>
         <div>
-          <h1 class="app-title">Placar Champions</h1>
+          <a href="/" title="Ir para a Página Inicial / Portal" style="text-decoration: none; color: inherit; display: inline-block;">
+            <h1 class="app-title" id="headerAppTitle" style="cursor: pointer;">Placar Champions</h1>
+          </a>
           <div class="room-pill-row">
             <div class="room-status-pill" id="roomPill" title="Clique para compartilhar ou trocar de sala">
               <span class="pulse-indicator"></span>
@@ -71,27 +75,11 @@
           </button>
 
           <div class="menu-dropdown" id="menuDropdown">
-            <a href="/" class="menu-item" style="text-decoration: none;">
-              <span class="menu-item-icon">🏠</span>
-              <span class="menu-item-text">Início / Portal</span>
-            </a>
-            <a href="/avaliar" class="menu-item" style="text-decoration: none;">
-              <span class="menu-item-icon">⭐</span>
-              <span class="menu-item-text">Votação de Jogadores</span>
-            </a>
             <a href="/pelada" class="menu-item menu-item-pelada" id="menuItemPelada" style="text-decoration: none;">
               <span class="menu-item-icon">🏐</span>
               <span class="menu-item-text">Controle da Pelada</span>
               <span class="menu-badge" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 700; font-size: 0.65rem; padding: 2px 7px; border-radius: 999px; margin-left: auto;">NOVO</span>
             </a>
-            <button type="button" class="menu-item" id="menuItemHome">
-              <span class="menu-item-icon">🏠</span>
-              <span class="menu-item-text">Página Inicial / Informações</span>
-            </button>
-            <button type="button" class="menu-item" id="menuItemChangeRoom">
-              <span class="menu-item-icon">🔄</span>
-              <span class="menu-item-text">Trocar / Nova Sala</span>
-            </button>
             <button type="button" class="menu-item" id="menuItemHistory">
               <span class="menu-item-icon">📜</span>
               <span class="menu-item-text">Histórico das Partidas</span>
