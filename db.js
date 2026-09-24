@@ -1,11 +1,11 @@
-const { Pool } = require('pg');
+const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const FALLBACK_DB_FILE = path.join(DATA_DIR, 'db_fallback.json');
 
-// Pesos padrão para o cálculo da Média Ponderada
+// Pesos para o cálculo da Média Ponderada
 const DEFAULT_WEIGHTS = {
   attack: 1.0,
   defense: 1.0,
@@ -23,22 +23,105 @@ function calculateOverall(attack, defense, set_pass, movement, weights = DEFAULT
   return Number((weightedSum / totalWeight).toFixed(2));
 }
 
-// Configuração do PostgreSQL Pool
-let pool = null;
+let sequelize = null;
+let Match = null;
+let Player = null;
+let PlayerRating = null;
+let PeladaSession = null;
 let isPostgres = false;
 
+// Inicializa Sequelize se DATABASE_URL estiver configurada (ex: Railway)
 if (process.env.DATABASE_URL) {
   try {
     const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL.includes('railway');
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: isProduction ? { rejectUnauthorized: false } : false
+    sequelize = new Sequelize(process.env.DATABASE_URL, {
+      dialect: 'postgres',
+      dialectOptions: isProduction ? {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false
+        }
+      } : {},
+      logging: false
     });
+
+    // ==========================================
+    // DEFINIÇÃO DOS MODELOS AUTÔNOMOS (SEQUELIZE)
+    // ==========================================
+
+    // Modelo de Partidas
+    Match = sequelize.define('Match', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      roomId: { type: DataTypes.STRING, defaultValue: 'DEFAULT' },
+      teamA: { type: DataTypes.STRING, defaultValue: 'LADO A' },
+      scoreA: { type: DataTypes.INTEGER, defaultValue: 0 },
+      teamB: { type: DataTypes.STRING, defaultValue: 'LADO B' },
+      scoreB: { type: DataTypes.INTEGER, defaultValue: 0 },
+      winner: { type: DataTypes.STRING, defaultValue: 'Empate' },
+      durationSeconds: { type: DataTypes.INTEGER, defaultValue: 0 },
+      matchNumber: { type: DataTypes.INTEGER, defaultValue: 1 }
+    }, {
+      tableName: 'matches',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Modelo de Jogadores
+    Player = sequelize.define('Player', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      name: { type: DataTypes.STRING(100), allowNull: false },
+      nickname: { type: DataTypes.STRING(50) },
+      position: { type: DataTypes.STRING(50), defaultValue: 'Geral' },
+      photoUrl: { type: DataTypes.TEXT },
+      active: { type: DataTypes.BOOLEAN, defaultValue: true }
+    }, {
+      tableName: 'players',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Modelo de Avaliações com Estrelas (1 a 5)
+    PlayerRating = sequelize.define('PlayerRating', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      playerId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'players', key: 'id' },
+        onDelete: 'CASCADE'
+      },
+      voterName: { type: DataTypes.STRING(100), defaultValue: 'Anônimo' },
+      attack: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 3.0 },
+      defense: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 3.0 },
+      setPass: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 3.0 },
+      movement: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 3.0 },
+      overall: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 3.0 }
+    }, {
+      tableName: 'player_ratings',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Modelo de Sessões de Pelada / Escalações
+    PeladaSession = sequelize.define('PeladaSession', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      title: { type: DataTypes.STRING(150), defaultValue: 'Pelada do Dia' },
+      format: { type: DataTypes.STRING(50), defaultValue: '6x6' },
+      teams: { type: DataTypes.JSONB },
+      bench: { type: DataTypes.JSONB }
+    }, {
+      tableName: 'pelada_sessions',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Relações
+    Player.hasMany(PlayerRating, { foreignKey: 'playerId', as: 'ratings', onDelete: 'CASCADE' });
+    PlayerRating.belongsTo(Player, { foreignKey: 'playerId', as: 'player' });
+
     isPostgres = true;
-    console.log('🐘 PostgreSQL Pool configurado usando DATABASE_URL.');
+    console.log('🐘 Sequelize ORM configurado com PostgreSQL (Railway).');
   } catch (err) {
-    console.error('❌ Erro ao configurar Pool do PostgreSQL:', err.message);
-    pool = null;
+    console.error('❌ Erro ao inicializar Sequelize com PostgreSQL:', err.message);
     isPostgres = false;
   }
 } else {
@@ -92,63 +175,20 @@ function saveFallbackData(data) {
   }
 }
 
-// Inicialização das tabelas no PostgreSQL
+// ==========================================
+// SINCRONIZAÇÃO AUTOMÁTICA E AUTÔNOMA DO ESQUEMA
+// Cria tabelas e adiciona novas colunas automaticamente
+// ==========================================
 async function initDb() {
-  if (!isPostgres || !pool) return;
+  if (!isPostgres || !sequelize) return;
 
-  const client = await pool.connect();
   try {
-    console.log('🔄 Verificando e criando tabelas no PostgreSQL...');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS matches (
-        id SERIAL PRIMARY KEY,
-        room_id VARCHAR(50),
-        team_a VARCHAR(100),
-        score_a INT,
-        team_b VARCHAR(100),
-        score_b INT,
-        winner VARCHAR(100),
-        duration_seconds INT,
-        match_number INT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS players (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        nickname VARCHAR(50),
-        position VARCHAR(50) DEFAULT 'Geral',
-        photo_url TEXT,
-        active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS player_ratings (
-        id SERIAL PRIMARY KEY,
-        player_id INT REFERENCES players(id) ON DELETE CASCADE,
-        voter_name VARCHAR(100) NOT NULL,
-        attack NUMERIC(3,2) NOT NULL,
-        defense NUMERIC(3,2) NOT NULL,
-        set_pass NUMERIC(3,2) NOT NULL,
-        movement NUMERIC(3,2) NOT NULL,
-        overall NUMERIC(3,2) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS pelada_sessions (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(150),
-        format VARCHAR(50),
-        teams JSONB,
-        bench JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log('✅ Tabelas do PostgreSQL inicializadas com sucesso (matches, players, player_ratings, pelada_sessions)!');
+    console.log('🔄 Executando sincronização autônoma do banco (Sequelize auto-alter)...');
+    // { alter: true } cria tabelas ausentes e adiciona novas colunas automaticamente
+    await sequelize.sync({ alter: true });
+    console.log('✅ Banco de dados PostgreSQL 100% sincronizado de forma autônoma!');
   } catch (err) {
-    console.error('❌ Falha ao inicializar tabelas no PostgreSQL:', err.message);
-  } finally {
-    client.release();
+    console.error('❌ Erro na sincronização autônoma do Sequelize:', err.message);
   }
 }
 
@@ -157,16 +197,21 @@ async function initDb() {
 // ==========================================
 async function saveMatch(matchData) {
   const { roomId, teamA, scoreA, teamB, scoreB, winner, durationSeconds, matchNumber } = matchData;
-  if (isPostgres && pool) {
+  if (isPostgres && Match) {
     try {
-      const res = await pool.query(
-        `INSERT INTO matches (room_id, team_a, score_a, team_b, score_b, winner, duration_seconds, match_number)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [roomId || 'DEFAULT', teamA || 'LADO A', scoreA || 0, teamB || 'LADO B', scoreB || 0, winner || 'Empate', durationSeconds || 0, matchNumber || 1]
-      );
-      return res.rows[0];
+      const match = await Match.create({
+        roomId: roomId || 'DEFAULT',
+        teamA: teamA || 'LADO A',
+        scoreA: scoreA || 0,
+        teamB: teamB || 'LADO B',
+        scoreB: scoreB || 0,
+        winner: winner || 'Empate',
+        durationSeconds: durationSeconds || 0,
+        matchNumber: matchNumber || 1
+      });
+      return match.toJSON();
     } catch (err) {
-      console.error('Erro ao salvar partida no Postgres:', err.message);
+      console.error('Erro ao salvar partida no Sequelize:', err.message);
     }
   }
 
@@ -190,15 +235,29 @@ async function saveMatch(matchData) {
 }
 
 async function getMatches(limit = 50) {
-  if (isPostgres && pool) {
+  if (isPostgres && Match) {
     try {
-      const res = await pool.query(
-        `SELECT * FROM matches ORDER BY created_at DESC LIMIT $1`,
-        [limit]
-      );
-      return res.rows;
+      const matches = await Match.findAll({
+        order: [['created_at', 'DESC']],
+        limit: limit
+      });
+      return matches.map(m => {
+        const raw = m.toJSON();
+        return {
+          id: raw.id,
+          room_id: raw.roomId,
+          team_a: raw.teamA,
+          score_a: raw.scoreA,
+          team_b: raw.teamB,
+          score_b: raw.scoreB,
+          winner: raw.winner,
+          duration_seconds: raw.durationSeconds,
+          match_number: raw.matchNumber,
+          created_at: raw.createdAt
+        };
+      });
     } catch (err) {
-      console.error('Erro ao buscar partidas no Postgres:', err.message);
+      console.error('Erro ao buscar partidas no Sequelize:', err.message);
     }
   }
   const data = getFallbackData();
@@ -209,39 +268,63 @@ async function getMatches(limit = 50) {
 // MÉTODOS DE JOGADORES (PLAYERS)
 // ==========================================
 async function getPlayersWithRatings() {
-  if (isPostgres && pool) {
+  if (isPostgres && Player) {
     try {
-      const query = `
-        SELECT 
-          p.id,
-          p.name,
-          p.nickname,
-          p.position,
-          p.photo_url,
-          p.active,
-          p.created_at,
-          COUNT(r.id)::int AS vote_count,
-          COALESCE(ROUND(AVG(r.attack), 1), 3.0) AS avg_attack,
-          COALESCE(ROUND(AVG(r.defense), 1), 3.0) AS avg_defense,
-          COALESCE(ROUND(AVG(r.set_pass), 1), 3.0) AS avg_set_pass,
-          COALESCE(ROUND(AVG(r.movement), 1), 3.0) AS avg_movement,
-          COALESCE(ROUND(AVG(r.overall), 1), 3.0) AS overall
-        FROM players p
-        LEFT JOIN player_ratings r ON p.id = r.player_id
-        GROUP BY p.id
-        ORDER BY overall DESC, p.name ASC;
-      `;
-      const res = await pool.query(query);
-      return res.rows.map(r => ({
-        ...r,
-        avg_attack: Number(r.avg_attack),
-        avg_defense: Number(r.avg_defense),
-        avg_set_pass: Number(r.avg_set_pass),
-        avg_movement: Number(r.avg_movement),
-        overall: Number(r.overall)
-      }));
+      const players = await Player.findAll({
+        include: [{
+          model: PlayerRating,
+          as: 'ratings'
+        }],
+        order: [['name', 'ASC']]
+      });
+
+      return players.map(p => {
+        const raw = p.toJSON();
+        const ratings = raw.ratings || [];
+        const count = ratings.length;
+
+        if (count === 0) {
+          return {
+            id: raw.id,
+            name: raw.name,
+            nickname: raw.nickname,
+            position: raw.position,
+            photo_url: raw.photoUrl,
+            active: raw.active,
+            created_at: raw.createdAt,
+            vote_count: 0,
+            avg_attack: 3.0,
+            avg_defense: 3.0,
+            avg_set_pass: 3.0,
+            avg_movement: 3.0,
+            overall: 3.0
+          };
+        }
+
+        const sumA = ratings.reduce((acc, cur) => acc + Number(cur.attack || 0), 0);
+        const sumD = ratings.reduce((acc, cur) => acc + Number(cur.defense || 0), 0);
+        const sumP = ratings.reduce((acc, cur) => acc + Number(cur.setPass || 0), 0);
+        const sumM = ratings.reduce((acc, cur) => acc + Number(cur.movement || 0), 0);
+        const sumO = ratings.reduce((acc, cur) => acc + Number(cur.overall || 0), 0);
+
+        return {
+          id: raw.id,
+          name: raw.name,
+          nickname: raw.nickname,
+          position: raw.position,
+          photo_url: raw.photoUrl,
+          active: raw.active,
+          created_at: raw.createdAt,
+          vote_count: count,
+          avg_attack: Number((sumA / count).toFixed(1)),
+          avg_defense: Number((sumD / count).toFixed(1)),
+          avg_set_pass: Number((sumP / count).toFixed(1)),
+          avg_movement: Number((sumM / count).toFixed(1)),
+          overall: Number((sumO / count).toFixed(1))
+        };
+      }).sort((a, b) => b.overall - a.overall);
     } catch (err) {
-      console.error('Erro ao buscar jogadores no Postgres:', err.message);
+      console.error('Erro ao buscar jogadores no Sequelize:', err.message);
     }
   }
 
@@ -289,16 +372,18 @@ async function addPlayer(name, nickname = '', position = 'Geral', photoUrl = '')
 
   if (!cleanName) throw new Error('O nome do jogador é obrigatório.');
 
-  if (isPostgres && pool) {
+  if (isPostgres && Player) {
     try {
-      const res = await pool.query(
-        `INSERT INTO players (name, nickname, position, photo_url)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [cleanName, cleanNick, cleanPos, photoUrl || null]
-      );
-      return res.rows[0];
+      const p = await Player.create({
+        name: cleanName,
+        nickname: cleanNick,
+        position: cleanPos,
+        photoUrl: photoUrl || null,
+        active: true
+      });
+      return p.toJSON();
     } catch (err) {
-      console.error('Erro ao adicionar jogador no Postgres:', err.message);
+      console.error('Erro ao adicionar jogador no Sequelize:', err.message);
       throw err;
     }
   }
@@ -321,12 +406,12 @@ async function addPlayer(name, nickname = '', position = 'Geral', photoUrl = '')
 
 async function deletePlayer(id) {
   const numId = parseInt(id, 10);
-  if (isPostgres && pool) {
+  if (isPostgres && Player) {
     try {
-      await pool.query(`DELETE FROM players WHERE id = $1`, [numId]);
+      await Player.destroy({ where: { id: numId } });
       return { success: true };
     } catch (err) {
-      console.error('Erro ao excluir jogador no Postgres:', err.message);
+      console.error('Erro ao excluir jogador no Sequelize:', err.message);
       throw err;
     }
   }
@@ -352,16 +437,20 @@ async function addPlayerRating(playerId, voterName, attack, defense, setPass, mo
   const numM = Math.max(1, Math.min(5, parseFloat(movement) || 3));
   const overall = calculateOverall(numA, numD, numP, numM);
 
-  if (isPostgres && pool) {
+  if (isPostgres && PlayerRating) {
     try {
-      const res = await pool.query(
-        `INSERT INTO player_ratings (player_id, voter_name, attack, defense, set_pass, movement, overall)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [pId, cleanVoter, numA, numD, numP, numM, overall]
-      );
-      return res.rows[0];
+      const r = await PlayerRating.create({
+        playerId: pId,
+        voterName: cleanVoter,
+        attack: numA,
+        defense: numD,
+        setPass: numP,
+        movement: numM,
+        overall: overall
+      });
+      return r.toJSON();
     } catch (err) {
-      console.error('Erro ao inserir avaliação no Postgres:', err.message);
+      console.error('Erro ao inserir avaliação no Sequelize:', err.message);
       throw err;
     }
   }
@@ -387,15 +476,15 @@ async function addPlayerRating(playerId, voterName, attack, defense, setPass, mo
 
 async function getPlayerRatings(playerId) {
   const pId = parseInt(playerId, 10);
-  if (isPostgres && pool) {
+  if (isPostgres && PlayerRating) {
     try {
-      const res = await pool.query(
-        `SELECT * FROM player_ratings WHERE player_id = $1 ORDER BY created_at DESC`,
-        [pId]
-      );
-      return res.rows;
+      const ratings = await PlayerRating.findAll({
+        where: { playerId: pId },
+        order: [['created_at', 'DESC']]
+      });
+      return ratings.map(r => r.toJSON());
     } catch (err) {
-      console.error('Erro ao buscar avaliações no Postgres:', err.message);
+      console.error('Erro ao buscar avaliações no Sequelize:', err.message);
     }
   }
   const data = getFallbackData();
@@ -406,16 +495,17 @@ async function getPlayerRatings(playerId) {
 // SALVAR SESSÕES DE PELADA
 // ==========================================
 async function savePeladaSession(title, format, teams, bench = []) {
-  if (isPostgres && pool) {
+  if (isPostgres && PeladaSession) {
     try {
-      const res = await pool.query(
-        `INSERT INTO pelada_sessions (title, format, teams, bench)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [title || 'Pelada do Dia', format || '6x6', JSON.stringify(teams), JSON.stringify(bench)]
-      );
-      return res.rows[0];
+      const session = await PeladaSession.create({
+        title: title || 'Pelada do Dia',
+        format: format || '6x6',
+        teams: teams,
+        bench: bench
+      });
+      return session.toJSON();
     } catch (err) {
-      console.error('Erro ao salvar sessão de pelada no Postgres:', err.message);
+      console.error('Erro ao salvar sessão de pelada no Sequelize:', err.message);
     }
   }
 
@@ -435,7 +525,8 @@ async function savePeladaSession(title, format, teams, bench = []) {
 }
 
 module.exports = {
-  pool,
+  sequelize,
+  models: { Match, Player, PlayerRating, PeladaSession },
   isPostgres: () => isPostgres,
   initDb,
   saveMatch,
