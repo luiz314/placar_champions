@@ -207,6 +207,11 @@ app.get('/avaliar', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'avaliar.html'));
 });
 
+// Status de integridade e conexão do Banco de Dados PostgreSQL vs Fallback
+app.get('/api/db-status', (req, res) => {
+  res.json(db.getDbStatus());
+});
+
 // API HTTP rápida para verificar se uma sala existe e se requer senha
 app.get('/api/room/:roomId', (req, res) => {
   const code = String(req.params.roomId).trim();

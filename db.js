@@ -52,13 +52,42 @@ function verifyPassword(password, storedHash) {
 }
 
 
-// Inicializa Sequelize se DATABASE_URL estiver configurada (ex: Railway)
-if (process.env.DATABASE_URL) {
+// Detecta qualquer variavel de conexao PostgreSQL suportada pelo Railway e outros provedores
+function getDatabaseUrl() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (process.env.DATABASE_PRIVATE_URL) return process.env.DATABASE_PRIVATE_URL;
+  if (process.env.DATABASE_PUBLIC_URL) return process.env.DATABASE_PUBLIC_URL;
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
+  if (process.env.POSTGRESQL_URL) return process.env.POSTGRESQL_URL;
+  if (process.env.PGHOST) {
+    const user = process.env.PGUSER || 'postgres';
+    const pass = process.env.PGPASSWORD ? encodeURIComponent(process.env.PGPASSWORD) : '';
+    const host = process.env.PGHOST;
+    const port = process.env.PGPORT || 5432;
+    const dbName = process.env.PGDATABASE || 'railway';
+    return `postgresql://${user}:${pass}@${host}:${port}/${dbName}`;
+  }
+  return null;
+}
+
+const dbUrl = getDatabaseUrl();
+let dbConnectionError = null;
+
+// Inicializa Sequelize se URL de conexao estiver configurada
+if (dbUrl) {
   try {
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL.includes('railway');
-    sequelize = new Sequelize(process.env.DATABASE_URL, {
+    const isInternal = dbUrl.includes('.railway.internal') || dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+    const needsSsl = !isInternal && (
+      process.env.NODE_ENV === 'production' || 
+      dbUrl.includes('.railway.app') || 
+      dbUrl.includes('postgres.') || 
+      dbUrl.includes('sslmode=require') || 
+      process.env.DB_SSL === 'true'
+    );
+
+    sequelize = new Sequelize(dbUrl, {
       dialect: 'postgres',
-      dialectOptions: isProduction ? {
+      dialectOptions: needsSsl ? {
         ssl: {
           require: true,
           rejectUnauthorized: false
@@ -181,6 +210,38 @@ if (process.env.DATABASE_URL) {
       underscored: true
     });
 
+    // Modelo de Lista de Presenca (Attendance)
+    Attendance = sequelize.define('Attendance', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
+      date: { type: DataTypes.STRING(20), allowNull: false },
+      userId: { type: DataTypes.INTEGER, allowNull: true },
+      playerId: { type: DataTypes.INTEGER, allowNull: true },
+      playerName: { type: DataTypes.STRING(100), allowNull: false },
+      isWaitingList: { type: DataTypes.BOOLEAN, defaultValue: false }
+    }, {
+      tableName: 'attendances',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Modelo de Votacao de Craques da Rodada (MVP)
+    MvpVote = sequelize.define('MvpVote', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
+      date: { type: DataTypes.STRING(20), allowNull: false },
+      userId: { type: DataTypes.INTEGER, allowNull: false },
+      voterName: { type: DataTypes.STRING(100), defaultValue: 'Atleta' },
+      mvpPlayerId: { type: DataTypes.INTEGER, allowNull: true },
+      defensePlayerId: { type: DataTypes.INTEGER, allowNull: true },
+      passPlayerId: { type: DataTypes.INTEGER, allowNull: true },
+      funnyPlayerId: { type: DataTypes.INTEGER, allowNull: true }
+    }, {
+      tableName: 'mvp_votes',
+      timestamps: true,
+      underscored: true
+    });
+
     // Relacoes
     Pelada.hasMany(Player, { foreignKey: 'peladaId', as: 'players', onDelete: 'CASCADE' });
     Player.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
@@ -190,15 +251,20 @@ if (process.env.DATABASE_URL) {
     PlayerRating.belongsTo(User, { foreignKey: 'userId', as: 'user' });
     Pelada.hasMany(PeladaSession, { foreignKey: 'peladaId', as: 'sessions' });
     PeladaSession.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
+    Pelada.hasMany(Attendance, { foreignKey: 'peladaId', as: 'attendances' });
+    Attendance.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
+    Pelada.hasMany(MvpVote, { foreignKey: 'peladaId', as: 'mvpVotes' });
+    MvpVote.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
 
     isPostgres = true;
     console.log('Sequelize ORM configurado com PostgreSQL (Railway).');
   } catch (err) {
     console.error('Erro ao inicializar Sequelize com PostgreSQL:', err.message);
+    dbConnectionError = err.message;
     isPostgres = false;
   }
 } else {
-  console.log('DATABASE_URL nao definida. Modo fallback para JSON local ativo (data/db_fallback.json).');
+  console.log('Nenhuma variavel DATABASE_URL/POSTGRES_URL detectada. Modo fallback para JSON local ativo (data/db_fallback.json).');
 }
 
 const INITIAL_PELADA_PLAYERS = [
@@ -322,15 +388,32 @@ function saveFallbackData(data) {
 // SINCRONIZACAO AUTOMATICA E AUTONOMA DO ESQUEMA
 // ==========================================
 async function initDb() {
-  if (!isPostgres || !sequelize) {
+  if (!sequelize) {
     getFallbackData(); // Garante inicializacao do fallback
     return;
   }
 
   try {
+    console.log('Tentando conectar ao PostgreSQL...');
+    try {
+      await sequelize.authenticate();
+      console.log('Conexao com PostgreSQL autenticada com sucesso!');
+    } catch (authErr) {
+      console.warn('Falha na tentativa inicial com SSL:', authErr.message);
+      if (sequelize.options && sequelize.options.dialectOptions && sequelize.options.dialectOptions.ssl) {
+        console.log('Tentando reconectar sem SSL (modo rede interna Railway)...');
+        sequelize.options.dialectOptions = {};
+        await sequelize.authenticate();
+        console.log('Conexao sem SSL autenticada com sucesso!');
+      } else {
+        throw authErr;
+      }
+    }
+
     console.log('Executando sincronizacao autonoma do banco (Sequelize auto-alter)...');
     await sequelize.sync({ alter: true });
-    console.log('Banco de dados PostgreSQL 100% sincronizado de forma autonoma!');
+    isPostgres = true;
+    console.log('Banco de dados PostgreSQL 100% sincronizado com sucesso!');
     // Garante usuario admin inicial no Postgres
     const adminUser = await User.findOne({ where: { username: 'admin' } });
     if (!adminUser) {
@@ -385,16 +468,16 @@ async function initDb() {
 
     // Insere os 12 novos jogadores solicitados na pelada padrao caso ainda nao existam
     for (const name of INITIAL_PELADA_PLAYERS) {
-      const exists = await Player.findOne({ where: { name, peladaId: defaultPelada.id } });
+      const exists = await Player.findOne({ where: { name, peladaId: 733849 } });
       if (!exists) {
         await Player.create({
-          peladaId: defaultPelada.id,
+          peladaId: 733849,
           name: name,
           nickname: name,
           position: 'Geral',
           active: true
         });
-        console.log('Jogador ' + name + ' adicionado a Pelada #' + defaultPelada.id + ' no PostgreSQL.');
+        console.log('Jogador ' + name + ' adicionado a Pelada #733849 no PostgreSQL.');
       }
     }
   } catch (err) {
@@ -1542,8 +1625,40 @@ async function saveMvpVote(peladaId = 733849, date = null, userId, voterName, vo
 }
 
 
+function getDbStatus() {
+  const detectedUrl = getDatabaseUrl();
+  let masked = null;
+  if (detectedUrl) {
+    try {
+      const parsed = new URL(detectedUrl);
+      masked = `${parsed.protocol}//${parsed.username}:****@${parsed.host}${parsed.pathname}`;
+    } catch (e) {
+      masked = 'URL detectada';
+    }
+  }
+
+  const envVarKey = process.env.DATABASE_URL ? 'DATABASE_URL' : 
+                   process.env.DATABASE_PRIVATE_URL ? 'DATABASE_PRIVATE_URL' : 
+                   process.env.DATABASE_PUBLIC_URL ? 'DATABASE_PUBLIC_URL' : 
+                   process.env.POSTGRES_URL ? 'POSTGRES_URL' : 
+                   process.env.PGHOST ? 'PGHOST' : null;
+
+  return {
+    isPostgres,
+    databaseEngine: isPostgres ? 'PostgreSQL' : 'JSON Fallback Local (NÃO PERSISTE APÓS REDEPLOY)',
+    connectionStatus: isPostgres ? 'Conectado e gravando no PostgreSQL' : (detectedUrl ? 'URL encontrada mas falhou ao autenticar' : 'Nenhuma variável de PostgreSQL configurada'),
+    detectedEnvVar: masked,
+    envVarKey: envVarKey || 'NENHUMA (Falta configurar no Railway)',
+    dbConnectionError: dbConnectionError || null,
+    tip: isPostgres 
+      ? 'O banco PostgreSQL está conectado e os dados são permanentes!' 
+      : 'No Railway, vá no serviço "placarchampions" -> aba "Variables" -> adicione a variável DATABASE_URL com o valor ${{Postgres.DATABASE_URL}}'
+  };
+}
+
 module.exports = {
   sequelize,
+  getDbStatus,
   models: { Match, User, Pelada, Player, PlayerRating, PeladaSession },
   isPostgres: () => isPostgres,
   initDb,
