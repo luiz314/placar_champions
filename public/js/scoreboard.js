@@ -53,6 +53,18 @@ const btnTvMode = document.getElementById('btnTvMode');
 const tvModeIcon = document.getElementById('tvModeIcon');
 const tvModeText = document.getElementById('tvModeText');
 const btnExitTvMode = document.getElementById('btnExitTvMode');
+const headerAuthContainer = document.getElementById('headerAuthContainer');
+
+// Modal de Encerramento de Partida (mantém tela cheia)
+const endMatchModalBackdrop = document.getElementById('endMatchModalBackdrop');
+const btnCloseEndMatchModal = document.getElementById('btnCloseEndMatchModal');
+const btnCancelEndMatch = document.getElementById('btnCancelEndMatch');
+const btnConfirmEndMatch = document.getElementById('btnConfirmEndMatch');
+const endMatchScoreA = document.getElementById('endMatchScoreA');
+const endMatchScoreB = document.getElementById('endMatchScoreB');
+const endMatchNameA = document.getElementById('endMatchNameA');
+const endMatchNameB = document.getElementById('endMatchNameB');
+const endMatchDurationText = document.getElementById('endMatchDurationText');
 
 // Cronômetro e Partida
 const timerDisplay = document.getElementById('timerDisplay');
@@ -81,6 +93,7 @@ const menuItemWakeLock = document.getElementById('menuItemWakeLock');
 const menuWakeLockIcon = document.getElementById('menuWakeLockIcon');
 const menuWakeLockText = document.getElementById('menuWakeLockText');
 const menuItemPro = document.getElementById('menuItemPro');
+const menuItemLogout = document.getElementById('menuItemLogout');
 
 // Modais de Sala e Senha
 const roomSelectionModal = document.getElementById('roomSelectionModal');
@@ -752,55 +765,94 @@ if (btnTimerRestart) {
 }
 
 // Encerrar Partida
+// ============================================================
+// ENCERRAMENTO DE PARTIDA (MODAL HTML - NÃO SAI DA TELA CHEIA)
+// ============================================================
+function openEndMatchModal() {
+  if (!endMatchModalBackdrop) return;
+  const ptsA = currentState.scoreA || 0;
+  const ptsB = currentState.scoreB || 0;
+  const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
+
+  if (endMatchScoreA) endMatchScoreA.textContent = ptsA;
+  if (endMatchScoreB) endMatchScoreB.textContent = ptsB;
+  if (endMatchNameA) endMatchNameA.textContent = currentState.nameA || 'LADO A';
+  if (endMatchNameB) endMatchNameB.textContent = currentState.nameB || 'LADO B';
+  if (endMatchDurationText) endMatchDurationText.textContent = formatTime(timerSeconds);
+
+  endMatchModalBackdrop.classList.add('show');
+}
+
+function closeEndMatchModal() {
+  if (endMatchModalBackdrop) endMatchModalBackdrop.classList.remove('show');
+}
+
+function confirmFinishMatch() {
+  const wasFullscreen = !!document.fullscreenElement;
+
+  if (window.sound) window.sound.playFinalWhistle();
+
+  let winner = 'Empate';
+  if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA;
+  else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB;
+
+  const matchRecord = {
+    id: Date.now(),
+    matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
+    nameA: currentState.nameA,
+    scoreA: currentState.scoreA,
+    nameB: currentState.nameB,
+    scoreB: currentState.scoreB,
+    winner: winner,
+    durationSeconds: (currentState.timer && currentState.timer.seconds) || 0,
+    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  if (!currentState.matchHistory) currentState.matchHistory = [];
+  currentState.matchHistory.unshift(matchRecord);
+
+  currentState.scoreA = 0;
+  currentState.scoreB = 0;
+  currentState.timer.running = false;
+  currentState.timer.seconds = 0;
+
+  renderScoreUI();
+  updateTimerUI(currentState.timer);
+  renderHistory(currentState.matchHistory);
+  persistCurrentState();
+
+  if (socket && socket.connected) {
+    socket.emit('match:finish');
+  } else {
+    markOfflineChange();
+  }
+
+  closeEndMatchModal();
+  showToast('🏆 Partida finalizada e salva no histórico!', 'success', 3500);
+
+  // MANTER SEMPRE EM TELA CHEIA SE JÁ ESTAVA OU SE O USUÁRIO DESEJA
+  if (wasFullscreen || document.fullscreenElement) {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+}
+
 if (btnFinishMatch) {
-  btnFinishMatch.addEventListener('click', () => {
-    const ptsA = currentState.scoreA || 0;
-    const ptsB = currentState.scoreB || 0;
-    const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
-
-    let confirmMsg = `Deseja realmente encerrar a partida?\n\nPlacar atual: ${currentState.nameA} ${ptsA} x ${ptsB} ${currentState.nameB}\nDuração: ${formatTime(timerSeconds)}\n\nO resultado será salvo no histórico e o placar voltará para 0 x 0.`;
-    if (ptsA === 0 && ptsB === 0) {
-      confirmMsg = 'O placar ainda está em 0 x 0. Deseja realmente encerrar a partida mesmo assim?';
-    }
-
-    if (!confirm(confirmMsg)) return;
-
-    if (window.sound) window.sound.playFinalWhistle();
-
-    let winner = 'Empate';
-    if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA;
-    else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB;
-
-    const matchRecord = {
-      id: Date.now(),
-      matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
-      nameA: currentState.nameA,
-      scoreA: currentState.scoreA,
-      nameB: currentState.nameB,
-      scoreB: currentState.scoreB,
-      winner: winner,
-      durationSeconds: currentState.timer.seconds,
-      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    if (!currentState.matchHistory) currentState.matchHistory = [];
-    currentState.matchHistory.unshift(matchRecord);
-
-    currentState.scoreA = 0;
-    currentState.scoreB = 0;
-    currentState.timer.running = false;
-    currentState.timer.seconds = 0;
-
-    renderScoreUI();
-    updateTimerUI(currentState.timer);
-    renderHistory(currentState.matchHistory);
-    persistCurrentState();
-
-    if (socket && socket.connected) {
-      socket.emit('match:finish');
-    } else {
-      markOfflineChange();
-    }
+  btnFinishMatch.addEventListener('click', openEndMatchModal);
+}
+if (btnCloseEndMatchModal) {
+  btnCloseEndMatchModal.addEventListener('click', closeEndMatchModal);
+}
+if (btnCancelEndMatch) {
+  btnCancelEndMatch.addEventListener('click', closeEndMatchModal);
+}
+if (btnConfirmEndMatch) {
+  btnConfirmEndMatch.addEventListener('click', confirmFinishMatch);
+}
+if (endMatchModalBackdrop) {
+  endMatchModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === endMatchModalBackdrop) closeEndMatchModal();
   });
 }
 
@@ -1371,6 +1423,22 @@ function closeProModal() {
 }
 
 if (menuItemPro) menuItemPro.addEventListener('click', openProModal);
+
+if (menuItemLogout) {
+  try {
+    const rawUser = localStorage.getItem('pelada_user');
+    if (rawUser && JSON.parse(rawUser)) {
+      menuItemLogout.style.display = 'flex';
+    }
+  } catch(e) {}
+
+  menuItemLogout.addEventListener('click', () => {
+    if (confirm('Deseja realmente sair da sua conta?')) {
+      localStorage.removeItem('pelada_user');
+      window.location.href = '/';
+    }
+  });
+}
 if (btnAdCta) btnAdCta.addEventListener('click', openProModal);
 if (btnCloseProModal) btnCloseProModal.addEventListener('click', closeProModal);
 
@@ -1520,14 +1588,90 @@ function toggleFullscreen() {
 
 function updateFullscreenUI() {
   const isFull = !!document.fullscreenElement;
+  if (btnFullscreen) {
+    if (isFull) {
+      btnFullscreen.classList.add('is-fullscreen');
+      btnFullscreen.setAttribute('title', 'Clique para sair da Tela Cheia (ou aperte ESC / F)');
+    } else {
+      btnFullscreen.classList.remove('is-fullscreen');
+      btnFullscreen.setAttribute('title', 'Alternar Modo Tela Cheia (F)');
+    }
+  }
   if (fullscreenIcon) fullscreenIcon.textContent = isFull ? '🗗' : '⛶';
-  if (fullscreenText) fullscreenText.textContent = isFull ? 'Sair' : 'Tela Cheia';
+  if (fullscreenText) fullscreenText.textContent = isFull ? 'Sair da Tela Cheia' : 'Tela Cheia';
 }
 
 if (btnFullscreen) {
   btnFullscreen.addEventListener('click', toggleFullscreen);
   document.addEventListener('fullscreenchange', updateFullscreenUI);
 }
+
+// ============================================================
+// WIDGET DE AUTENTICAÇÃO NO CABEÇALHO DO PLACAR
+// ============================================================
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderHeaderAuth() {
+  if (!headerAuthContainer) return;
+  let user = null;
+  try {
+    const raw = localStorage.getItem('pelada_user');
+    if (raw) user = JSON.parse(raw);
+  } catch (e) {
+    user = null;
+  }
+
+  if (user && user.username) {
+    const initial = (user.name || user.username).charAt(0).toUpperCase();
+    const isLuixAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com');
+    const roleLabel = isLuixAdmin ? '👑 Admin' : '👤 Atleta';
+    const displayName = user.name ? user.name.split(' ')[0] : user.username.split('@')[0];
+
+    headerAuthContainer.innerHTML = `
+      <div class="header-user-pill" title="Conectado como: ${escapeHtml(user.name || user.username)} (${roleLabel})">
+        <div class="header-user-avatar">${initial}</div>
+        <div style="display: flex; flex-direction: column; line-height: 1.1;">
+          <span class="header-user-name">${escapeHtml(displayName)}</span>
+          <span class="header-user-role">${roleLabel}</span>
+        </div>
+        <button type="button" class="btn-header-logout" id="btnHeaderLogout" title="Sair da conta e voltar ao login">
+          <span>🚪</span>
+          <span>Sair</span>
+        </button>
+      </div>
+    `;
+
+    const btnHeaderLogout = document.getElementById('btnHeaderLogout');
+    if (btnHeaderLogout) {
+      btnHeaderLogout.addEventListener('click', () => {
+        if (confirm('Deseja realmente sair da sua conta?')) {
+          localStorage.removeItem('pelada_user');
+          renderHeaderAuth();
+          if (menuItemLogout) menuItemLogout.style.display = 'none';
+          showToast('Você saiu da sua conta.');
+        }
+      });
+    }
+  } else {
+    headerAuthContainer.innerHTML = `
+      <a href="/" class="btn-header-login" title="Acesse sua conta para gerenciar peladas, atletas e craques">
+        <span>👤</span>
+        <span>Entrar</span>
+      </a>
+    `;
+  }
+}
+
+// Inicializa o widget de autenticação do header
+renderHeaderAuth();
 
 // Atalhos de Teclado
 document.addEventListener('keydown', (e) => {

@@ -961,36 +961,6 @@
           const isLuixAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com');
           const roleLabel = isLuixAdmin ? '👑 ADMINISTRADOR' : '👤 ATLETA';
 
-          if (navUserPanel) navUserPanel.innerHTML = `
-            <div class="user-pill">
-              <div class="user-avatar-tag">${initial}</div>
-              <div class="user-info-text">
-                <span class="user-name-display">${escapeHtml(user.name || user.username)}</span>
-                <span class="user-role-badge">${roleLabel}</span>
-              </div>
-            </div>
-            <button type="button" class="btn-portal-logout" id="btnLogoutTop">Sair</button>
-          `;
-
-          const btnLogoutTop = document.getElementById('btnLogoutTop');
-          if (btnLogoutTop) {
-            btnLogoutTop.addEventListener('click', () => {
-              if (confirm('Deseja realmente sair da sua conta?')) {
-                localStorage.removeItem('pelada_user');
-                renderPortalUI();
-              }
-            });
-          }
-          const btnLogoutSessionCard = document.getElementById('btnLogoutSessionCard');
-          if (btnLogoutSessionCard) {
-            btnLogoutSessionCard.addEventListener('click', () => {
-              if (confirm('Deseja realmente sair da sua conta?')) {
-                localStorage.removeItem('pelada_user');
-                renderPortalUI();
-              }
-            });
-          }
-
           // Bloco principal na primeira dobra: Sessão Atual com opção de Escolher ou Criar Nova
           accessPortalContent.innerHTML = `
             <div class="logged-session-card">
@@ -1032,6 +1002,24 @@
               </div>
             </div>
           `;
+
+          // Ação de logout
+          const performLogout = () => {
+            if (confirm('Deseja realmente sair da sua conta?')) {
+              localStorage.removeItem('pelada_user');
+              renderPortalUI();
+            }
+          };
+
+          const btnLogoutTop = document.getElementById('btnLogoutTop');
+          if (btnLogoutTop) {
+            btnLogoutTop.addEventListener('click', performLogout);
+          }
+
+          const btnLogoutSessionCard = document.getElementById('btnLogoutSessionCard');
+          if (btnLogoutSessionCard) {
+            btnLogoutSessionCard.addEventListener('click', performLogout);
+          }
 
           const btnOpenChooseSession = document.getElementById('btnOpenChooseSession');
           if (btnOpenChooseSession) {
@@ -1385,6 +1373,18 @@
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#039;');
       }
+
+      // Delegação de evento global para garantir logout infalível em qualquer botão de logout
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#btnLogoutSessionCard, #btnLogoutTop, .btn-portal-logout');
+        if (btn) {
+          e.preventDefault();
+          if (confirm('Deseja realmente sair da sua conta?')) {
+            localStorage.removeItem('pelada_user');
+            renderPortalUI();
+          }
+        }
+      });
 
       // Inicializa
       renderPortalUI();

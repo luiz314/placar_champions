@@ -42,19 +42,19 @@
 
       <!-- BOTÕES DE AÇÃO RÁPIDA NO HEADER -->
       <div class="header-quick-actions">
-        <button type="button" class="btn btn-action-pill btn-home" id="btnGoHome" title="Voltar para a Página Inicial com apresentação do produto e salas">
+        <a href="/" class="btn btn-action-pill btn-home" id="btnGoHome" title="Voltar para a Página Inicial">
           <span>🏠</span>
           <span class="action-text">Início</span>
-        </button>
+        </a>
 
-        <button type="button" class="btn btn-action-pill btn-new-session" id="btnHeaderNewSession" title="Criar ou entrar em uma nova sessão do placar">
+        <a href="/?chooseSession=1" class="btn btn-action-pill btn-new-session" id="btnHeaderNewSession" title="Criar ou trocar sessão da pelada">
           <span>➕</span>
           <span class="action-text">Nova Sessão</span>
-        </button>
+        </a>
 
         <button type="button" class="btn btn-action-pill" id="btnShareModal" title="Compartilhar link da sala ou abrir QR Code">
           <span>📲</span>
-          <span class="action-text">Compartilhar Link</span>
+          <span class="action-text">Compartilhar</span>
         </button>
 
         <button type="button" class="btn btn-action-pill" id="btnTvMode" title="Ativar Modo Telão / Smart TV (Oculta botões de controle)">
@@ -66,6 +66,11 @@
           <span id="fullscreenIcon">⛶</span>
           <span class="action-text" id="fullscreenText">Tela Cheia</span>
         </button>
+
+        <!-- WIDGET DE USUÁRIO LOGADO / VISITANTE -->
+        <div id="headerAuthContainer" class="header-auth-container">
+          <!-- Injetado dinamicamente via JS -->
+        </div>
 
         <!-- MENU DROPDOWN -->
         <div class="menu-container">
@@ -96,6 +101,10 @@
             <button type="button" class="menu-item menu-item-pro" id="menuItemPro">
               <span class="menu-item-icon">👑</span>
               <span class="menu-item-text">Planos Arenas & PRO</span>
+            </button>
+            <button type="button" class="menu-item" id="menuItemLogout" style="display: none; border-top: 1px solid rgba(255,255,255,0.08); color: #f87171;">
+              <span class="menu-item-icon">🚪</span>
+              <span class="menu-item-text">Sair da Conta</span>
             </button>
           </div>
         </div>
@@ -305,6 +314,46 @@
       <div class="history-modal-body">
         <div class="history-list" id="historyList">
           <div class="history-empty">Nenhuma partida finalizada ainda nesta sala. Use "Encerrar Partida" para salvar o placar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO DE ENCERRAMENTO DE PARTIDA (DENTRO DO DOM PARA MANTER FULLSCREEN) -->
+  <div class="modal-backdrop" id="endMatchModalBackdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🏁</span>
+          <span>Encerrar Partida</span>
+        </div>
+        <button type="button" class="btn-close-modal" id="btnCloseEndMatchModal" title="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc" style="margin-bottom: 10px;">Deseja realmente finalizar este jogo? O resultado será gravado no histórico da sala e o placar será reiniciado para a próxima partida.</p>
+        
+        <div class="end-match-summary-card">
+          <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Resultado Atual:</div>
+          <div class="end-match-score-preview">
+            <span class="end-match-team-a" id="endMatchScoreA">0</span>
+            <span style="font-size: 1.4rem; color: #64748b;">x</span>
+            <span class="end-match-team-b" id="endMatchScoreB">0</span>
+          </div>
+          <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">
+            <span id="endMatchNameA">LADO A</span> vs <span id="endMatchNameB">LADO B</span>
+          </div>
+          <div class="end-match-duration">
+            <span>⏱️</span>
+            <span>Tempo de Jogo: <strong id="endMatchDurationText">00:00</strong></span>
+          </div>
+        </div>
+
+        <div class="end-match-actions">
+          <button type="button" class="btn-cancel-end" id="btnCancelEndMatch">Cancelar</button>
+          <button type="button" class="btn-confirm-end" id="btnConfirmEndMatch">
+            <span>🏆</span>
+            <span>Confirmar e Salvar</span>
+          </button>
         </div>
       </div>
     </div>

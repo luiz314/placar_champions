@@ -1542,13 +1542,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Logout
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
-      currentUser = null;
-      userRatingsMap = {};
-      localStorage.removeItem('pelada_user');
-      updateAuthUI();
-      renderPlayersTable();
-      renderPlayerSelectionGrid();
-      showToast('Você saiu da sua conta.');
+      if (confirm('Deseja realmente sair da sua conta?')) {
+        currentUser = null;
+        userRatingsMap = {};
+        localStorage.removeItem('pelada_user');
+        window.location.href = '/';
+      }
     });
   }
 
