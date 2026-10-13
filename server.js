@@ -222,6 +222,7 @@ app.get('/privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public'
 app.get('/politica-de-privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacidade.html')));
 app.get('/termos', (req, res) => res.sendFile(path.join(__dirname, 'public', 'termos.html')));
 app.get('/termos-de-servico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'termos.html')));
+app.get('/termos-de-uso', (req, res) => res.sendFile(path.join(__dirname, 'public', 'termos.html')));
 
 // ==========================================
 // AUTENTICAÇÃO E PERMISSÕES (MIDDLEWARES)

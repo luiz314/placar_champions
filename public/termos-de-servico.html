@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Termos de Serviço - Placar Champions</title>
+  <meta name="description" content="Termos de Serviço e Condições de Uso oficiais da plataforma esportiva Placar Champions.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#07090e">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --bg-dark: #07090e;
+      --bg-card: rgba(15, 23, 42, 0.82);
+      --border-card: rgba(255, 255, 255, 0.09);
+      --border-hover: rgba(0, 242, 254, 0.4);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-gold: #fbbf24;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 12%, rgba(0, 242, 254, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 18%, rgba(251, 191, 36, 0.09) 0%, transparent 40%),
+        radial-gradient(circle at 50% 85%, rgba(79, 172, 254, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    /* TOP NAVBAR */
+    .terms-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(7, 9, 14, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-card);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+      transition: opacity 0.2s;
+    }
+
+    .brand-link:hover {
+      opacity: 0.9;
+    }
+
+    .nav-logo-img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0, 242, 254, 0.35));
+    }
+
+    .nav-brand-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-btn-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn-home:hover {
+      background: rgba(0, 242, 254, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* CONTAINER PRINCIPAL */
+    .terms-container {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* HEADER HERO */
+    .terms-hero {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 0 1.5rem;
+    }
+
+    .terms-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      color: var(--accent-gold);
+      padding: 0.35rem 0.95rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.75px;
+    }
+
+    .terms-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 2.9rem);
+      font-weight: 800;
+      line-height: 1.15;
+      background: linear-gradient(180deg, #ffffff 40%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .terms-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .terms-meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+    }
+
+    .meta-pill {
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+    }
+
+    .meta-pill.highlight {
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(251, 191, 36, 0.3);
+      color: var(--accent-gold);
+    }
+
+    /* QUICK NAVIGATION (SUMÁRIO) */
+    .toc-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 18px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .toc-header {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .toc-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.4rem 0.65rem;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .toc-link:hover {
+      background: rgba(0, 242, 254, 0.12);
+      color: #ffffff;
+      transform: translateX(3px);
+    }
+
+    /* CARD DE SEÇÃO */
+    .policy-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      position: relative;
+      scroll-margin-top: 90px;
+      transition: border-color 0.2s;
+    }
+
+    .policy-section:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.9rem;
+    }
+
+    .section-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    .section-subtitle {
+      font-size: 0.85rem;
+      color: var(--accent-gold);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .policy-text {
+      font-size: 0.95rem;
+      color: #cbd5e1;
+      line-height: 1.7;
+    }
+
+    .policy-text p {
+      margin-bottom: 0.9rem;
+    }
+
+    .policy-text p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* LISTAS */
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin: 0.5rem 0;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      font-size: 0.92rem;
+      color: #cbd5e1;
+    }
+
+    .feature-list .bullet {
+      color: var(--accent-gold);
+      font-weight: 800;
+      flex-shrink: 0;
+      font-size: 1rem;
+      margin-top: 1px;
+    }
+
+    /* BOXES DE DESTAQUE */
+    .callout-box {
+      border-radius: 14px;
+      padding: 1.1rem 1.3rem;
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .callout-box.cyan {
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      color: #bae6fd;
+    }
+
+    .callout-box.gold {
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      color: #fef08a;
+    }
+
+    .callout-box.red {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #fca5a5;
+    }
+
+    .callout-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      margin-top: -2px;
+    }
+
+    /* TABELA */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 0.5rem 0;
+    }
+
+    .terms-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    .terms-table th {
+      background: rgba(0, 0, 0, 0.4);
+      color: #94a3b8;
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+
+    .terms-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+      vertical-align: top;
+    }
+
+    .terms-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .terms-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* BOTÃO VOLTAR AO TOPO */
+    .btn-back-top {
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      margin-top: 1rem;
+    }
+
+    .btn-back-top:hover {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: var(--accent-gold);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+
+    /* FOOTER */
+    .portal-footer {
+      border-top: 1px solid var(--border-card);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      background: rgba(7, 9, 14, 0.8);
+      margin-top: auto;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 0.82rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .terms-container {
+        padding: 1.5rem 1rem 3rem;
+      }
+      .policy-section {
+        padding: 1.4rem;
+      }
+      .terms-table th, .terms-table td {
+        padding: 0.65rem 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAVBAR -->
+  <nav class="terms-nav">
+    <a href="/" class="brand-link" title="Voltar ao Placar Champions">
+      <img src="/logo.png" alt="Logomarca Placar Champions" class="nav-logo-img">
+      <span class="nav-brand-title">Placar Champions</span>
+    </a>
+    <a href="/" class="nav-btn-home" title="Ir para a página principal">
+      <span>←</span>
+      <span>Voltar ao Início</span>
+    </a>
+  </nav>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="terms-container">
+
+    <!-- HERO HEADER -->
+    <header class="terms-hero">
+      <div class="terms-badge">
+        <span>📜</span>
+        <span>Contrato de Uso & Regras Oficiais</span>
+      </div>
+      <h1 class="terms-title">Termos de Serviço</h1>
+      <p class="terms-subtitle">
+        Ao acessar ou utilizar a plataforma <strong>Placar Champions</strong>, você concorda expressamente com os termos, regras e diretrizes estabelecidos neste documento.
+      </p>
+      <div class="terms-meta-pills">
+        <span class="meta-pill highlight">✓ Válido para todos os usuários e atletas</span>
+        <span class="meta-pill">📅 Última Atualização: Outubro de 2026</span>
+        <span class="meta-pill">⚖️ Legislação Brasileira (Marco Civil da Internet)</span>
+        <span class="meta-pill">🏐 Versão 1.2 Oficial</span>
+      </div>
+    </header>
+
+    <!-- SUMÁRIO INTERATIVO -->
+    <nav class="toc-card" aria-label="Sumário dos Termos de Serviço">
+      <div class="toc-header">
+        <span>📑</span>
+        <span>Sumário Rápido</span>
+      </div>
+      <div class="toc-grid">
+        <a href="#aceitacao" class="toc-link"><span>1.</span> Aceitação dos Termos</a>
+        <a href="#servicos" class="toc-link"><span>2.</span> Descrição dos Serviços</a>
+        <a href="#contas" class="toc-link"><span>3.</span> Contas e Cadastro</a>
+        <a href="#permissoes" class="toc-link"><span>4.</span> Níveis de Permissão</a>
+        <a href="#conduta" class="toc-link"><span>5.</span> Regras de Fair Play</a>
+        <a href="#propriedade" class="toc-link"><span>6.</span> Propriedade Intelectual</a>
+        <a href="#disponibilidade" class="toc-link"><span>7.</span> Disponibilidade & PWA</a>
+        <a href="#responsabilidade" class="toc-link"><span>8.</span> Limitação de Responsabilidade</a>
+        <a href="#cancelamento" class="toc-link"><span>9.</span> Encerramento de Contas</a>
+        <a href="#foro" class="toc-link"><span>10.</span> Legislação e Contato</a>
+      </div>
+    </nav>
+
+    <!-- SEÇÃO 1: ACEITAÇÃO -->
+    <section id="aceitacao" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🤝</div>
+        <div>
+          <span class="section-subtitle">Vínculo Jurídico</span>
+          <h2 class="section-title">1. Aceitação e Vinculação aos Termos</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          Estes Termos de Serviço regem o uso do software e aplicação web <strong>Placar Champions</strong>. Ao criar uma conta, ingressar em uma sala de placar ao vivo, registrar presença em peladas ou emitir avaliações de atletas, você declara que leu, compreendeu e concorda integralmente com as presentes cláusulas.
+        </p>
+        <p>
+          Caso discorde de qualquer disposição aqui contida, solicitamos que não continue utilizando a plataforma.
+        </p>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 2: DESCRIÇÃO DOS SERVIÇOS -->
+    <section id="servicos" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🏐</div>
+        <div>
+          <span class="section-subtitle">Funcionalidades</span>
+          <h2 class="section-title">2. Descrição das Funcionalidades</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          O <strong>Placar Champions</strong> oferece ferramentas esportivas integradas para a comunidade do voleibol:
+        </p>
+        <ul class="feature-list">
+          <li>
+            <span class="bullet">✓</span>
+            <span><strong>Placar Digital em Tempo Real:</strong> Controle de pontos, sets, inversão de quadra, rotação de saque, cronômetro oficial de jogo e transmissão via WebSockets para TVs e smartphones.</span>
+          </li>
+          <li>
+            <span class="bullet">✓</span>
+            <span><strong>Controle da Pelada & Sorteador Balanceado:</strong> Lista de presença com limite de vagas, check-in de atletas e algoritmo automatizado que distribui os times equilibrando médias de ataque, passe, defesa e movimentação (formatos 6x6 e 4x4).</span>
+          </li>
+          <li>
+            <span class="bullet">✓</span>
+            <span><strong>Votação & Craque da Noite (MVP):</strong> Módulo pós-jogo onde atletas votam com estrelas (1 a 5) nos destaques da rodada, gerando o pódio de Craque da Noite e rankings acumulados.</span>
+          </li>
+          <li>
+            <span class="bullet">✓</span>
+            <span><strong>Gerador de Cards Esportivos:</strong> Exportação de imagens de alta resolução em proporções 9:16 (Stories) e 1:1 (Feed/WhatsApp) com a escalação das equipes.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 3: CONTAS E SEGURANÇA -->
+    <section id="contas" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">👤</div>
+        <div>
+          <span class="section-subtitle">Acesso Seguro</span>
+          <h2 class="section-title">3. Contas de Usuário, Cadastro e Credenciais</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          O acesso a recursos avançados (como gestão de atletas, edição de pontuações e emissão de notas) exige criação de conta ou autenticação via Google:
+        </p>
+        <ul class="feature-list">
+          <li>
+            <span class="bullet">▸</span>
+            <span><strong>Veracidade dos Dados:</strong> O usuário compromete-se a fornecer informações verdadeiras e atualizadas ao se cadastrar.</span>
+          </li>
+          <li>
+            <span class="bullet">▸</span>
+            <span><strong>Guarda de Credenciais:</strong> Sua senha é pessoal e intransferível. Você é o único responsável pelas ações realizadas em sua conta. Recomendamos senhas fortes e o uso de autenticação segura via Google.</span>
+          </li>
+          <li>
+            <span class="bullet">▸</span>
+            <span><strong>Notificação de Incidentes:</strong> Se suspeitar de acesso indevido à sua conta, comunique a administração imediatamente para invalidação de tokens.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 4: NÍVEIS DE PERMISSÃO -->
+    <section id="permissoes" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🎖️</div>
+        <div>
+          <span class="section-subtitle">Governança</span>
+          <h2 class="section-title">4. Níveis de Permissão e Papéis na Plataforma</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <div class="table-wrapper">
+          <table class="terms-table">
+            <thead>
+              <tr>
+                <th>Nível / Papel</th>
+                <th>Permissões Autorizadas</th>
+                <th>Restrições</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Visitante / Torcida</strong></td>
+                <td>Visualizar o placar em tempo real em telões ou celulares via código de sala.</td>
+                <td>Não pode alterar pontos, registrar notas de atletas ou administrar peladas.</td>
+              </tr>
+              <tr>
+                <td><strong>Atleta Registrado</strong></td>
+                <td>Confirmar presença na rodada, votar no Craque da Partida e visualizar rankings.</td>
+                <td>Não pode alterar configurações de peladas em que não seja administrador.</td>
+              </tr>
+              <tr>
+                <td><strong>Admin da Pelada</strong></td>
+                <td>Configurar horários, adicionar/remover atletas da lista, acionar o sorteador e gerenciar a sessão.</td>
+                <td>Restrito às sessões e salas atribuídas sob sua liderança.</td>
+              </tr>
+              <tr>
+                <td><strong>Super Admin</strong></td>
+                <td>Gerenciar o sistema global, manutenção de salas e moderação de contas.</td>
+                <td>Acesso restrito à administração da plataforma.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 5: REGRAS DE CONDUTA & FAIR PLAY -->
+    <section id="conduta" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">⚖️</div>
+        <div>
+          <span class="section-subtitle">Uso Ético</span>
+          <h2 class="section-title">5. Regras de Conduta e Fair Play Esportivo</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          O objetivo do Placar Champions é promover a camaradagem, o equilíbrio e o espírito esportivo saudável. São expressamente proibidas as seguintes condutas:
+        </p>
+        <div class="callout-box red">
+          <span class="callout-icon">🚫</span>
+          <div>
+            <strong>Condutas Vedadas na Plataforma:</strong><br>
+            • Manipulação deliberada e fraudulenta de pontuação de partidas para prejudicar adversários.<br>
+            • Envio de fotos de atletas ofensivas, pornográficas, violentas ou sem consentimento da pessoa retratada.<br>
+            • Criação de contas falsas para manipular o pódio de Craque da Noite (MVP).<br>
+            • Ataques de negação de serviço (DDoS), injeção de scripts maliciosos ou tentativas de contornar limites de taxa (rate limiting).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 6: PROPRIEDADE INTELECTUAL -->
+    <section id="propriedade" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">💡</div>
+        <div>
+          <span class="section-subtitle">Direitos Autorais</span>
+          <h2 class="section-title">6. Propriedade Intelectual e Direitos da Marca</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          Todos os elementos visuais, logomarca oficial, código-fonte, algoritmos de sorteio equilibrado, sons de apito, interface e textos do <strong>Placar Champions</strong> são de propriedade exclusiva de seus idealizadores e protegidos pela legislação de direitos autorais e propriedade industrial (Lei nº 9.609/1998 e Lei nº 9.610/1998).
+        </p>
+        <p>
+          É vedada a cópia, engenharia reversa, redistribuição comercial ou comercialização de derivados do software sem consentimento prévio por escrito.
+        </p>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 7: DISPONIBILIDADE E PWA -->
+    <section id="disponibilidade" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">⚡</div>
+        <div>
+          <span class="section-subtitle">Infraestrutura</span>
+          <h2 class="section-title">7. Disponibilidade do Serviço e Suporte Offline (PWA)</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          Empregamos os melhores esforços para garantir que a plataforma permaneça disponível 24 horas por dia, 7 dias por semana. Entretanto:
+        </p>
+        <div class="callout-box cyan">
+          <span class="callout-icon">📶</span>
+          <div>
+            <strong>Modo Resiliente Offline:</strong><br>
+            O placar possui arquitetura Progressive Web App (PWA) com Service Worker. Se o sinal de internet da quadra oscilar, o placar continuará permitindo marcação de pontos na tela local. Contudo, a sincronização em tempo real entre múltiplos dispositivos depende de conexão de rede ativa.
+          </div>
+        </div>
+        <p style="margin-top: 1rem;">
+          Manutenções preventivas, atualizações de segurança ou indisponibilidades temporárias de provedores de nuvem podem ocorrer sem que isso configure quebra de contrato.
+        </p>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 8: LIMITAÇÃO DE RESPONSABILIDADE -->
+    <section id="responsabilidade" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🛡️</div>
+        <div>
+          <span class="section-subtitle">Isenção Legal</span>
+          <h2 class="section-title">8. Limitação de Responsabilidade Esportiva</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          O <strong>Placar Champions</strong> é exclusivamente um aplicativo de auxílio tecnológico para contagem de pontos e organização de partidas.
+        </p>
+        <div class="callout-box gold">
+          <span class="callout-icon">⚠️</span>
+          <div>
+            <strong>Prática Física do Voleibol:</strong><br>
+            A plataforma não se responsabiliza por lesões corporais, acidentes de jogo, danos a equipamentos esportivos ou desentendimentos interpessoais ocorridos durante a realização de peladas ou campeonatos no mundo físico. A aptidão física e a contratação de exames médicos são de inteira responsabilidade dos atletas praticantes.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 9: CANCELAMENTO E ENCERRAMENTO -->
+    <section id="cancelamento" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🗑️</div>
+        <div>
+          <span class="section-subtitle">Rescisão</span>
+          <h2 class="section-title">9. Encerramento, Suspensão e Exclusão de Contas</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          A administração reserva-se o direito de advertir, suspender ou banir contas de usuários que violem as regras de conduta, manipulem o sistema ou atentem contra a comunidade de atletas.
+        </p>
+        <p>
+          O usuário também pode solicitar o encerramento voluntário da sua conta e a exclusão dos seus dados a qualquer instante através do canal oficial de suporte.
+        </p>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 10: LEGISLAÇÃO E FORO -->
+    <section id="foro" class="policy-section">
+      <div class="section-header">
+        <div class="section-icon-box">🏛️</div>
+        <div>
+          <span class="section-subtitle">Disposições Finais</span>
+          <h2 class="section-title">10. Legislação Aplicável, Foro e Contato</h2>
+        </div>
+      </div>
+      <div class="policy-text">
+        <p>
+          Estes Termos de Serviço são regidos pelas leis da República Federativa do Brasil, em particular o <strong>Marco Civil da Internet (Lei nº 12.965/2014)</strong> e a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</strong>.
+        </p>
+        <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+          <div><strong>Plataforma Oficial:</strong> Placar Champions</div>
+          <div><strong>Contato de Suporte & Moderação:</strong> <a href="mailto:luix314@gmail.com" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">luix314@gmail.com</a></div>
+          <div><strong>Política de Privacidade Integrada:</strong> <a href="/privacidade" style="color: var(--accent-gold); text-decoration: underline;">Acesse aqui a Política de Privacidade</a></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTÃO RETORNAR AO TOPO -->
+    <a href="#" class="btn-back-top">
+      <span>↑</span>
+      <span>Voltar ao topo da página</span>
+    </a>
+
+  </main>
+
+  <!-- RODAPÉ -->
+  <footer class="portal-footer">
+    <p>Placar Champions - Sistema de Placar e Gestão de Partidas de Vôlei</p>
+    <div class="footer-links">
+      <a href="/">Página Inicial</a>
+      <span>•</span>
+      <a href="/placar">Placar Ao Vivo</a>
+      <span>•</span>
+      <a href="/pelada">Gestão da Pelada</a>
+      <span>•</span>
+      <a href="/avaliar">Votação & Craques</a>
+      <span>•</span>
+      <a href="/privacidade">Política de Privacidade</a>
+      <span>•</span>
+      <a href="/termos-de-servico" style="color: #fff; font-weight: 700;">Termos de Serviço</a>
+    </div>
+  </footer>
+
+</body>
+</html>

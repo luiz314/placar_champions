@@ -1,12 +1,14 @@
 // Service Worker do Placar de Vôlei - Suporte Offline Completo (PWA)
 // Altere a versão sempre que a lista de arquivos pré-carregados mudar.
-const CACHE_NAME = 'placar-volei-cache-v5';
+const CACHE_NAME = 'placar-volei-cache-v6';
 
 const STATIC_ASSETS = [
   '/',
   '/placar',
   '/privacidade',
+  '/politica-de-privacidade',
   '/termos',
+  '/termos-de-servico',
   '/css/style.css',
   '/js/socket.io.min.js',
   '/js/auth.js',
