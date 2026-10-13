@@ -1,45 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Apenas usuários logados podem acessar as Avaliações e Craques. Visitantes só podem abrir o Placar.
-  const storedUserRaw = localStorage.getItem('pelada_user');
-  if (!storedUserRaw) {
-    alert('Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Votação e Avaliação de Craques. Visitantes têm permissão exclusivamente para abrir o Placar.');
-    window.location.replace('/?authRequired=avaliar');
-    return;
-  }
-  try {
-    const parsedUser = JSON.parse(storedUserRaw);
-    if (!parsedUser || !parsedUser.username) {
-      localStorage.removeItem('pelada_user');
-      window.location.replace('/?authRequired=avaliar');
-      return;
-    }
-  } catch(e) {
-    localStorage.removeItem('pelada_user');
-    window.location.replace('/?authRequired=avaliar');
-    return;
-  }
-  // Verifica autenticação obrigatória do usuário
-  let currentUser = null;
-  try {
-    const raw = localStorage.getItem('pelada_user');
-    if (raw) currentUser = JSON.parse(raw);
-  } catch(e) {
-    currentUser = null;
-  }
+  if (!Auth.requireLogin('avaliar')) return;
+  window.addEventListener('auth:expired', () => Auth.requireLogin('avaliar'));
 
-  const authLockCard = document.getElementById('authLockCard');
+  const currentUser = Auth.getUser();
   const voterAuthName = document.getElementById('voterAuthName');
   const voterAvatarPill = document.getElementById('voterAvatarPill');
-
-  if (!currentUser) {
-    if (authLockCard) authLockCard.style.display = 'block';
-    const formEl = document.getElementById('formRatePlayer');
-    if (formEl) formEl.style.display = 'none';
-  } else {
-    if (authLockCard) authLockCard.style.display = 'none';
-    if (voterAuthName) voterAuthName.textContent = currentUser.name || currentUser.username;
-    if (voterAvatarPill) voterAvatarPill.textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
-  }
+  if (voterAuthName) voterAuthName.textContent = Auth.displayName(currentUser);
+  if (voterAvatarPill) voterAvatarPill.textContent = Auth.displayName(currentUser).charAt(0).toUpperCase();
 
   // Estado local
   let playersList = [];
@@ -69,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Elementos DOM
   const selectPlayer = document.getElementById('selectPlayer');
-  const inputVoterName = document.getElementById('inputVoterName');
   const formRatePlayer = document.getElementById('formRatePlayer');
   const btnSubmitVote = document.getElementById('btnSubmitVote');
   const overallNumeric = document.getElementById('overallNumeric');
@@ -89,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Recupera parâmetros da URL (prioriza sala 733849 se não especificado)
   const urlParams = new URLSearchParams(window.location.search);
   const targetPlayerId = urlParams.get('p') || urlParams.get('player');
-  const targetPeladaId = urlParams.get('pelada') || urlParams.get('sala') || urlParams.get('peladaId') || urlParams.get('roomId') || '733849';
+  const targetPeladaId = urlParams.get('pelada') || urlParams.get('sala') || urlParams.get('peladaId') || urlParams.get('roomId') || localStorage.getItem('activePeladaId') || '733849';
 
   // Atualizar visualização das estrelas para um atributo
   function updateStars(attr, value) {
@@ -199,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success && data.pelada) {
         const voteBadge = document.querySelector('.vote-badge');
         if (voteBadge) {
-          voteBadge.innerHTML = `<span>🏐</span> Pelada: <strong>${data.pelada.name} (#${data.pelada.id})</strong>`;
+          voteBadge.innerHTML = `<span>🏐</span> Pelada: <strong>${Auth.escapeHtml(data.pelada.name)} (#${Auth.escapeHtml(data.pelada.id)})</strong>`;
         }
       }
     } catch (err) {
@@ -250,32 +217,20 @@ document.addEventListener('DOMContentLoaded', () => {
     formRatePlayer.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      if (!currentUser) {
-        alert('Apenas usuários logados podem avaliar outros jogadores!');
-        window.location.href = '/login';
-        return;
-      }
-
       const playerId = selectPlayer.value;
       if (!playerId) {
         alert('Por favor, selecione um jogador.');
         return;
       }
 
-      const voterName = currentUser.name || currentUser.username;
       btnSubmitVote.disabled = true;
       btnSubmitVote.innerHTML = `<span>⏳</span><span>Gravando no Banco...</span>`;
 
       try {
         const res = await fetch(`/api/players/${playerId}/rate`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-user-id': currentUser.id
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: currentUser.id,
-            voterName: voterName,
             attack: currentRatings.attack,
             defense: currentRatings.defense,
             setPass: currentRatings.set_pass,

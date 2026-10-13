@@ -331,6 +331,45 @@
       border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
+    /* LOGIN COM GOOGLE */
+    .google-auth-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .google-auth-block[hidden] {
+      display: none;
+    }
+
+    #googleSignInBtn {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      min-height: 44px;
+    }
+
+    .auth-divider {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #64748b;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
     /* CARD DE ACESSO CONVIDADO / ESPECTADOR */
     .visitor-card {
       background: rgba(0, 0, 0, 0.35);
@@ -828,7 +867,7 @@
             <li><span class="bullet">✓</span> Rotação de equipes e histórico das partidas</li>
           </ul>
         </div>
-        <a href="/placar?room=733849" id="linkToPlacar" class="btn-card-action btn-cyan">
+        <a href="/placar" id="linkToPlacar" class="btn-card-action btn-cyan">
           <span>Abrir Placar Ao Vivo</span>
           <span>➔</span>
         </a>
@@ -872,7 +911,7 @@
             <li><span class="bullet">✓</span> Ranking da temporada com % de vitórias</li>
           </ul>
         </div>
-        <a href="/avaliar?pelada=733849" id="linkToAvaliar" class="btn-card-action btn-purple">
+        <a href="/avaliar" id="linkToAvaliar" class="btn-card-action btn-purple">
           <span>Votar nos Atletas</span>
           <span>➔</span>
         </a>
@@ -954,15 +993,27 @@
   </footer>
 
   <!-- SCRIPT CLIENTE -->
+  <script src="/js/auth.js"></script>
   <script>
     (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Links antigos de compartilhamento/QR Code apontavam para "/?sala=XXXXXX": abre direto o placar
+      const sharedRoom = (urlParams.get('sala') || urlParams.get('room') || '').replace(/\D/g, '');
+      if (sharedRoom.length === 6) {
+        window.location.replace('/placar?sala=' + sharedRoom);
+        return;
+      }
+
+      const escapeHtml = Auth.escapeHtml;
+
       // Estado da Sala e Usuário
       let currentRoom = localStorage.getItem('volei_current_room') || '';
       let currentPeladaName = 'Placar Oficial';
       let userPeladas = [];
+      let googleClientId = null;
 
       // Elementos Principais
-      const navUserPanel = document.getElementById('navUserPanel');
       const accessPortalContent = document.getElementById('accessPortalContent');
       const linkToPlacar = document.getElementById('linkToPlacar');
       const linkToPelada = document.getElementById('linkToPelada');
@@ -975,13 +1026,8 @@
       const inputNewSessionName = document.getElementById('inputNewSessionName');
       const btnCreateNewSession = document.getElementById('btnCreateNewSession');
 
-      function getStoredUser() {
-        try {
-          const raw = localStorage.getItem('pelada_user');
-          return raw ? JSON.parse(raw) : null;
-        } catch(e) {
-          return null;
-        }
+      function getActivePelada() {
+        return userPeladas.find(p => String(p.id) === String(currentRoom)) || null;
       }
 
       function updateNavigationLinks(roomCode) {
@@ -991,7 +1037,7 @@
           localStorage.setItem('activePeladaId', currentRoom);
         }
 
-        const user = getStoredUser();
+        const user = Auth.getUser();
 
         // 1. Placar Ao Vivo (Permitido para todos, logados ou visitantes)
         if (linkToPlacar) {
@@ -1000,37 +1046,28 @@
           linkToPlacar.onclick = null;
         }
 
-        // 2. Controle da Pelada (Apenas usuários logados)
-        if (linkToPelada) {
-          if (user && user.username) {
-            linkToPelada.href = '/pelada';
-            linkToPelada.innerHTML = '<span>Acessar Gestão da Pelada</span><span>➔</span>';
-            linkToPelada.onclick = null;
+        // 2. Controle da Pelada e 3. Votação (Apenas usuários logados)
+        const restricted = [
+          { el: linkToPelada, href: '/pelada', label: 'Acessar Gestão da Pelada',
+            msg: 'Apenas usuários logados têm permissão para acessar a Gestão da Pelada. Visitantes têm permissão exclusivamente para abrir o Placar.' },
+          { el: linkToAvaliar, href: currentRoom ? ('/avaliar?pelada=' + encodeURIComponent(currentRoom)) : '/avaliar', label: 'Votar nos Atletas',
+            msg: 'Apenas usuários logados têm permissão para avaliar jogadores e votar em craques. Visitantes têm permissão exclusivamente para abrir o Placar.' }
+        ];
+        restricted.forEach(({ el, href, label, msg }) => {
+          if (!el) return;
+          if (user) {
+            el.href = href;
+            el.innerHTML = `<span>${label}</span><span>➔</span>`;
+            el.onclick = null;
           } else {
-            linkToPelada.href = 'javascript:void(0);';
-            linkToPelada.innerHTML = '<span>🔒 Login Necessário</span><span>➔</span>';
-            linkToPelada.onclick = function(e) {
+            el.href = '#accessPortal';
+            el.innerHTML = '<span>🔒 Login Necessário</span><span>➔</span>';
+            el.onclick = function(e) {
               e.preventDefault();
-              requireLoginAlert('Apenas usuários logados têm permissão para acessar a Gestão da Pelada. Visitantes têm permissão exclusivamente para abrir o Placar.');
+              requireLoginAlert(msg);
             };
           }
-        }
-
-        // 3. Votação de Craques (Apenas usuários logados)
-        if (linkToAvaliar) {
-          if (user && user.username) {
-            linkToAvaliar.href = currentRoom ? ('/avaliar?pelada=' + encodeURIComponent(currentRoom)) : '/avaliar';
-            linkToAvaliar.innerHTML = '<span>Votar nos Atletas</span><span>➔</span>';
-            linkToAvaliar.onclick = null;
-          } else {
-            linkToAvaliar.href = 'javascript:void(0);';
-            linkToAvaliar.innerHTML = '<span>🔒 Login Necessário</span><span>➔</span>';
-            linkToAvaliar.onclick = function(e) {
-              e.preventDefault();
-              requireLoginAlert('Apenas usuários logados têm permissão para avaliar jogadores e votar em craques. Visitantes têm permissão exclusivamente para abrir o Placar.');
-            };
-          }
-        }
+        });
       }
 
       // Alerta e foco no formulário de login quando visitante tenta acessar recurso restrito
@@ -1041,29 +1078,30 @@
         }
         const tabBtnLogin = document.getElementById('tabBtnLogin');
         if (tabBtnLogin) tabBtnLogin.click();
-        const loginFeedback = document.getElementById('loginFeedback');
-        if (loginFeedback) {
-          loginFeedback.className = 'auth-feedback-box error';
-          loginFeedback.textContent = message || '🔒 Apenas usuários cadastrados e logados podem acessar este recurso. Visitantes têm permissão apenas para abrir o Placar.';
-        }
+        showFeedback('loginFeedback', 'error', message || '🔒 Apenas usuários cadastrados e logados podem acessar este recurso. Visitantes têm permissão apenas para abrir o Placar.');
         const loginUsername = document.getElementById('loginUsername');
         if (loginUsername) {
           setTimeout(() => loginUsername.focus(), 300);
         }
       }
 
-      // Carregar todas as sessões para o modal e para usuário logado
+      function showFeedback(id, type, message) {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.className = 'auth-feedback-box' + (type ? ' ' + type : '');
+        box.textContent = message || '';
+      }
+
+      // Carregar todas as sessões (com as permissões do usuário logado)
       async function fetchSessions() {
         try {
           const res = await fetch('/api/peladas');
           const data = await res.json();
           if (data.success && Array.isArray(data.peladas)) {
             userPeladas = data.peladas;
-            if (currentRoom) {
-              const activeP = userPeladas.find(p => String(p.id) === String(currentRoom));
-              if (activeP) {
-                currentPeladaName = activeP.name;
-              }
+            const active = getActivePelada();
+            if (active) {
+              currentPeladaName = active.name;
             } else if (userPeladas.length > 0) {
               currentRoom = String(userPeladas[0].id);
               currentPeladaName = userPeladas[0].name;
@@ -1077,192 +1115,199 @@
       // Renderiza a interface baseado no estado de autenticação
       async function renderPortalUI() {
         await fetchSessions();
-        const user = getStoredUser();
+        const user = Auth.getUser();
         updateNavigationLinks(currentRoom);
 
-        if (user && user.username) {
-          // ==========================================
-          // ESTADO LOGADO: PAINEL PERSONALIZADO & SESSÃO
-          // ==========================================
-          const initial = (user.name || user.username).charAt(0).toUpperCase();
-          const isLuixAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com');
-          const roleLabel = isLuixAdmin ? '👑 ADMINISTRADOR' : '👤 ATLETA';
+        if (user) {
+          renderLoggedUI(user);
+        } else {
+          renderGuestUI();
+        }
+      }
 
-          // Bloco principal na primeira dobra: Sessão Atual com opção de Escolher ou Criar Nova
-          accessPortalContent.innerHTML = `
-            <div class="logged-session-card">
-              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px; width: 100%;">
-                <div class="user-pill" style="margin: 0;">
-                  <div class="user-avatar-tag">${initial}</div>
-                  <div class="user-info-text">
-                    <span class="user-name-display">${escapeHtml(user.name || user.username)}</span>
-                    <span class="user-role-badge">${roleLabel}</span>
-                  </div>
+      function renderLoggedUI(user) {
+        const initial = Auth.displayName(user).charAt(0).toUpperCase();
+        const active = getActivePelada();
+        const canManageActive = Boolean(active && active.can_manage);
+        let roleLabel = '👤 ATLETA';
+        if (Auth.isSuperAdmin(user)) roleLabel = '👑 SUPER ADMIN';
+        else if (canManageActive) roleLabel = '⭐ ADMIN DESTA PELADA';
+
+        // Bloco principal na primeira dobra: Sessão Atual com opção de Escolher ou Criar Nova
+        accessPortalContent.innerHTML = `
+          <div class="logged-session-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px; width: 100%;">
+              <div class="user-pill" style="margin: 0;">
+                <div class="user-avatar-tag">${escapeHtml(initial)}</div>
+                <div class="user-info-text">
+                  <span class="user-name-display">${escapeHtml(Auth.displayName(user))}</span>
+                  <span class="user-role-badge">${roleLabel}</span>
                 </div>
-                <button type="button" class="btn-portal-logout" id="btnLogoutSessionCard" title="Sair da conta">Sair</button>
               </div>
+              <button type="button" class="btn-portal-logout" id="btnLogoutSessionCard" title="Sair da conta">Sair</button>
+            </div>
 
-              <div class="session-current-details">
-                <div class="session-icon-circle">🏐</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Sessão / Pelada Selecionada:</div>
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
-                    <strong style="font-size: 1.15rem; color: #ffffff;" id="activePeladaNameDisplay">${escapeHtml(currentPeladaName)}</strong>
-                    <span class="session-pill-code">${currentRoom ? ('SALA #' + currentRoom) : 'SEM SALA'}</span>
+            <div class="session-current-details">
+              <div class="session-icon-circle">🏐</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Sessão / Pelada Selecionada:</div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
+                  <strong style="font-size: 1.15rem; color: #ffffff;" id="activePeladaNameDisplay">${escapeHtml(currentPeladaName)}</strong>
+                  <span class="session-pill-code">${currentRoom ? ('SALA #' + escapeHtml(currentRoom)) : 'SEM SALA'}</span>
+                  ${canManageActive ? `
                     <button type="button" class="btn-rename-pill" id="btnQuickRenameCurrentSession" title="Renomear esta sessão ativa">
                       <span>✏️</span>
                       <span>Renomear</span>
                     </button>
-                  </div>
+                  ` : ''}
                 </div>
-              </div>
-
-              <div class="logged-session-actions">
-                <button type="button" class="btn-compact" id="btnOpenChooseSession" title="Gerenciar todas as sessões e salas">
-                  <span>⚙️</span>
-                  <span>Gerenciar Sessões (${userPeladas.length})</span>
-                </button>
-                <button type="button" class="btn-compact" id="btnOpenCreateSession" style="background: rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.4); color: #fbbf24; font-weight: 700;" title="Criar uma nova sessão de jogo">
-                  <span>➕</span>
-                  <span>Nova Sessão</span>
-                </button>
-                <a href="/pelada" class="btn-compact" style="background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;" title="Abrir escalação e sorteio de times desta pelada">
-                  <span>👥</span>
-                  <span>Gestão & Times</span>
-                </a>
-                <a href="${currentRoom ? ('/placar?room=' + encodeURIComponent(currentRoom)) : '/placar'}" class="btn-card-action btn-cyan" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
-                  <span>Ir ao Placar</span>
-                  <span>➔</span>
-                </a>
               </div>
             </div>
-          `;
 
-          // Ação de logout
-          const performLogout = () => {
-            if (confirm('Deseja realmente sair da sua conta?')) {
-              localStorage.removeItem('pelada_user');
-              renderPortalUI();
-            }
-          };
+            <div class="logged-session-actions">
+              <button type="button" class="btn-compact" id="btnOpenChooseSession" title="Gerenciar todas as sessões e salas">
+                <span>⚙️</span>
+                <span>Gerenciar Sessões (${userPeladas.length})</span>
+              </button>
+              <button type="button" class="btn-compact" id="btnOpenCreateSession" style="background: rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.4); color: #fbbf24; font-weight: 700;" title="Criar uma nova sessão de jogo">
+                <span>➕</span>
+                <span>Nova Sessão</span>
+              </button>
+              <a href="/pelada" class="btn-compact" style="background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;" title="Abrir escalação e sorteio de times desta pelada">
+                <span>👥</span>
+                <span>Gestão & Times</span>
+              </a>
+              <a href="${currentRoom ? ('/placar?room=' + encodeURIComponent(currentRoom)) : '/placar'}" class="btn-card-action btn-cyan" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
+                <span>Ir ao Placar</span>
+                <span>➔</span>
+              </a>
+            </div>
+          </div>
+        `;
 
-          const btnLogoutTop = document.getElementById('btnLogoutTop');
-          if (btnLogoutTop) {
-            btnLogoutTop.addEventListener('click', performLogout);
-          }
+        const btnQuickRename = document.getElementById('btnQuickRenameCurrentSession');
+        if (btnQuickRename) {
+          btnQuickRename.addEventListener('click', () => openRenameModal(currentRoom, currentPeladaName));
+        }
+        document.getElementById('btnOpenChooseSession').addEventListener('click', () => openSessionModal());
+        document.getElementById('btnOpenCreateSession').addEventListener('click', () => {
+          openSessionModal();
+          setTimeout(() => {
+            if (inputNewSessionName) inputNewSessionName.focus();
+          }, 200);
+        });
+      }
 
-          const btnLogoutSessionCard = document.getElementById('btnLogoutSessionCard');
-          if (btnLogoutSessionCard) {
-            btnLogoutSessionCard.addEventListener('click', performLogout);
-          }
-
-          const btnQuickRenameCurrentSession = document.getElementById('btnQuickRenameCurrentSession');
-          if (btnQuickRenameCurrentSession) {
-            btnQuickRenameCurrentSession.addEventListener('click', () => {
-              openRenameModal(currentRoom, currentPeladaName);
-            });
-          }
-
-          const btnOpenChooseSession = document.getElementById('btnOpenChooseSession');
-          if (btnOpenChooseSession) {
-            btnOpenChooseSession.addEventListener('click', () => openSessionModal());
-          }
-
-          const btnOpenCreateSession = document.getElementById('btnOpenCreateSession');
-          if (btnOpenCreateSession) {
-            btnOpenCreateSession.addEventListener('click', () => {
-              openSessionModal();
-              setTimeout(() => {
-                if (inputNewSessionName) inputNewSessionName.focus();
-              }, 200);
-            });
-          }
-
-        } else {
-          // ==========================================
-          // ESTADO DESLOGADO: LOGIN SIMPLIFICADO & CONVIDADO (APENAS PLACAR)
-          // ==========================================
-          if (navUserPanel) navUserPanel.innerHTML = `
-            <a href="#accessPortal" class="btn-compact" id="btnNavLogin">Entrar / Cadastrar</a>
-          `;
-
-          accessPortalContent.innerHTML = `
-            <!-- LADO ESQUERDO: LOGIN SIMPLIFICADO / CADASTRO (SOMENTE E-MAIL) -->
-            <div id="authFormsContainer">
-              <div class="auth-tabs-header">
-                <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Entrar (Login)</button>
-                <button type="button" class="auth-tab-btn" id="tabBtnRegister">Criar Conta</button>
-              </div>
-
-              <!-- FORMULÁRIO DE LOGIN -->
-              <form class="auth-form" id="formLogin" autocomplete="off">
-                <div class="form-group">
-                  <label class="form-label" for="loginUsername">E-mail</label>
-                  <input type="email" id="loginUsername" class="form-input" placeholder="" required autocomplete="off" value="">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="loginPassword">Senha</label>
-                  <input type="password" id="loginPassword" class="form-input" placeholder="" required autocomplete="new-password" value="">
-                </div>
-
-                <div class="auth-feedback-box" id="loginFeedback"></div>
-
-                <button type="submit" class="btn-card-action btn-cyan" id="btnLoginSubmit">
-                  <span>Acessar o Placar Champions</span>
-                  <span>➔</span>
-                </button>
-              </form>
-
-              <!-- FORMULÁRIO DE CADASTRO -->
-              <form class="auth-form" id="formRegister" style="display: none;" autocomplete="off">
-                <div class="form-group">
-                  <label class="form-label" for="regName">Nome Completo</label>
-                  <input type="text" id="regName" class="form-input" placeholder="" required autocomplete="off" value="">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="regUsername">E-mail</label>
-                  <input type="email" id="regUsername" class="form-input" placeholder="" required autocomplete="off" value="">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="regPassword">Senha</label>
-                  <input type="password" id="regPassword" class="form-input" placeholder="" required autocomplete="new-password" value="">
-                </div>
-
-                <div class="auth-feedback-box" id="regFeedback"></div>
-
-                <button type="submit" class="btn-card-action btn-gold" id="btnRegSubmit">
-                  <span>Criar Conta e Entrar</span>
-                  <span>➔</span>
-                </button>
-              </form>
+      function renderGuestUI() {
+        accessPortalContent.innerHTML = `
+          <!-- LADO ESQUERDO: LOGIN / CADASTRO (E-MAIL OU GOOGLE) -->
+          <div id="authFormsContainer">
+            <div class="auth-tabs-header">
+              <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Entrar (Login)</button>
+              <button type="button" class="auth-tab-btn" id="tabBtnRegister">Criar Conta</button>
             </div>
 
-            <!-- LADO DIREITO: ACESSO CONVIDADO / ESPECTADOR DIRETO (EXCLUSIVAMENTE PLACAR) -->
-            <div class="visitor-card">
-              <div class="visitor-header">
-                <div class="visitor-badge">👀</div>
-                <div>
-                  <h3 class="visitor-title">Acesso Visitante (Placar)</h3>
-                  <p class="visitor-desc">Usuários não logados têm permissão exclusivamente para assistir ao placar ao vivo.</p>
-                </div>
+            <!-- LOGIN COM GOOGLE (exibido somente quando configurado no servidor) -->
+            <div class="google-auth-block" id="googleAuthBlock" hidden>
+              <div id="googleSignInBtn"></div>
+              <div class="auth-divider"><span>ou com e-mail</span></div>
+            </div>
+
+            <!-- FORMULÁRIO DE LOGIN -->
+            <form class="auth-form" id="formLogin">
+              <div class="form-group">
+                <label class="form-label" for="loginUsername">E-mail</label>
+                <input type="email" id="loginUsername" class="form-input" required autocomplete="username">
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="inputGuestRoomCode">Código da Sala:</label>
-                <input type="text" id="inputGuestRoomCode" class="form-input" value="" maxlength="10" placeholder="Digite o código da sala" autocomplete="off" style="text-align: center; font-family: monospace; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px;">
+                <label class="form-label" for="loginPassword">Senha</label>
+                <input type="password" id="loginPassword" class="form-input" required autocomplete="current-password">
               </div>
 
-              <button type="button" class="btn-card-action btn-cyan" id="btnGuestEnter">
-                <span>Assistir Placar como Convidado</span>
+              <div class="auth-feedback-box" id="loginFeedback"></div>
+
+              <button type="submit" class="btn-card-action btn-cyan" id="btnLoginSubmit">
+                <span>Acessar o Placar Champions</span>
                 <span>➔</span>
               </button>
-            </div>
-          `;
+            </form>
 
-          bindGuestAndAuthEvents();
+            <!-- FORMULÁRIO DE CADASTRO -->
+            <form class="auth-form" id="formRegister" style="display: none;">
+              <div class="form-group">
+                <label class="form-label" for="regName">Nome Completo</label>
+                <input type="text" id="regName" class="form-input" required maxlength="100" autocomplete="name">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="regUsername">E-mail</label>
+                <input type="email" id="regUsername" class="form-input" required maxlength="60" autocomplete="email">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="regPassword">Senha (mínimo 6 caracteres)</label>
+                <input type="password" id="regPassword" class="form-input" required minlength="6" autocomplete="new-password">
+              </div>
+
+              <div class="auth-feedback-box" id="regFeedback"></div>
+
+              <button type="submit" class="btn-card-action btn-gold" id="btnRegSubmit">
+                <span>Criar Conta e Entrar</span>
+                <span>➔</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- LADO DIREITO: ACESSO CONVIDADO / ESPECTADOR DIRETO (EXCLUSIVAMENTE PLACAR) -->
+          <div class="visitor-card">
+            <div class="visitor-header">
+              <div class="visitor-badge">👀</div>
+              <div>
+                <h3 class="visitor-title">Acesso Visitante (Placar)</h3>
+                <p class="visitor-desc">Usuários não logados têm permissão exclusivamente para assistir ao placar ao vivo.</p>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputGuestRoomCode">Código da Sala:</label>
+              <input type="text" id="inputGuestRoomCode" class="form-input" value="" maxlength="10" placeholder="Digite o código da sala" autocomplete="off" inputmode="numeric" style="text-align: center; font-family: monospace; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px;">
+            </div>
+
+            <button type="button" class="btn-card-action btn-cyan" id="btnGuestEnter">
+              <span>Assistir Placar como Convidado</span>
+              <span>➔</span>
+            </button>
+          </div>
+        `;
+
+        bindGuestAndAuthEvents();
+        setupGoogleButton();
+      }
+
+      // Conclui o login (e-mail, cadastro ou Google) e abre o painel do usuário
+      async function completeLogin(data, feedbackId, message) {
+        Auth.setSession(data.token, data.user);
+        showFeedback(feedbackId, 'success', message);
+        await renderPortalUI();
+        if (userPeladas.length > 1) openSessionModal();
+      }
+
+      async function postAuth(url, body, feedbackId, successMessage) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            showFeedback(feedbackId, 'error', data.error || 'Não foi possível entrar. Tente novamente.');
+            return;
+          }
+          await completeLogin(data, feedbackId, successMessage);
+        } catch (err) {
+          showFeedback(feedbackId, 'error', 'Erro ao conectar ao servidor. Verifique sua internet e tente novamente.');
         }
       }
 
@@ -1271,133 +1316,102 @@
         const tabBtnRegister = document.getElementById('tabBtnRegister');
         const formLogin = document.getElementById('formLogin');
         const formRegister = document.getElementById('formRegister');
-        const loginFeedback = document.getElementById('loginFeedback');
-        const regFeedback = document.getElementById('regFeedback');
         const btnGuestEnter = document.getElementById('btnGuestEnter');
         const inputGuestRoomCode = document.getElementById('inputGuestRoomCode');
 
-        if (tabBtnLogin && tabBtnRegister) {
-          tabBtnLogin.addEventListener('click', () => {
-            tabBtnLogin.classList.add('active');
-            tabBtnRegister.classList.remove('active');
-            formLogin.style.display = 'flex';
-            formRegister.style.display = 'none';
-          });
+        tabBtnLogin.addEventListener('click', () => {
+          tabBtnLogin.classList.add('active');
+          tabBtnRegister.classList.remove('active');
+          formLogin.style.display = 'flex';
+          formRegister.style.display = 'none';
+        });
 
-          tabBtnRegister.addEventListener('click', () => {
-            tabBtnRegister.classList.add('active');
-            tabBtnLogin.classList.remove('active');
-            formLogin.style.display = 'none';
-            formRegister.style.display = 'flex';
-          });
-        }
+        tabBtnRegister.addEventListener('click', () => {
+          tabBtnRegister.classList.add('active');
+          tabBtnLogin.classList.remove('active');
+          formLogin.style.display = 'none';
+          formRegister.style.display = 'flex';
+        });
 
-        if (btnGuestEnter) {
-          btnGuestEnter.addEventListener('click', () => {
-            const roomVal = (inputGuestRoomCode ? inputGuestRoomCode.value.trim().toUpperCase() : '');
-            if (!roomVal) {
-              alert('Por favor, informe o código da sala que deseja assistir no placar.');
-              if (inputGuestRoomCode) inputGuestRoomCode.focus();
-              return;
-            }
-            updateNavigationLinks(roomVal);
-            window.location.href = '/placar?room=' + encodeURIComponent(roomVal);
-          });
-        }
+        btnGuestEnter.addEventListener('click', () => {
+          const roomVal = inputGuestRoomCode.value.replace(/\D/g, '');
+          if (!roomVal) {
+            alert('Por favor, informe o código da sala que deseja assistir no placar.');
+            inputGuestRoomCode.focus();
+            return;
+          }
+          updateNavigationLinks(roomVal);
+          window.location.href = '/placar?room=' + encodeURIComponent(roomVal);
+        });
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        formLogin.addEventListener('submit', (e) => {
+          e.preventDefault();
+          showFeedback('loginFeedback', '', '');
+          const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+          const password = document.getElementById('loginPassword').value;
+          postAuth('/api/auth/login', { username, password }, 'loginFeedback', 'Login efetuado com sucesso! Conectando...');
+        });
 
-        if (formLogin) {
-          formLogin.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            loginFeedback.className = 'auth-feedback-box';
-            loginFeedback.textContent = '';
+        formRegister.addEventListener('submit', (e) => {
+          e.preventDefault();
+          showFeedback('regFeedback', '', '');
+          const name = document.getElementById('regName').value.trim();
+          const username = document.getElementById('regUsername').value.trim().toLowerCase();
+          const password = document.getElementById('regPassword').value;
+          postAuth('/api/auth/register', { name, username, password }, 'regFeedback', 'Conta criada com sucesso! Conectando...');
+        });
+      }
 
-            const username = document.getElementById('loginUsername').value.trim().toLowerCase();
-            const password = document.getElementById('loginPassword').value;
+      // ==========================================
+      // LOGIN COM GOOGLE (Google Identity Services)
+      // ==========================================
+      let googleScriptPromise = null;
 
-            if (!emailRegex.test(username)) {
-              loginFeedback.className = 'auth-feedback-box error';
-              loginFeedback.textContent = 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).';
-              return;
-            }
-
-            try {
-              const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-              });
-              const data = await res.json();
-
-              if (!res.ok || !data.success) {
-                loginFeedback.className = 'auth-feedback-box error';
-                loginFeedback.textContent = data.error || 'E-mail ou senha incorretos.';
-                return;
-              }
-
-              loginFeedback.className = 'auth-feedback-box success';
-              loginFeedback.textContent = 'Login efetuado com sucesso! Conectando...';
-              localStorage.setItem('pelada_user', JSON.stringify(data.user));
-
-              setTimeout(() => {
-                renderPortalUI().then(() => {
-                  if (userPeladas.length > 1) {
-                    openSessionModal();
-                  }
-                });
-              }, 400);
-
-            } catch (err) {
-              loginFeedback.className = 'auth-feedback-box error';
-              loginFeedback.textContent = 'Erro ao conectar ao servidor: ' + err.message;
-            }
+      function loadGoogleScript() {
+        if (!googleScriptPromise) {
+          googleScriptPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
           });
         }
+        return googleScriptPromise;
+      }
 
-        if (formRegister) {
-          formRegister.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            regFeedback.className = 'auth-feedback-box';
-            regFeedback.textContent = '';
+      async function setupGoogleButton() {
+        try {
+          if (googleClientId === null) {
+            const res = await fetch('/api/auth/config');
+            const data = await res.json();
+            googleClientId = data.googleClientId || '';
+          }
+          if (!googleClientId) return;
 
-            const name = document.getElementById('regName').value.trim();
-            const username = document.getElementById('regUsername').value.trim().toLowerCase();
-            const password = document.getElementById('regPassword').value;
+          await loadGoogleScript();
+          const block = document.getElementById('googleAuthBlock');
+          const target = document.getElementById('googleSignInBtn');
+          if (!block || !target || !window.google) return;
 
-            if (!emailRegex.test(username)) {
-              regFeedback.className = 'auth-feedback-box error';
-              regFeedback.textContent = 'O usuário deve ser um e-mail válido (ex: seuemail@dominio.com).';
-              return;
-            }
-
-            try {
-              const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, username, password, role: 'user' })
-              });
-              const data = await res.json();
-
-              if (!res.ok || !data.success) {
-                regFeedback.className = 'auth-feedback-box error';
-                regFeedback.textContent = data.error || 'Erro ao realizar cadastro.';
-                return;
-              }
-
-              regFeedback.className = 'auth-feedback-box success';
-              regFeedback.textContent = 'Conta criada com sucesso! Conectando...';
-              localStorage.setItem('pelada_user', JSON.stringify(data.user));
-
-              setTimeout(() => {
-                renderPortalUI();
-              }, 400);
-
-            } catch (err) {
-              regFeedback.className = 'auth-feedback-box error';
-              regFeedback.textContent = 'Erro ao conectar ao servidor: ' + err.message;
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: (response) => {
+              postAuth('/api/auth/google', { credential: response.credential }, 'loginFeedback', 'Login com Google efetuado! Conectando...');
             }
           });
+          google.accounts.id.renderButton(target, {
+            theme: 'filled_black',
+            size: 'large',
+            shape: 'pill',
+            text: 'continue_with',
+            locale: 'pt-BR',
+            width: Math.min(360, target.offsetWidth || 320)
+          });
+          block.hidden = false;
+        } catch (err) {
+          console.warn('Login com Google indisponível:', err);
         }
       }
 
@@ -1413,28 +1427,22 @@
       const btnSubmitRenameSession = document.getElementById('btnSubmitRenameSession');
 
       function openSessionModal() {
-        if (!modalChooseSession) return;
         renderSessionsModalList();
         modalChooseSession.classList.add('show');
       }
 
       function closeSessionModal() {
-        if (modalChooseSession) modalChooseSession.classList.remove('show');
+        modalChooseSession.classList.remove('show');
       }
 
-      if (btnCloseSessionModal) {
-        btnCloseSessionModal.addEventListener('click', closeSessionModal);
-      }
+      btnCloseSessionModal.addEventListener('click', closeSessionModal);
 
       function openRenameModal(id, currentName) {
-        const user = getStoredUser();
-        if (!user || !user.username) {
+        if (!Auth.getUser()) {
           requireLoginAlert('🔒 Faça login para renomear e administrar sessões.');
           closeSessionModal();
           return;
         }
-
-        if (!modalRenameSession || !inputRenameSessionId || !inputRenameSessionName) return;
         inputRenameSessionId.value = id;
         inputRenameSessionName.value = currentName || '';
         modalRenameSession.classList.add('show');
@@ -1445,65 +1453,47 @@
       }
 
       function closeRenameModal() {
-        if (modalRenameSession) modalRenameSession.classList.remove('show');
+        modalRenameSession.classList.remove('show');
       }
 
-      if (btnCloseRenameModal) {
-        btnCloseRenameModal.addEventListener('click', closeRenameModal);
-      }
-      if (btnCancelRenameSession) {
-        btnCancelRenameSession.addEventListener('click', closeRenameModal);
-      }
+      btnCloseRenameModal.addEventListener('click', closeRenameModal);
+      btnCancelRenameSession.addEventListener('click', closeRenameModal);
 
       // Submissão do formulário de renomeação de sessão
-      if (formRenameSession) {
-        formRenameSession.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const id = inputRenameSessionId ? inputRenameSessionId.value : null;
-          const newName = inputRenameSessionName ? inputRenameSessionName.value.trim() : '';
+      formRenameSession.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = inputRenameSessionId.value;
+        const newName = inputRenameSessionName.value.trim();
+        if (!id || !newName) {
+          alert('Por favor, informe o novo nome da sessão.');
+          return;
+        }
 
-          if (!id || !newName) {
-            alert('Por favor, informe o novo nome da sessão.');
-            return;
+        btnSubmitRenameSession.disabled = true;
+        btnSubmitRenameSession.textContent = 'Salvando...';
+        try {
+          const res = await fetch(`/api/peladas/${encodeURIComponent(id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+          });
+          const data = await res.json();
+          if (data.success && data.pelada) {
+            closeRenameModal();
+            await renderPortalUI();
+            renderSessionsModalList();
+          } else {
+            alert(data.error || 'Erro ao renomear sessão.');
           }
-
-          if (btnSubmitRenameSession) {
-            btnSubmitRenameSession.disabled = true;
-            btnSubmitRenameSession.textContent = 'Salvando...';
-          }
-
-          try {
-            const res = await fetch(`/api/peladas/${id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: newName })
-            });
-            const data = await res.json();
-
-            if (data.success && data.pelada) {
-              if (String(currentRoom) === String(id)) {
-                currentPeladaName = data.pelada.name;
-              }
-              closeRenameModal();
-              await fetchSessions();
-              renderSessionsModalList();
-              renderPortalUI();
-            } else {
-              alert(data.error || 'Erro ao renomear sessão.');
-            }
-          } catch(err) {
-            alert('Erro de conexão ao renomear sessão.');
-          } finally {
-            if (btnSubmitRenameSession) {
-              btnSubmitRenameSession.disabled = false;
-              btnSubmitRenameSession.textContent = 'Salvar Nome';
-            }
-          }
-        });
-      }
+        } catch(err) {
+          alert('Erro de conexão ao renomear sessão.');
+        } finally {
+          btnSubmitRenameSession.disabled = false;
+          btnSubmitRenameSession.textContent = 'Salvar Nome';
+        }
+      });
 
       function renderSessionsModalList() {
-        if (!sessionsModalList) return;
         sessionsModalList.innerHTML = '';
 
         if (userPeladas.length === 0) {
@@ -1515,9 +1505,6 @@
           return;
         }
 
-        const user = getStoredUser();
-        const isLoggedIn = Boolean(user && user.username);
-
         userPeladas.forEach(pelada => {
           const isCurrent = String(pelada.id) === String(currentRoom);
           const row = document.createElement('div');
@@ -1528,17 +1515,20 @@
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(pelada.name)}</strong>
                 ${isCurrent ? '<span style="background: #10b981; color: #000; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px;">SESSÃO ATIVA</span>' : ''}
+                ${pelada.is_owner ? '<span style="background: rgba(251,191,36,0.2); color: #fbbf24; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px;">CRIADA POR VOCÊ</span>' : ''}
               </div>
               <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
-                Sala #${pelada.id} &bull; Admin: ${escapeHtml(pelada.admin_name || 'Admin')} &bull; ${pelada.player_count || 0} atleta${(pelada.player_count === 1) ? '' : 's'}
+                Sala #${escapeHtml(pelada.id)} &bull; Admin: ${escapeHtml(pelada.admin_name || 'Admin')} &bull; ${Number(pelada.player_count) || 0} atleta${(pelada.player_count === 1) ? '' : 's'}
               </div>
             </div>
 
             <div class="session-actions-group">
-              <button type="button" class="btn-session-action btn-action-rename" title="Renomear esta sessão">
-                <span>✏️</span>
-                <span>Renomear</span>
-              </button>
+              ${pelada.can_manage ? `
+                <button type="button" class="btn-session-action btn-action-rename" title="Renomear esta sessão">
+                  <span>✏️</span>
+                  <span>Renomear</span>
+                </button>
+              ` : ''}
               ${isCurrent ? `
                 <span class="btn-session-action btn-action-active" title="Sessão selecionada no momento">
                   <span>✓</span>
@@ -1549,7 +1539,7 @@
                   <span>Usar</span>
                 </button>
               `}
-              ${(isLoggedIn && userPeladas.length > 1) ? `
+              ${(pelada.can_delete && userPeladas.length > 1) ? `
                 <button type="button" class="btn-session-action btn-action-delete" title="Excluir esta sessão">
                   <span>🗑️</span>
                 </button>
@@ -1557,7 +1547,6 @@
             </div>
           `;
 
-          // Botão Renomear
           const btnRename = row.querySelector('.btn-action-rename');
           if (btnRename) {
             btnRename.addEventListener('click', (e) => {
@@ -1566,38 +1555,31 @@
             });
           }
 
-          // Botão Excluir
           const btnDelete = row.querySelector('.btn-action-delete');
           if (btnDelete) {
             btnDelete.addEventListener('click', async (e) => {
               e.stopPropagation();
-              if (confirm(`Tem certeza que deseja excluir a sessão "${pelada.name}" (#${pelada.id}) e seus dados associados?`)) {
-                btnDelete.disabled = true;
-                try {
-                  const res = await fetch(`/api/peladas/${pelada.id}`, { method: 'DELETE' });
-                  const data = await res.json();
-                  if (data.success) {
-                    await fetchSessions();
-                    if (String(currentRoom) === String(pelada.id)) {
-                      if (userPeladas.length > 0) {
-                        currentRoom = String(userPeladas[0].id);
-                        currentPeladaName = userPeladas[0].name;
-                        updateNavigationLinks(currentRoom);
-                      }
-                    }
-                    renderSessionsModalList();
-                    renderPortalUI();
-                  } else {
-                    alert(data.error || 'Erro ao excluir sessão.');
-                  }
-                } catch(err) {
-                  alert('Erro de conexão ao excluir sessão.');
+              if (!confirm(`Tem certeza que deseja excluir a sessão "${pelada.name}" (#${pelada.id}) e seus dados associados?`)) return;
+              btnDelete.disabled = true;
+              try {
+                const res = await fetch(`/api/peladas/${pelada.id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                  if (String(currentRoom) === String(pelada.id)) currentRoom = '';
+                  await renderPortalUI();
+                  renderSessionsModalList();
+                } else {
+                  alert(data.error || 'Erro ao excluir sessão.');
+                  btnDelete.disabled = false;
                 }
+              } catch(err) {
+                alert('Erro de conexão ao excluir sessão.');
+                btnDelete.disabled = false;
               }
             });
           }
 
-          // Botão Usar / Clique na Linha para Selecionar
+          // Clique na linha (ou em "Usar") seleciona a sessão
           row.addEventListener('click', () => {
             currentRoom = String(pelada.id);
             currentPeladaName = pelada.name;
@@ -1610,95 +1592,74 @@
         });
       }
 
-      // Criar nova sessão
-      if (btnCreateNewSession) {
-        btnCreateNewSession.addEventListener('click', async () => {
-          const user = getStoredUser();
-          if (!user || !user.username) {
-            requireLoginAlert('🔒 Faça login para criar e administrar novas sessões.');
+      // Criar nova sessão (o usuário logado vira o administrador/criador)
+      btnCreateNewSession.addEventListener('click', async () => {
+        if (!Auth.getUser()) {
+          requireLoginAlert('🔒 Faça login para criar e administrar novas sessões.');
+          closeSessionModal();
+          return;
+        }
+
+        const name = inputNewSessionName.value.trim();
+        if (!name) {
+          alert('Digite o nome da nova pelada/sessão.');
+          inputNewSessionName.focus();
+          return;
+        }
+
+        btnCreateNewSession.disabled = true;
+        btnCreateNewSession.textContent = 'Criando...';
+        try {
+          const res = await fetch('/api/peladas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          });
+          const data = await res.json();
+          if (data.success && data.pelada) {
+            updateNavigationLinks(String(data.pelada.id));
+            inputNewSessionName.value = '';
             closeSessionModal();
-            return;
+            await renderPortalUI();
+            alert(`🎉 Nova sessão "${data.pelada.name}" (#${data.pelada.id}) criada com sucesso! Você é o administrador dela.`);
+          } else {
+            alert(data.error || 'Erro ao criar sessão.');
           }
-
-          const name = inputNewSessionName ? inputNewSessionName.value.trim() : '';
-          if (!name) {
-            alert('Digite o nome da nova pelada/sessão.');
-            if (inputNewSessionName) inputNewSessionName.focus();
-            return;
-          }
-
-          const adminName = user.name || user.username || 'Administrador';
-
-          btnCreateNewSession.disabled = true;
-          btnCreateNewSession.textContent = 'Criando...';
-
-          try {
-            const res = await fetch('/api/peladas', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, adminName })
-            });
-            const data = await res.json();
-
-            if (data.success && data.pelada) {
-              currentRoom = String(data.pelada.id);
-              currentPeladaName = data.pelada.name;
-              updateNavigationLinks(currentRoom);
-              if (inputNewSessionName) inputNewSessionName.value = '';
-              closeSessionModal();
-              await renderPortalUI();
-              alert(`🎉 Nova sessão "${data.pelada.name}" (#${data.pelada.id}) criada com sucesso!`);
-            } else {
-              alert(data.error || 'Erro ao criar sessão.');
-            }
-          } catch(err) {
-            alert('Erro de conexão ao criar sessão.');
-          } finally {
-            btnCreateNewSession.disabled = false;
-            btnCreateNewSession.textContent = 'Criar Sessão';
-          }
-        });
-      }
-
-      function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-      }
-
-      // Delegação de evento global para garantir logout infalível em qualquer botão de logout
-      document.addEventListener('click', (e) => {
-        const btn = e.target.closest('#btnLogoutSessionCard, #btnLogoutTop, .btn-portal-logout');
-        if (btn) {
-          e.preventDefault();
-          if (confirm('Deseja realmente sair da sua conta?')) {
-            localStorage.removeItem('pelada_user');
-            renderPortalUI();
-          }
+        } catch(err) {
+          alert('Erro de conexão ao criar sessão.');
+        } finally {
+          btnCreateNewSession.disabled = false;
+          btnCreateNewSession.textContent = 'Criar Sessão';
         }
       });
 
-      // Inicializa
-      renderPortalUI();
+      // Logout (um único handler para o botão "Sair" renderizado dinamicamente)
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#btnLogoutSessionCard')) return;
+        e.preventDefault();
+        if (confirm('Deseja realmente sair da sua conta?')) {
+          Auth.logout();
+          if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+          renderPortalUI();
+        }
+      });
 
-      // Se foi redirecionado com authRequired, exibe alerta explicativo
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('authRequired')) {
-        setTimeout(() => {
-          requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');
-        }, 200);
-      }
+      // Sessão expirada em qualquer chamada à API: volta para a tela de login
+      window.addEventListener('auth:expired', () => renderPortalUI());
 
-      // Se veio do placar querendo trocar ou criar sessão
-      if (urlParams.get('chooseSession')) {
-        setTimeout(() => {
-          openSessionModal();
-        }, 200);
-      }
+      // Inicializa (confirma a sessão salva com o servidor antes de desenhar a tela)
+      Auth.refreshUser().finally(() => {
+        renderPortalUI().then(() => {
+          // Se foi redirecionado com authRequired, exibe alerta explicativo
+          if (urlParams.get('authRequired') && !Auth.getUser()) {
+            requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');
+          }
+          // Se veio do placar querendo trocar ou criar sessão
+          if (urlParams.get('chooseSession')) {
+            openSessionModal();
+          }
+        });
+      });
     })();
   </script>
 </body>

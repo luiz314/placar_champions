@@ -150,8 +150,7 @@
     }
 
     .tab-btn {
-      flex: 1;
-      min-width: 140px;
+      flex: 1 0 auto;
       padding: 12px 16px;
       background: transparent;
       border: none;
@@ -172,6 +171,31 @@
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Elementos escondidos (ex: ações exclusivas de administradores) nunca aparecem */
+    [hidden] {
+      display: none !important;
+    }
+
+    .tab-count-badge {
+      background: #10b981;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+
+    .admin-list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
     }
 
     .tab-btn:hover:not(.active) {
@@ -643,7 +667,7 @@
       padding: 20px;
     }
 
-    .modal-overlay.active {
+    .modal-overlay.show {
       display: flex;
       animation: modalFadeIn 0.2s ease-out;
     }
@@ -661,6 +685,19 @@
       max-width: 480px;
       padding: 24px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .btn-modal-close:hover {
+      color: #ffffff;
     }
 
     .modal-title {
@@ -1389,13 +1426,9 @@
           <span>⭐</span>
           <span>Votar em Jogadores</span>
         </a>
-        <!-- WIDGET DE LOGIN / USUÁRIO -->
+        <!-- WIDGET DO USUÁRIO LOGADO (a página exige login) -->
         <div class="user-auth-widget" id="userAuthWidget">
-          <button type="button" class="btn-pelada btn-pelada-primary" id="btnOpenAuthModal">
-            <span>🔑</span>
-            <span>Entrar / Cadastrar</span>
-          </button>
-          <div class="user-logged-info" id="userLoggedInfo" style="display: none;">
+          <div class="user-logged-info" id="userLoggedInfo">
             <div class="user-avatar-mini" id="userAvatarMini">A</div>
             <div>
               <div id="userDisplayName" style="font-weight: 700; font-size: 0.85rem; color: #ffffff;">Admin</div>
@@ -1404,7 +1437,7 @@
             <button type="button" class="btn-logout" id="btnLogout" title="Sair da conta">Sair</button>
           </div>
         </div>
-        <button type="button" class="btn-pelada btn-pelada-primary" id="btnModalAddPlayer">
+        <button type="button" class="btn-pelada btn-pelada-primary admin-only" id="btnModalAddPlayer" hidden>
           <span>➕</span>
           <span>Cadastrar Jogador</span>
         </button>
@@ -1428,7 +1461,11 @@
         <select id="selectActivePeladaDropdown" class="active-pelada-select">
           <option value="1">Carregando peladas...</option>
         </select>
-        <button type="button" class="btn-pelada" id="btnQuickRenamePelada" style="padding: 8px 14px; font-size: 0.85rem; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd;" title="Renomear esta sessão ativa">
+        <button type="button" class="btn-pelada admin-only" id="btnQuickAdmins" hidden style="padding: 8px 14px; font-size: 0.85rem; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.4); color: #fbbf24;" title="Ver e gerenciar os administradores desta pelada">
+          <span>👥</span>
+          <span>Admins</span>
+        </button>
+        <button type="button" class="btn-pelada admin-only" id="btnQuickRenamePelada" hidden style="padding: 8px 14px; font-size: 0.85rem; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd;" title="Renomear esta sessão ativa">
           <span>✏️</span>
           <span>Renomear</span>
         </button>
@@ -1472,6 +1509,19 @@
       <button type="button" class="tab-btn" data-tab="tab-jogadores">
         <span>⭐</span>
         <span>Jogadores & Habilidades</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="tab-presenca">
+        <span>📋</span>
+        <span>Presença</span>
+        <span class="tab-count-badge" id="attendanceCountBadge" hidden>0</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="tab-ranking">
+        <span>🏆</span>
+        <span>Ranking</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="tab-mvp">
+        <span>👑</span>
+        <span>Craques (MVP)</span>
       </button>
       <button type="button" class="tab-btn" data-tab="tab-historico">
         <span>📜</span>
@@ -1634,10 +1684,14 @@
                 </p>
               </div>
             </div>
-            <div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button type="button" class="btn-pelada btn-pelada-share" id="btnCopyWhatsappLineup">
                 <span>📲</span>
                 <span>Copiar Escalação para WhatsApp</span>
+              </button>
+              <button type="button" class="btn-pelada" id="btnOpenInstagramCardModal">
+                <span>🖼️</span>
+                <span>Gerar Card (Stories/Post)</span>
               </button>
             </div>
           </div>
@@ -1671,7 +1725,7 @@
             </p>
           </div>
           <div>
-            <button type="button" class="btn-pelada btn-pelada-primary" id="btnModalAddPlayer2">
+            <button type="button" class="btn-pelada btn-pelada-primary admin-only" id="btnModalAddPlayer2" hidden>
               <span>➕</span>
               <span>Novo Jogador</span>
             </button>
@@ -1998,12 +2052,8 @@
           <label for="inputPeladaName">Nome da Pelada *</label>
           <input type="text" id="inputPeladaName" class="form-input" placeholder="Ex: Pelada de Terça 19h" required>
         </div>
-        <div class="form-group">
-          <label for="inputPeladaAdmin">Nome do Administrador</label>
-          <input type="text" id="inputPeladaAdmin" class="form-input" placeholder="Ex: Luiz (Admin)">
-        </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: rgba(56, 189, 248, 0.08); border-radius: 8px; font-size: 0.8rem; color: #94a3b8;">
-          ℹ️ Esta pelada terá um ID único gerado automaticamente e um elenco exclusivo de jogadores.
+          ℹ️ Esta pelada terá um ID único e um elenco exclusivo de jogadores. <strong style="color: #e2e8f0;">Você será o administrador</strong> e poderá dar acesso de admin a outras pessoas depois.
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-pelada" id="btnCancelAddPelada">Cancelar</button>
@@ -2033,13 +2083,14 @@
     </div>
   </div>
 
-  <!-- MODAL DE CADASTRO DE NOVO JOGADOR -->
+  <!-- MODAL DE CADASTRO / EDIÇÃO DE JOGADOR (apenas admins da pelada) -->
   <div class="modal-overlay" id="modalAddPlayer">
     <div class="modal-card">
-      <h3 class="modal-title">
+      <h3 class="modal-title" id="playerModalTitle">
         <span>➕</span> Cadastrar Novo Jogador
       </h3>
       <form id="formAddPlayer">
+        <input type="hidden" id="inputEditingPlayerId">
         <div class="form-group">
           <label for="inputPlayerName">Nome Completo *</label>
           <input type="text" id="inputPlayerName" class="form-input" placeholder="Ex: Lucas Ferreira" required>
@@ -2060,12 +2111,12 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="inputAddPlayerPhotoFile">Foto do Jogador (Opcional):</label>
+          <label for="inputAddPlayerPhotoFile" id="labelAddPlayerPhoto">Foto do Jogador (Opcional):</label>
           <input type="file" id="inputAddPlayerPhotoFile" accept="image/*" class="form-input" style="padding: 8px;">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-pelada" id="btnCancelAddPlayer">Cancelar</button>
-          <button type="submit" class="btn-pelada btn-pelada-primary">Salvar no Banco</button>
+          <button type="submit" class="btn-pelada btn-pelada-primary" id="btnSubmitPlayer">Salvar no Banco</button>
         </div>
       </form>
     </div>
@@ -2113,62 +2164,35 @@
   </div>
 
 
-  <!-- MODAL DE AUTENTICAÇÃO (LOGIN / CADASTRO) -->
-  <div class="modal-overlay" id="modalAuth">
+  <!-- MODAL DE ADMINISTRADORES DA PELADA -->
+  <div class="modal-overlay" id="modalPeladaAdmins">
     <div class="modal-card">
-      <div class="auth-tab-buttons">
-        <button type="button" class="auth-tab-btn active" id="btnAuthTabLogin">Entrar (Login)</button>
-        <button type="button" class="auth-tab-btn" id="btnAuthTabRegister">Criar Conta</button>
+      <h3 class="modal-title">
+        <span>👥</span> Administradores da Pelada
+      </h3>
+      <p style="margin: 0 0 14px 0; color: #94a3b8; font-size: 0.85rem;">
+        Administradores podem cadastrar, editar e excluir jogadores, renomear a pelada e gerenciar a lista de presença de
+        <strong id="adminsModalPeladaName" style="color: #ffffff;"></strong>.
+      </p>
+
+      <div id="adminsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+        <div style="color: #94a3b8; font-size: 0.85rem;">Carregando...</div>
       </div>
 
-      <!-- FORMULÁRIO DE LOGIN -->
-      <form id="formLogin">
-        <h3 class="modal-title" style="margin-top: 0;">
-          <span>🔑</span> Entrar no Placar
-        </h3>
+      <form id="formAddPeladaAdmin" hidden>
         <div class="form-group">
-          <label for="inputLoginUsername">E-mail *</label>
-          <input type="email" id="inputLoginUsername" class="form-input" placeholder="" autocomplete="off" required>
-        </div>
-        <div class="form-group">
-          <label for="inputLoginPassword">Senha *</label>
-          <input type="password" id="inputLoginPassword" class="form-input" placeholder="" autocomplete="new-password" required>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-pelada" id="btnCancelLogin">Cancelar</button>
-          <button type="submit" class="btn-pelada btn-pelada-primary">Entrar</button>
+          <label for="inputNewAdminEmail">Dar acesso de administrador (e-mail da conta):</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="email" id="inputNewAdminEmail" class="form-input" placeholder="pessoa@email.com" required style="flex: 1;">
+            <button type="submit" class="btn-pelada btn-pelada-primary" id="btnAddPeladaAdmin">Adicionar</button>
+          </div>
+          <small style="color: #64748b; font-size: 0.75rem;">A pessoa precisa já ter uma conta no Placar Champions.</small>
         </div>
       </form>
 
-      <!-- FORMULÁRIO DE CADASTRO -->
-      <form id="formRegister" style="display: none;">
-        <h3 class="modal-title" style="margin-top: 0;">
-          <span>👤</span> Criar Nova Conta
-        </h3>
-        <div class="form-group">
-          <label for="inputRegisterName">Nome Completo *</label>
-          <input type="text" id="inputRegisterName" class="form-input" placeholder="" autocomplete="off" required>
-        </div>
-        <div class="form-group">
-          <label for="inputRegisterUsername">E-mail *</label>
-          <input type="email" id="inputRegisterUsername" class="form-input" placeholder="" autocomplete="off" required>
-        </div>
-        <div class="form-group">
-          <label for="inputRegisterPassword">Senha (mínimo 4 caracteres) *</label>
-          <input type="password" id="inputRegisterPassword" class="form-input" placeholder="" autocomplete="new-password" required>
-        </div>
-        <div class="form-group">
-          <label for="selectRegisterRole">Tipo de Acesso:</label>
-          <select id="selectRegisterRole" class="form-input">
-            <option value="user" selected>Votante / Participante (Avalia jogadores)</option>
-            <option value="admin">Administrador da Sessão (Gerencia pelada e jogadores)</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-pelada" id="btnCancelRegister">Cancelar</button>
-          <button type="submit" class="btn-pelada btn-pelada-primary">Criar Conta</button>
-        </div>
-      </form>
+      <div class="modal-actions">
+        <button type="button" class="btn-pelada" id="btnClosePeladaAdmins">Fechar</button>
+      </div>
     </div>
   </div>
 
@@ -2279,13 +2303,11 @@
   <!-- TOAST FEEDBACK -->
   <div class="toast-msg" id="peladaToast">Notificação</div>
 
-  <script src="/js/pelada.js"></script>
-
   <!-- ======================================================== -->
   <!-- MODAL: GERADOR DE CARD INSTAGRAM / WHATSAPP (FUNCAO 4)   -->
   <!-- ======================================================== -->
   <div class="modal-overlay" id="modalGameCard">
-    <div class="modal-dialog" style="max-width: 680px; text-align: center;">
+    <div class="modal-card" style="max-width: 680px; text-align: center;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
           <span>🎨</span> Card Oficial da Rodada
@@ -2322,5 +2344,7 @@
     </div>
   </div>
 
+  <script src="/js/auth.js"></script>
+  <script src="/js/pelada.js"></script>
 </body>
 </html>

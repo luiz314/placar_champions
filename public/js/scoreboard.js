@@ -16,6 +16,8 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+const escapeHtml = Auth.escapeHtml;
+
 // Inicialização do Socket.IO (com fallback seguro caso offline)
 let socket = null;
 try {
@@ -82,8 +84,6 @@ const fullscreenText = document.getElementById('fullscreenText');
 // Menu Superior
 const btnMenuToggle = document.getElementById('btnMenuToggle');
 const menuDropdown = document.getElementById('menuDropdown');
-const menuItemHome = document.getElementById('menuItemHome');
-const menuItemChangeRoom = document.getElementById('menuItemChangeRoom');
 const menuItemHistory = document.getElementById('menuItemHistory');
 const menuHistoryBadge = document.getElementById('menuHistoryBadge');
 const menuItemMute = document.getElementById('menuItemMute');
@@ -95,21 +95,7 @@ const menuWakeLockText = document.getElementById('menuWakeLockText');
 const menuItemPro = document.getElementById('menuItemPro');
 const menuItemLogout = document.getElementById('menuItemLogout');
 
-// Modais de Sala e Senha
-const roomSelectionModal = document.getElementById('roomSelectionModal');
-const btnCloseRoomModal = document.getElementById('btnCloseRoomModal');
-const btnCreateNewRoom = document.getElementById('btnCreateNewRoom');
-const joinRoomForm = document.getElementById('joinRoomForm');
-const inputRoomCode = document.getElementById('inputRoomCode');
-const joinRoomError = document.getElementById('joinRoomError');
-const btnStartOfflineMode = document.getElementById('btnStartOfflineMode');
-
 // Senha da Sala
-const toggleCreatePassword = document.getElementById('toggleCreatePassword');
-const createPasswordBox = document.getElementById('createPasswordBox');
-const inputCreatePassword = document.getElementById('inputCreatePassword');
-const btnToggleCreateEye = document.getElementById('btnToggleCreateEye');
-
 const passwordPromptModal = document.getElementById('passwordPromptModal');
 const passwordPromptRoomCode = document.getElementById('passwordPromptRoomCode');
 const passwordPromptForm = document.getElementById('passwordPromptForm');
@@ -143,7 +129,6 @@ const btnClearHistory = document.getElementById('btnClearHistory');
 // Monetização PRO
 const proModalBackdrop = document.getElementById('proModalBackdrop');
 const btnCloseProModal = document.getElementById('btnCloseProModal');
-const btnAdCta = document.getElementById('btnAdCta');
 const btnContactPro = document.getElementById('btnContactPro');
 
 // Lado A
@@ -417,25 +402,25 @@ function renderHistory(history) {
     html += `
       <div class="history-item">
         <div class="history-item-top">
-          <span>Partida #${match.matchNumber} &bull; ${match.time}</span>
+          <span>Partida #${escapeHtml(match.matchNumber)} &bull; ${escapeHtml(match.time)}</span>
           <span>⏱️ Duração: ${formatTime(match.durationSeconds)}</span>
         </div>
         <div class="history-item-score">
           <div class="history-team team-a">
-            <span>${match.nameA}</span>
+            <span>${escapeHtml(match.nameA)}</span>
           </div>
           <div class="history-score-digits">
-            <span style="color: #60a5fa">${match.scoreA}</span>
+            <span style="color: #60a5fa">${escapeHtml(match.scoreA)}</span>
             <span style="color: #64748b; font-size: 1.1rem; margin: 0 8px;">x</span>
-            <span style="color: #f87171">${match.scoreB}</span>
+            <span style="color: #f87171">${escapeHtml(match.scoreB)}</span>
           </div>
           <div class="history-team team-b">
-            <span>${match.nameB}</span>
+            <span>${escapeHtml(match.nameB)}</span>
           </div>
         </div>
         <div class="history-winner-tag">
           <span>🏆 Vencedor:</span>
-          <strong>${match.winner}</strong>
+          <strong>${escapeHtml(match.winner)}</strong>
         </div>
       </div>
     `;
@@ -943,36 +928,16 @@ function saveRoomPassword(roomId, password) {
   } catch (e) {}
 }
 
+// Escolher/criar sessão acontece no portal inicial
 function openRoomModal() {
   window.location.href = '/?chooseSession=1';
 }
-
-function closeRoomModal() {}
 
 // Navegação direta: botão Início ou título "Placar Champions" voltam para o portal inicial
 const headerAppTitle = document.getElementById('headerAppTitle');
 if (headerAppTitle) headerAppTitle.addEventListener('click', () => { window.location.href = '/'; });
 if (btnGoHome) btnGoHome.addEventListener('click', () => { window.location.href = '/'; });
-if (menuItemHome) menuItemHome.addEventListener('click', () => { window.location.href = '/'; });
-
-// Nova sessão leva ao seletor/criador de sessões na tela inicial
-if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', () => { window.location.href = '/?chooseSession=1'; });
-if (menuItemChangeRoom) menuItemChangeRoom.addEventListener('click', () => { window.location.href = '/?chooseSession=1'; });
-
-// Modo Offline Rápido (Inicia imediatamente sem depender de rede)
-function startOfflineMode() {
-  currentRoomId = 'LOCAL';
-  currentState.roomId = 'LOCAL';
-  closeRoomModal();
-  updateUrlWithRoom(null);
-  updateState(currentState);
-  updateConnectionUI(false);
-  showToast('⚡ Modo Offline ativo: pontuação e cronômetro funcionam direto no seu aparelho!', 'warning', 4000);
-}
-
-if (btnStartOfflineMode) {
-  btnStartOfflineMode.addEventListener('click', startOfflineMode);
-}
+if (btnHeaderNewSession) btnHeaderNewSession.addEventListener('click', openRoomModal);
 
 // Modal de Desbloqueio por Senha
 function openPasswordPrompt(roomId, initialError = '') {
@@ -988,7 +953,6 @@ function openPasswordPrompt(roomId, initialError = '') {
     inputPromptPassword.type = 'password';
   }
   if (btnTogglePromptEye) btnTogglePromptEye.textContent = '👁️';
-  closeRoomModal();
   if (passwordPromptModal) {
     passwordPromptModal.classList.add('show');
     setTimeout(() => {
@@ -1004,130 +968,11 @@ function closePasswordPrompt() {
   pendingJoinRoomId = null;
 }
 
-if (btnToggleCreateEye && inputCreatePassword) {
-  btnToggleCreateEye.addEventListener('click', () => {
-    const isPass = inputCreatePassword.type === 'password';
-    inputCreatePassword.type = isPass ? 'text' : 'password';
-    btnToggleCreateEye.textContent = isPass ? '🙈' : '👁️';
-  });
-}
-
 if (btnTogglePromptEye && inputPromptPassword) {
   btnTogglePromptEye.addEventListener('click', () => {
     const isPass = inputPromptPassword.type === 'password';
     inputPromptPassword.type = isPass ? 'text' : 'password';
     btnTogglePromptEye.textContent = isPass ? '🙈' : '👁️';
-  });
-}
-
-if (toggleCreatePassword) {
-  toggleCreatePassword.addEventListener('change', () => {
-    if (toggleCreatePassword.checked) {
-      createPasswordBox.style.display = 'flex';
-      setTimeout(() => {
-        if (inputCreatePassword) inputCreatePassword.focus();
-      }, 50);
-    } else {
-      createPasswordBox.style.display = 'none';
-      if (inputCreatePassword) inputCreatePassword.value = '';
-    }
-  });
-}
-
-if (inputRoomCode) {
-  inputRoomCode.addEventListener('input', (e) => {
-    let val = e.target.value.replace(/\D/g, '').slice(0, 6);
-    if (val.length > 3) {
-      val = `${val.slice(0, 3)} ${val.slice(3)}`;
-    }
-    e.target.value = val;
-    if (joinRoomError) joinRoomError.textContent = '';
-  });
-}
-
-// Criar nova sala com o servidor
-if (btnCreateNewRoom) {
-  btnCreateNewRoom.addEventListener('click', () => {
-    if (!socket || !socket.connected) {
-      if (confirm('Você está sem conexão com o servidor. Deseja jogar no Modo Offline agora?')) {
-        startOfflineMode();
-      }
-      return;
-    }
-
-    let passwordToSet = null;
-    if (toggleCreatePassword && toggleCreatePassword.checked) {
-      const typed = inputCreatePassword ? inputCreatePassword.value.trim() : '';
-      if (!typed) {
-        alert('Por favor, digite uma senha para proteger a sala ou desmarque a opção.');
-        if (inputCreatePassword) inputCreatePassword.focus();
-        return;
-      }
-      passwordToSet = typed;
-    }
-
-    btnCreateNewRoom.disabled = true;
-    socket.emit('room:create', { password: passwordToSet }, (res) => {
-      btnCreateNewRoom.disabled = false;
-      if (res && res.success) {
-        currentRoomId = res.roomId;
-        if (passwordToSet) {
-          saveRoomPassword(res.roomId, passwordToSet);
-        }
-        localStorage.setItem('placar_current_room', res.roomId);
-        hasOfflineChanges = false;
-        localStorage.removeItem('placar_has_offline_changes');
-        updateUrlWithRoom(res.roomId);
-        updateState(res.state);
-        closeRoomModal();
-        openShareModal();
-      } else {
-        alert('Erro ao criar sala. Verifique sua conexão e tente novamente.');
-      }
-    });
-  });
-}
-
-// Entrar com código de 6 dígitos
-if (joinRoomForm) {
-  joinRoomForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const clean = inputRoomCode.value.replace(/\D/g, '');
-    if (clean.length !== 6) {
-      if (joinRoomError) joinRoomError.textContent = 'Digite os 6 números do código da sala.';
-      return;
-    }
-
-    if (!socket || !socket.connected) {
-      if (joinRoomError) {
-        joinRoomError.textContent = 'Sem conexão no momento. Use o Modo Offline abaixo.';
-      }
-      return;
-    }
-
-    const btnSubmit = document.getElementById('btnSubmitJoin');
-    if (btnSubmit) btnSubmit.disabled = true;
-
-    const savedPwd = getSavedRoomPassword(clean);
-
-    socket.emit('room:join', { roomId: clean, password: savedPwd }, (res) => {
-      if (btnSubmit) btnSubmit.disabled = false;
-      if (res && res.success) {
-        currentRoomId = res.roomId;
-        localStorage.setItem('placar_current_room', res.roomId);
-        hasOfflineChanges = false;
-        localStorage.removeItem('placar_has_offline_changes');
-        updateUrlWithRoom(res.roomId);
-        updateState(res.state);
-        closeRoomModal();
-      } else if (res && res.requiresPassword) {
-        openPasswordPrompt(clean, res.error);
-      } else {
-        if (joinRoomError) {
-          joinRoomError.textContent = (res && res.error) || 'Sala não encontrada. Verifique o código.';
-        }
-      }
-    });
   });
 }
 
@@ -1317,7 +1162,7 @@ function openShareModal() {
     return;
   }
 
-  const url = `${window.location.origin}/?sala=${currentRoomId}`;
+  const url = `${window.location.origin}/placar?sala=${currentRoomId}`;
   if (shareUrlInput) shareUrlInput.value = url;
   if (shareModalRoomCode) shareModalRoomCode.textContent = formatRoomCode(currentRoomId);
 
@@ -1372,7 +1217,7 @@ if (btnCopyShareUrl) {
 if (btnShareWhatsapp) {
   btnShareWhatsapp.addEventListener('click', () => {
     if (!currentRoomId || currentRoomId === 'LOCAL') return;
-    const url = `${window.location.origin}/?sala=${currentRoomId}`;
+    const url = `${window.location.origin}/placar?sala=${currentRoomId}`;
     let msg = `🏐 *Placar de Vôlei Online* 🏐\n\n`;
     msg += `Acesse para acompanhar o placar e cronômetro em tempo real:\n${url}\n`;
 
@@ -1449,21 +1294,13 @@ function closeProModal() {
 if (menuItemPro) menuItemPro.addEventListener('click', openProModal);
 
 if (menuItemLogout) {
-  try {
-    const rawUser = localStorage.getItem('pelada_user');
-    if (rawUser && JSON.parse(rawUser)) {
-      menuItemLogout.style.display = 'flex';
-    }
-  } catch(e) {}
-
   menuItemLogout.addEventListener('click', () => {
     if (confirm('Deseja realmente sair da sua conta?')) {
-      localStorage.removeItem('pelada_user');
+      Auth.logout();
       window.location.href = '/';
     }
   });
 }
-if (btnAdCta) btnAdCta.addEventListener('click', openProModal);
 if (btnCloseProModal) btnCloseProModal.addEventListener('click', closeProModal);
 
 if (proModalBackdrop) {
@@ -1479,9 +1316,6 @@ if (btnContactPro) {
   });
 }
 
-if (menuItemChangeRoom) {
-  menuItemChangeRoom.addEventListener('click', openRoomModal);
-}
 
 // Controle do Menu Dropdown
 if (btnMenuToggle && menuDropdown) {
@@ -1633,35 +1467,19 @@ if (btnFullscreen) {
 // ============================================================
 // WIDGET DE AUTENTICAÇÃO NO CABEÇALHO DO PLACAR
 // ============================================================
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 function renderHeaderAuth() {
+  const user = Auth.getUser();
+  if (menuItemLogout) menuItemLogout.style.display = user ? 'flex' : 'none';
   if (!headerAuthContainer) return;
-  let user = null;
-  try {
-    const raw = localStorage.getItem('pelada_user');
-    if (raw) user = JSON.parse(raw);
-  } catch (e) {
-    user = null;
-  }
 
-  if (user && user.username) {
-    const initial = (user.name || user.username).charAt(0).toUpperCase();
-    const isLuixAdmin = user.role === 'admin' || (user.username && user.username.toLowerCase() === 'luix314@gmail.com');
-    const roleLabel = isLuixAdmin ? '👑 Admin' : '👤 Atleta';
+  if (user) {
+    const initial = Auth.displayName(user).charAt(0).toUpperCase();
+    const roleLabel = Auth.isSuperAdmin(user) ? '👑 Admin' : '👤 Atleta';
     const displayName = user.name ? user.name.split(' ')[0] : user.username.split('@')[0];
 
     headerAuthContainer.innerHTML = `
-      <div class="header-user-pill" title="Conectado como: ${escapeHtml(user.name || user.username)} (${roleLabel})">
-        <div class="header-user-avatar">${initial}</div>
+      <div class="header-user-pill" title="Conectado como: ${escapeHtml(Auth.displayName(user))} (${roleLabel})">
+        <div class="header-user-avatar">${escapeHtml(initial)}</div>
         <div style="display: flex; flex-direction: column; line-height: 1.1;">
           <span class="header-user-name">${escapeHtml(displayName)}</span>
           <span class="header-user-role">${roleLabel}</span>
@@ -1673,17 +1491,13 @@ function renderHeaderAuth() {
       </div>
     `;
 
-    const btnHeaderLogout = document.getElementById('btnHeaderLogout');
-    if (btnHeaderLogout) {
-      btnHeaderLogout.addEventListener('click', () => {
-        if (confirm('Deseja realmente sair da sua conta?')) {
-          localStorage.removeItem('pelada_user');
-          renderHeaderAuth();
-          if (menuItemLogout) menuItemLogout.style.display = 'none';
-          showToast('Você saiu da sua conta.');
-        }
-      });
-    }
+    document.getElementById('btnHeaderLogout').addEventListener('click', () => {
+      if (confirm('Deseja realmente sair da sua conta?')) {
+        Auth.logout();
+        renderHeaderAuth();
+        showToast('Você saiu da sua conta.');
+      }
+    });
   } else {
     headerAuthContainer.innerHTML = `
       <a href="/" class="btn-header-login" title="Acesse sua conta para gerenciar peladas, atletas e craques">
@@ -1694,8 +1508,9 @@ function renderHeaderAuth() {
   }
 }
 
-// Inicializa o widget de autenticação do header
+// Inicializa o widget de autenticação do header (e confirma a sessão com o servidor)
 renderHeaderAuth();
+Auth.refreshUser().then(renderHeaderAuth);
 
 // Atalhos de Teclado
 document.addEventListener('keydown', (e) => {

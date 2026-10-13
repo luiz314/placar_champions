@@ -460,13 +460,6 @@ body {
   flex-wrap: wrap;
 }
 
-.timer-controls-separator {
-  width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.2);
-  margin: 0 4px;
-}
-
 /* BOTÕES DE CONTROLE GERAIS */
 .btn {
   font-family: var(--font-main);
@@ -936,7 +929,6 @@ body.body-tv-mode .match-actions-bar {
    ============================================================ */
 body.body-tv-mode .team-btn-group,
 body.body-tv-mode #timerControls,
-body.body-tv-mode .monetization-banner-container,
 body.body-tv-mode .header-quick-actions,
 body.body-tv-mode .room-status-pill {
   display: none !important;
@@ -965,75 +957,6 @@ body.body-tv-mode .team-title-input {
 
 body.body-tv-mode .score-digit {
   font-size: 15rem;
-}
-
-/* ============================================================
-   BANNER DE MONETIZAÇÃO / PATROCÍNIO / ADSENSE
-   ============================================================ */
-.monetization-banner-container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto 16px auto;
-  padding: 0 16px;
-}
-
-.ad-slot-wrapper {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  padding: 12px 20px;
-  position: relative;
-  overflow: hidden;
-}
-
-.ad-badge {
-  position: absolute;
-  top: 4px;
-  right: 12px;
-  font-size: 0.65rem;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  font-weight: 700;
-}
-
-.ad-promo-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.ad-promo-icon {
-  font-size: 2rem;
-}
-
-.ad-promo-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.ad-promo-title {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #e2e8f0;
-}
-
-.ad-promo-subtitle {
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-
-.btn-ad-cta {
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
-  border: 1px solid #38bdf8;
-  color: white;
-  font-size: 0.82rem;
-  padding: 8px 14px;
-  border-radius: 8px;
 }
 
 /* ============================================================
@@ -1229,207 +1152,6 @@ body.body-tv-mode .score-digit {
   transform: translateY(-1px);
 }
 
-/* MODAL DE ENTRADA / CRIAÇÃO DE SALA */
-.room-entry-card {
-  max-width: 540px;
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-/* APRESENTAÇÃO DE FUNCIONALIDADES NO MODAL */
-.app-intro-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.75));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.app-intro-tagline {
-  font-size: 0.92rem;
-  color: #cbd5e1;
-  line-height: 1.45;
-  font-weight: 500;
-  text-align: center;
-}
-
-.app-features-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.28);
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.2s ease;
-}
-
-.feature-item:hover {
-  border-color: rgba(96, 165, 250, 0.3);
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.feature-icon {
-  font-size: 1.4rem;
-  line-height: 1;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.feature-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.feature-info strong {
-  font-size: 0.9rem;
-  color: #60a5fa;
-  font-weight: 700;
-}
-
-.feature-info small {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  line-height: 1.35;
-}
-
-.btn-create-room {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  border: 1px solid #60a5fa;
-  color: #ffffff;
-  padding: 16px 20px;
-  border-radius: 16px;
-  cursor: pointer;
-  text-align: left;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
-  transition: all 0.2s;
-}
-
-.btn-create-room:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
-}
-
-.btn-create-icon {
-  font-size: 1.8rem;
-}
-
-.btn-create-text strong {
-  display: block;
-  font-size: 1.15rem;
-  font-weight: 800;
-}
-
-.btn-create-text small {
-  font-size: 0.82rem;
-  color: #bfdbfe;
-}
-
-/* OPÇÃO DE SENHA NA CRIAÇÃO DE SALA */
-.create-room-box {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.room-password-opt-card {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 12px 14px;
-  transition: all 0.25s ease;
-}
-
-.room-password-opt-card:hover {
-  border-color: rgba(59, 130, 246, 0.35);
-  background: rgba(15, 23, 42, 0.85);
-}
-
-.password-opt-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.password-opt-checkbox {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.password-opt-switch {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  transition: all 0.25s ease;
-  flex-shrink: 0;
-}
-
-.password-opt-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.password-opt-checkbox:checked + .password-opt-switch {
-  background: #2563eb;
-  box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
-}
-
-.password-opt-checkbox:checked + .password-opt-switch::after {
-  transform: translateX(20px);
-}
-
-.password-opt-label {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-}
-
-.password-opt-label strong {
-  font-size: 0.92rem;
-  color: #f1f5f9;
-}
-
-.password-opt-label small {
-  font-size: 0.78rem;
-  color: #94a3b8;
-}
-
-.password-input-collapsible {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  animation: slideDown 0.2s ease-out;
-}
-
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -1487,11 +1209,6 @@ body.body-tv-mode .score-digit {
 .btn-toggle-eye:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.1);
-}
-
-.password-field-hint {
-  font-size: 0.76rem;
-  color: #60a5fa;
 }
 
 /* MODAL DE PROMPT DE SENHA */
@@ -1573,60 +1290,6 @@ body.body-tv-mode .score-digit {
   border-radius: 12px;
 }
 
-.modal-or-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 22px 0;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-}
-
-.modal-or-divider::before,
-.modal-or-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.modal-or-divider span {
-  padding: 0 12px;
-}
-
-.join-room-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.code-input-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.input-room-code {
-  width: 100%;
-  font-family: var(--font-display);
-  font-size: 2.2rem;
-  font-weight: 900;
-  text-align: center;
-  letter-spacing: 8px;
-  padding: 14px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  color: #38bdf8;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.input-room-code:focus {
-  border-color: #38bdf8;
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
-}
-
 .form-error-msg {
   color: #f87171;
   font-size: 0.85rem;
@@ -1648,35 +1311,6 @@ body.body-tv-mode .score-digit {
 
 .btn-join-room:hover {
   background: rgba(255, 255, 255, 0.2);
-}
-
-/* BOTÃO DE MODO OFFLINE */
-.offline-opt-box {
-  margin-top: 14px;
-}
-
-.btn-offline-mode {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed rgba(255, 255, 255, 0.25);
-  color: #cbd5e1;
-  font-weight: 700;
-  font-size: 0.92rem;
-  padding: 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-offline-mode:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: #38bdf8;
-  color: #38bdf8;
-  transform: translateY(-1px);
 }
 
 /* MODAL DE COMPARTILHAMENTO / QR CODE */

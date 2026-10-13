@@ -1,31 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Apenas usuários logados podem acessar a Gestão da Pelada. Visitantes só podem abrir o Placar.
-  const storedUserRaw = localStorage.getItem('pelada_user');
-  if (!storedUserRaw) {
-    alert('Acesso restrito: Apenas usuários cadastrados e logados podem acessar o Controle da Pelada. Visitantes têm permissão exclusivamente para abrir o Placar.');
-    window.location.replace('/?authRequired=pelada');
-    return;
-  }
-  try {
-    const parsedUser = JSON.parse(storedUserRaw);
-    if (!parsedUser || !parsedUser.username) {
-      localStorage.removeItem('pelada_user');
-      window.location.replace('/?authRequired=pelada');
-      return;
-    }
-  } catch(e) {
-    localStorage.removeItem('pelada_user');
-    window.location.replace('/?authRequired=pelada');
-    return;
-  }
+  if (!Auth.requireLogin('pelada')) return;
+  window.addEventListener('auth:expired', () => Auth.requireLogin('pelada'));
+
+  const escapeHtml = Auth.escapeHtml;
+
   // Estado local
   let peladasList = [];
   let activePeladaId = null;
   let playersList = [];
   let selectedPlayerIds = new Set();
   let lastBalancedResult = null;
-  let currentUser = null; // { id, username, name, role }
+  let currentUser = Auth.getUser(); // { id, username, name, role }
   let userRatingsMap = {}; // { [playerId]: { attack, defense, set_pass, movement, overall } }
+
+  // O usuário administra a pelada ativa? (criador, admin adicionado ou super admin)
+  function canManageActive() {
+    const p = getActivePelada();
+    return Boolean(p && p.can_manage);
+  }
 
   // Elementos DOM - Topo & Pelada Ativa
   const activePeladaIdBadge = document.getElementById('activePeladaIdBadge');
@@ -62,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCancelAddPelada = document.getElementById('btnCancelAddPelada');
   const formAddPelada = document.getElementById('formAddPelada');
   const inputPeladaName = document.getElementById('inputPeladaName');
-  const inputPeladaAdmin = document.getElementById('inputPeladaAdmin');
 
   const modalEditPelada = document.getElementById('modalEditPelada');
   const btnCancelEditPelada = document.getElementById('btnCancelEditPelada');
@@ -207,6 +199,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateVotingLink();
+    updateAdminUI();
+  }
+
+  // Mostra/esconde as ações exclusivas de administradores conforme a pelada ativa
+  function updateAdminUI() {
+    const isAdmin = canManageActive();
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.hidden = !isAdmin;
+    });
+    updateAuthUI();
   }
 
   // Trocar de pelada ativa
@@ -221,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePeladaUI();
     renderPeladasTable();
     await loadPlayers(activePeladaId);
+    loadAttendance();
 
     showToast(`Sessão alterada para: ${getActivePeladaName()}`);
     if (shouldSwitchTab) {
@@ -297,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td style="color: #cbd5e1; font-size: 0.85rem;">
           👤 ${escapeHtml(pelada.admin_name || 'Administrador')}
+          ${pelada.is_owner ? '<div style="font-size: 0.7rem; color: #fbbf24; font-weight: 700;">Você é o criador</div>' : (pelada.can_manage ? '<div style="font-size: 0.7rem; color: #38bdf8; font-weight: 700;">Você é admin</div>' : '')}
         </td>
         <td>
           <span class="player-overall-pill" style="display: inline-flex;">
@@ -322,10 +326,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 Em Uso
               </button>
             `}
-            <button type="button" class="btn-action-small btn-edit-pelada" data-id="${pelada.id}" data-name="${escapeHtml(pelada.name)}" title="Renomear Pelada">
-              ✏️ Renomear
-            </button>
-            ${peladasList.length > 1 ? `
+            ${pelada.can_manage ? `
+              <button type="button" class="btn-action-small btn-edit-pelada" data-id="${pelada.id}" data-name="${escapeHtml(pelada.name)}" title="Renomear Pelada">
+                ✏️ Renomear
+              </button>
+              <button type="button" class="btn-action-small btn-admins-pelada" data-id="${pelada.id}" title="Administradores desta pelada">
+                👥 Admins
+              </button>
+            ` : ''}
+            ${(pelada.can_delete && peladasList.length > 1) ? `
               <button type="button" class="btn-action-small btn-action-delete btn-delete-pelada" data-id="${pelada.id}" data-name="${escapeHtml(pelada.name)}" title="Excluir Pelada">
                 🗑️
               </button>
@@ -353,6 +362,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputEditPeladaName) inputEditPeladaName.value = name;
         if (modalEditPelada) modalEditPelada.classList.add('show');
       });
+    });
+
+    peladasTableBody.querySelectorAll('.btn-admins-pelada').forEach(btn => {
+      btn.addEventListener('click', () => openAdminsModal(btn.getAttribute('data-id')));
     });
 
     peladasTableBody.querySelectorAll('.btn-delete-pelada').forEach(btn => {
@@ -409,15 +422,13 @@ document.addEventListener('DOMContentLoaded', () => {
     formAddPelada.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = inputPeladaName ? inputPeladaName.value.trim() : '';
-      const admin = inputPeladaAdmin ? inputPeladaAdmin.value.trim() : 'Administrador';
-
       if (!name) return;
 
       try {
         const res = await fetch('/api/peladas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, adminName: admin })
+          body: JSON.stringify({ name })
         });
         const data = await res.json();
         if (data.success && data.pelada) {
@@ -523,11 +534,15 @@ document.addEventListener('DOMContentLoaded', () => {
       playerSelectGrid.innerHTML = `
         <div style="color: #94a3b8; font-size: 0.95rem; grid-column: 1/-1; padding: 30px; text-align: center; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
           Nenhum jogador cadastrado na <strong>${escapeHtml(getActivePeladaName())}</strong>.<br>
-          <button type="button" class="btn-pelada btn-pelada-primary" style="margin-top: 14px;" onclick="document.getElementById('btnModalAddPlayer').click();">
-            ➕ Cadastrar Primeiro Jogador
-          </button>
+          ${canManageActive() ? `
+            <button type="button" class="btn-pelada btn-pelada-primary" id="btnAddFirstPlayer" style="margin-top: 14px;">
+              ➕ Cadastrar Primeiro Jogador
+            </button>
+          ` : '<span style="font-size: 0.85rem;">Peça a um administrador da pelada para cadastrar os jogadores.</span>'}
         </div>
       `;
+      const btnAddFirstPlayer = document.getElementById('btnAddFirstPlayer');
+      if (btnAddFirstPlayer) btnAddFirstPlayer.addEventListener('click', () => openPlayerModal());
       return;
     }
 
@@ -548,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const avatarContent = player.photo_url 
         ? `<img src="${escapeHtml(player.photo_url)}" alt="${escapeHtml(fullName)}" class="player-avatar-img">`
-        : initial;
+        : escapeHtml(initial);
 
       card.innerHTML = `
         <div class="check-indicator">✓</div>
@@ -655,6 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const isAdmin = canManageActive();
     playersList.forEach(p => {
       const tr = document.createElement('tr');
       const initial = (p.nickname || p.name).trim().charAt(0).toUpperCase();
@@ -672,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="player-table-avatar">
             ` : `
               <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #38bdf8; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;">
-                ${initial}
+                ${escapeHtml(initial)}
               </div>
             `}
             <div>
@@ -703,14 +719,19 @@ document.addEventListener('DOMContentLoaded', () => {
           </span>
         </td>
         <td style="text-align: right;">
-          <div class="table-actions-cell">
-            <button type="button" class="btn-action-small btn-edit-photo" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-photo="${escapeHtml(p.photo_url || '')}" title="Adicionar / Alterar Foto">
-              📷 Foto
-            </button>
-            <button type="button" class="btn-action-small btn-action-delete btn-delete-player" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Excluir Jogador">
-              🗑️
-            </button>
-          </div>
+          ${isAdmin ? `
+            <div class="table-actions-cell">
+              <button type="button" class="btn-action-small btn-edit-player" data-id="${p.id}" title="Editar nome, apelido e posição">
+                ✏️ Editar
+              </button>
+              <button type="button" class="btn-action-small btn-edit-photo" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-photo="${escapeHtml(p.photo_url || '')}" title="Adicionar / Alterar Foto">
+                📷 Foto
+              </button>
+              <button type="button" class="btn-action-small btn-action-delete btn-delete-player" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Excluir Jogador">
+                🗑️
+              </button>
+            </div>
+          ` : '<span style="color: #475569; font-size: 0.8rem;">—</span>'}
         </td>
       `;
 
@@ -719,6 +740,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     attachPhotoEventListeners();
     attachInlineStarEvents();
+
+    playersTableBody.querySelectorAll('.btn-edit-player').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const player = playersList.find(pl => String(pl.id) === btn.getAttribute('data-id'));
+        if (player) openPlayerModal(player);
+      });
+    });
 
     playersTableBody.querySelectorAll('.btn-delete-player').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -755,11 +783,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clique para salvar a nota
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!currentUser) {
-            if (modalAuth) modalAuth.classList.add('show');
-            showToast('Entre na sua conta para salvar suas avaliações!');
-            return;
-          }
           const chosenVal = parseInt(btn.getAttribute('data-val'), 10);
           await submitInlineStarRating(pId, skill, chosenVal, picker);
         });
@@ -780,7 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Enviar Avaliação Direta ao Clicar na Estrelinha
   async function submitInlineStarRating(playerId, skill, chosenVal, picker) {
-    if (!currentUser) return;
     const player = playersList.find(p => Number(p.id) === Number(playerId));
     if (!player) return;
 
@@ -811,12 +833,9 @@ document.addEventListener('DOMContentLoaded', () => {
     picker.classList.add('user-voted', 'saved-pulse');
     setTimeout(() => picker.classList.remove('saved-pulse'), 600);
 
-    // Calcula previsão do Overall
+    // Calcula previsão do Overall (mesma média usada pelo servidor)
     const calculatedOverall = (
-      myVote.attack * 0.35 +
-      myVote.defense * 0.25 +
-      myVote.set_pass * 0.25 +
-      myVote.movement * 0.15
+      (myVote.attack + myVote.defense + myVote.set_pass + myVote.movement) / 4
     ).toFixed(1);
     myVote.overall = parseFloat(calculatedOverall);
     userRatingsMap[playerId] = myVote;
@@ -830,13 +849,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch(`/api/players/${playerId}/rate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': currentUser.id
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: currentUser.id,
-          voterName: currentUser.name || currentUser.username,
           attack: myVote.attack,
           defense: myVote.defense,
           setPass: myVote.set_pass,
@@ -889,14 +903,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Modais de Cadastro de Jogador
-  function openAddPlayerModal() {
-    if (formAddPlayer) formAddPlayer.reset();
-    if (modalAddPlayer) modalAddPlayer.classList.add('show');
+  // Modal de Cadastro / Edição de Jogador (apenas administradores da pelada)
+  const playerModalTitle = document.getElementById('playerModalTitle');
+  const inputEditingPlayerId = document.getElementById('inputEditingPlayerId');
+  const inputPlayerName = document.getElementById('inputPlayerName');
+  const inputPlayerNickname = document.getElementById('inputPlayerNickname');
+  const selectPlayerPosition = document.getElementById('selectPlayerPosition');
+  const inputAddPlayerPhotoFile = document.getElementById('inputAddPlayerPhotoFile');
+  const labelAddPlayerPhoto = document.getElementById('labelAddPlayerPhoto');
+  const btnSubmitPlayer = document.getElementById('btnSubmitPlayer');
+
+  // Sem argumento: cadastro. Com jogador: edição dos dados dele.
+  function openPlayerModal(player = null) {
+    if (!canManageActive()) {
+      showToast('Apenas administradores desta pelada podem cadastrar ou editar jogadores.');
+      return;
+    }
+    formAddPlayer.reset();
+    inputEditingPlayerId.value = player ? player.id : '';
+    playerModalTitle.innerHTML = player ? '<span>✏️</span> Editar Jogador' : '<span>➕</span> Cadastrar Novo Jogador';
+    labelAddPlayerPhoto.textContent = player ? 'Trocar Foto (Opcional):' : 'Foto do Jogador (Opcional):';
+    btnSubmitPlayer.textContent = player ? 'Salvar Alterações' : 'Salvar no Banco';
+
+    if (player) {
+      inputPlayerName.value = player.name || '';
+      inputPlayerNickname.value = (player.nickname && player.nickname !== player.name) ? player.nickname : '';
+      const position = player.position || 'Geral';
+      if (![...selectPlayerPosition.options].some(o => o.value === position)) {
+        selectPlayerPosition.appendChild(new Option(position, position));
+      }
+      selectPlayerPosition.value = position;
+    }
+    modalAddPlayer.classList.add('show');
+    setTimeout(() => inputPlayerName.focus(), 100);
   }
 
-  if (btnModalAddPlayer) btnModalAddPlayer.addEventListener('click', openAddPlayerModal);
-  if (btnModalAddPlayer2) btnModalAddPlayer2.addEventListener('click', openAddPlayerModal);
+  if (btnModalAddPlayer) btnModalAddPlayer.addEventListener('click', () => openPlayerModal());
+  if (btnModalAddPlayer2) btnModalAddPlayer2.addEventListener('click', () => openPlayerModal());
 
   if (btnCancelAddPlayer && modalAddPlayer) {
     btnCancelAddPlayer.addEventListener('click', () => {
@@ -907,36 +950,45 @@ document.addEventListener('DOMContentLoaded', () => {
   if (formAddPlayer) {
     formAddPlayer.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('inputPlayerName').value.trim();
-      const nickname = document.getElementById('inputPlayerNickname').value.trim();
-      const position = document.getElementById('selectPlayerPosition').value;
-
+      const editingId = inputEditingPlayerId.value;
+      const name = inputPlayerName.value.trim();
+      const nickname = inputPlayerNickname.value.trim();
+      const position = selectPlayerPosition.value;
       if (!name) return;
 
+      const body = { name, nickname: nickname || name, position };
+      btnSubmitPlayer.disabled = true;
+
       try {
-        const res = await fetch('/api/players', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            nickname,
-            position,
-            peladaId: activePeladaId
-          })
-        });
+        const file = inputAddPlayerPhotoFile.files[0];
+        if (file) body.photoUrl = await compressImageFile(file);
+
+        const res = editingId
+          ? await fetch(`/api/players/${editingId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            })
+          : await fetch('/api/players', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...body, peladaId: activePeladaId })
+            });
         const data = await res.json();
         if (data.success) {
-          showToast(`Jogador "${name}" cadastrado na pelada!`);
+          showToast(editingId ? `Jogador "${name}" atualizado!` : `Jogador "${name}" cadastrado na pelada!`);
           modalAddPlayer.classList.remove('show');
           formAddPlayer.reset();
           await loadPlayers(activePeladaId);
           await loadPeladas();
         } else {
-          alert(data.error || 'Erro ao cadastrar jogador.');
+          alert(data.error || 'Erro ao salvar jogador.');
         }
       } catch (err) {
         console.error(err);
         alert('Erro de conexão ao salvar jogador.');
+      } finally {
+        btnSubmitPlayer.disabled = false;
       }
     });
   }
@@ -1179,16 +1231,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRefreshMatches.addEventListener('click', loadMatches);
   }
 
-  // Utilitário de escape de HTML
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
 
 
   // ==========================================
@@ -1374,86 +1416,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // AUTENTICAÇÃO E CONTROLE DE ACESSO (LOGIN / CADASTRO)
+  // USUÁRIO LOGADO E PAPEL NA PELADA ATIVA
   // ==========================================
-  const btnOpenAuthModal = document.getElementById('btnOpenAuthModal');
-  const userLoggedInfo = document.getElementById('userLoggedInfo');
   const userAvatarMini = document.getElementById('userAvatarMini');
   const userDisplayName = document.getElementById('userDisplayName');
   const userRoleTag = document.getElementById('userRoleTag');
   const btnLogout = document.getElementById('btnLogout');
 
-  const modalAuth = document.getElementById('modalAuth');
-  const btnAuthTabLogin = document.getElementById('btnAuthTabLogin');
-  const btnAuthTabRegister = document.getElementById('btnAuthTabRegister');
-  const formLogin = document.getElementById('formLogin');
-  const formRegister = document.getElementById('formRegister');
-  const btnCancelLogin = document.getElementById('btnCancelLogin');
-  const btnCancelRegister = document.getElementById('btnCancelRegister');
-
-  // Inicializa usuário logado do localStorage
-  function initUserAuth() {
-    try {
-      const saved = localStorage.getItem('pelada_user');
-      if (saved) {
-        currentUser = JSON.parse(saved);
-      }
-    } catch (e) {
-      currentUser = null;
-    }
-    updateAuthUI();
-    if (currentUser) {
-      loadUserRatings();
-    }
-  }
-
   function updateAuthUI() {
-    if (currentUser) {
-      if (btnOpenAuthModal) btnOpenAuthModal.style.display = 'none';
-      if (userLoggedInfo) {
-        userLoggedInfo.style.display = 'flex';
-        if (userAvatarMini) userAvatarMini.textContent = (currentUser.name || currentUser.username || 'U').charAt(0).toUpperCase();
-        if (userDisplayName) userDisplayName.textContent = currentUser.name || currentUser.username;
-        if (userRoleTag) {
-          const isLuixAdmin = currentUser.role === 'admin' || (currentUser.username && currentUser.username.toLowerCase() === 'luix314@gmail.com');
-          userRoleTag.textContent = isLuixAdmin ? '👑 Administrador (Sala 733849)' : '👤 Votante';
-          userRoleTag.style.color = isLuixAdmin ? '#fbbf24' : '#38bdf8';
-        }
-        const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
-        if (inlineRateUserBadge) {
-          inlineRateUserBadge.innerHTML = `👤 Votando como: <strong style="color: #fbbf24;">${escapeHtml(currentUser.name || currentUser.username)}</strong>`;
-          inlineRateUserBadge.style.cursor = 'default';
-          inlineRateUserBadge.style.background = 'rgba(0, 242, 254, 0.08)';
-          inlineRateUserBadge.style.borderColor = 'rgba(0, 242, 254, 0.3)';
-          inlineRateUserBadge.style.color = '#38bdf8';
-          inlineRateUserBadge.onclick = null;
-        }
+    if (!currentUser) return;
+    const name = Auth.displayName(currentUser);
+    if (userAvatarMini) userAvatarMini.textContent = name.charAt(0).toUpperCase();
+    if (userDisplayName) userDisplayName.textContent = name;
+
+    if (userRoleTag) {
+      const active = getActivePelada();
+      let label = '👤 Atleta';
+      let color = '#38bdf8';
+      if (Auth.isSuperAdmin(currentUser)) {
+        label = '👑 Super Admin';
+        color = '#fbbf24';
+      } else if (active && active.is_owner) {
+        label = '👑 Criador desta pelada';
+        color = '#fbbf24';
+      } else if (active && active.can_manage) {
+        label = '⭐ Admin desta pelada';
+        color = '#fbbf24';
       }
-    } else {
-      if (btnOpenAuthModal) btnOpenAuthModal.style.display = 'inline-flex';
-      if (userLoggedInfo) userLoggedInfo.style.display = 'none';
-      const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
-      if (inlineRateUserBadge) {
-        inlineRateUserBadge.innerHTML = `🔒 <strong>Apenas usuários logados podem avaliar</strong> (Clique para Entrar)`;
-        inlineRateUserBadge.style.cursor = 'pointer';
-        inlineRateUserBadge.style.background = 'rgba(239, 68, 68, 0.15)';
-        inlineRateUserBadge.style.borderColor = 'rgba(239, 68, 68, 0.35)';
-        inlineRateUserBadge.style.color = '#fca5a5';
-        inlineRateUserBadge.onclick = () => {
-          if (modalAuth) modalAuth.classList.add('show');
-        };
-      }
+      userRoleTag.textContent = label;
+      userRoleTag.style.color = color;
+    }
+
+    const inlineRateUserBadge = document.getElementById('inlineRateUserBadge');
+    if (inlineRateUserBadge) {
+      inlineRateUserBadge.innerHTML = `👤 Votando como: <strong style="color: #fbbf24;">${escapeHtml(name)}</strong>`;
+      inlineRateUserBadge.style.background = 'rgba(0, 242, 254, 0.08)';
+      inlineRateUserBadge.style.borderColor = 'rgba(0, 242, 254, 0.3)';
+      inlineRateUserBadge.style.color = '#38bdf8';
     }
   }
 
   // Carregar os votos já dados pelo usuário logado
   async function loadUserRatings() {
-    if (!currentUser || !currentUser.id) {
-      userRatingsMap = {};
-      return;
-    }
     try {
-      const res = await fetch(`/api/players/my-ratings?userId=${currentUser.id}`);
+      const res = await fetch('/api/players/my-ratings');
       const data = await res.json();
       if (data.success && data.ratings) {
         userRatingsMap = data.ratings;
@@ -1465,108 +1471,139 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  if (btnOpenAuthModal) {
-    btnOpenAuthModal.addEventListener('click', () => {
-      if (modalAuth) modalAuth.classList.add('show');
-    });
-  }
-
-  if (btnCancelLogin && modalAuth) {
-    btnCancelLogin.addEventListener('click', () => modalAuth.classList.remove('show'));
-  }
-  if (btnCancelRegister && modalAuth) {
-    btnCancelRegister.addEventListener('click', () => modalAuth.classList.remove('show'));
-  }
-
-  if (btnAuthTabLogin && btnAuthTabRegister) {
-    btnAuthTabLogin.addEventListener('click', () => {
-      btnAuthTabLogin.classList.add('active');
-      btnAuthTabRegister.classList.remove('active');
-      if (formLogin) formLogin.style.display = 'block';
-      if (formRegister) formRegister.style.display = 'none';
-    });
-    btnAuthTabRegister.addEventListener('click', () => {
-      btnAuthTabRegister.classList.add('active');
-      btnAuthTabLogin.classList.remove('active');
-      if (formRegister) formRegister.style.display = 'block';
-      if (formLogin) formLogin.style.display = 'none';
-    });
-  }
-
-  // Login
-  if (formLogin) {
-    formLogin.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('inputLoginUsername').value.trim();
-      const password = document.getElementById('inputLoginPassword').value;
-
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          currentUser = data.user;
-          localStorage.setItem('pelada_user', JSON.stringify(currentUser));
-          updateAuthUI();
-          if (modalAuth) modalAuth.classList.remove('show');
-          formLogin.reset();
-          showToast(`Bem-vindo, ${currentUser.name}!`);
-          await loadUserRatings();
-        } else {
-          alert(data.error || 'Usuário ou senha incorretos.');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Erro de conexão ao fazer login.');
-      }
-    });
-  }
-
-  // Cadastro
-  if (formRegister) {
-    formRegister.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('inputRegisterName').value.trim();
-      const username = document.getElementById('inputRegisterUsername').value.trim();
-      const password = document.getElementById('inputRegisterPassword').value;
-      const role = document.getElementById('selectRegisterRole').value;
-
-      try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, username, password, role })
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          currentUser = data.user;
-          localStorage.setItem('pelada_user', JSON.stringify(currentUser));
-          updateAuthUI();
-          if (modalAuth) modalAuth.classList.remove('show');
-          formRegister.reset();
-          showToast(`Conta criada com sucesso! Bem-vindo, ${currentUser.name}!`);
-          await loadUserRatings();
-        } else {
-          alert(data.error || 'Erro ao criar conta.');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Erro de conexão ao cadastrar usuário.');
-      }
-    });
-  }
-
-  // Logout
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
       if (confirm('Deseja realmente sair da sua conta?')) {
-        currentUser = null;
-        userRatingsMap = {};
-        localStorage.removeItem('pelada_user');
+        Auth.logout();
         window.location.href = '/';
+      }
+    });
+  }
+
+  // ==========================================
+  // ADMINISTRADORES DA PELADA (criador concede acesso a outros usuários)
+  // ==========================================
+  const modalPeladaAdmins = document.getElementById('modalPeladaAdmins');
+  const adminsModalPeladaName = document.getElementById('adminsModalPeladaName');
+  const adminsList = document.getElementById('adminsList');
+  const formAddPeladaAdmin = document.getElementById('formAddPeladaAdmin');
+  const inputNewAdminEmail = document.getElementById('inputNewAdminEmail');
+  const btnAddPeladaAdmin = document.getElementById('btnAddPeladaAdmin');
+  const btnClosePeladaAdmins = document.getElementById('btnClosePeladaAdmins');
+  const btnQuickAdmins = document.getElementById('btnQuickAdmins');
+  let adminsModalPeladaId = null;
+
+  function adminRowHtml(user, badge, removable) {
+    return `
+      <div class="admin-list-row">
+        <div style="min-width: 0;">
+          <strong style="color: #fff; font-size: 0.9rem;">${escapeHtml(Auth.displayName(user))}</strong>
+          <div style="font-size: 0.75rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(user.username)}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <span style="font-size: 0.7rem; font-weight: 800; color: #fbbf24;">${badge}</span>
+          ${removable ? `<button type="button" class="btn-action-small btn-action-delete btn-remove-admin" data-id="${Number(user.id)}" title="Remover acesso de administrador">Remover</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async function renderAdminsList() {
+    adminsList.innerHTML = '<div style="color: #94a3b8; font-size: 0.85rem;">Carregando...</div>';
+    try {
+      const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`);
+      const data = await res.json();
+      if (!data.success) {
+        adminsList.innerHTML = `<div style="color: #fca5a5; font-size: 0.85rem;">${escapeHtml(data.error || 'Erro ao carregar administradores.')}</div>`;
+        return;
+      }
+
+      const rows = [];
+      rows.push(data.owner
+        ? adminRowHtml(data.owner, 'CRIADOR', false)
+        : '<div style="color: #94a3b8; font-size: 0.82rem;">Esta pelada não tem criador registrado (criada antes do controle de administradores).</div>');
+      data.admins.forEach(admin => {
+        const isMe = Number(admin.id) === Number(currentUser.id);
+        rows.push(adminRowHtml(admin, isMe ? 'ADMIN (VOCÊ)' : 'ADMIN', data.can_edit || isMe));
+      });
+      if (data.admins.length === 0) {
+        rows.push('<div style="color: #64748b; font-size: 0.8rem;">Nenhum administrador adicional ainda.</div>');
+      }
+      adminsList.innerHTML = rows.join('');
+      formAddPeladaAdmin.hidden = !data.can_edit;
+
+      adminsList.querySelectorAll('.btn-remove-admin').forEach(btn => {
+        btn.addEventListener('click', () => removePeladaAdmin(btn.getAttribute('data-id')));
+      });
+    } catch (err) {
+      adminsList.innerHTML = '<div style="color: #fca5a5; font-size: 0.85rem;">Erro de conexão ao carregar administradores.</div>';
+    }
+  }
+
+  async function removePeladaAdmin(userId) {
+    const isMe = Number(userId) === Number(currentUser.id);
+    const question = isMe
+      ? 'Deseja deixar de ser administrador desta pelada?'
+      : 'Remover o acesso de administrador desta pessoa?';
+    if (!confirm(question)) return;
+    try {
+      const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins/${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Erro ao remover administrador.');
+        return;
+      }
+      showToast('Acesso de administrador removido.');
+      if (isMe) {
+        modalPeladaAdmins.classList.remove('show');
+        await loadPeladas();
+        await loadPlayers(activePeladaId);
+      } else {
+        renderAdminsList();
+      }
+    } catch (err) {
+      alert('Erro de conexão ao remover administrador.');
+    }
+  }
+
+  function openAdminsModal(peladaId) {
+    const pelada = peladasList.find(p => String(p.id) === String(peladaId));
+    if (!pelada || !pelada.can_manage) return;
+    adminsModalPeladaId = pelada.id;
+    adminsModalPeladaName.textContent = `${pelada.name} (#${pelada.id})`;
+    formAddPeladaAdmin.hidden = true;
+    formAddPeladaAdmin.reset();
+    modalPeladaAdmins.classList.add('show');
+    renderAdminsList();
+  }
+
+  if (btnQuickAdmins) btnQuickAdmins.addEventListener('click', () => openAdminsModal(activePeladaId));
+  if (btnClosePeladaAdmins) btnClosePeladaAdmins.addEventListener('click', () => modalPeladaAdmins.classList.remove('show'));
+
+  if (formAddPeladaAdmin) {
+    formAddPeladaAdmin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = inputNewAdminEmail.value.trim().toLowerCase();
+      if (!email) return;
+      btnAddPeladaAdmin.disabled = true;
+      try {
+        const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`${Auth.displayName(data.admin)} agora é administrador desta pelada!`);
+          formAddPeladaAdmin.reset();
+          renderAdminsList();
+        } else {
+          alert(data.error || 'Erro ao adicionar administrador.');
+        }
+      } catch (err) {
+        alert('Erro de conexão ao adicionar administrador.');
+      } finally {
+        btnAddPeladaAdmin.disabled = false;
       }
     });
   }
@@ -1639,12 +1676,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openDirectRateModal(player) {
-    if (!currentUser) {
-      if (modalAuth) modalAuth.classList.add('show');
-      showToast('Entre ou crie uma conta rápida para votar!');
-      return;
-    }
-
     const playerId = Number(player.id);
     if (directRatePlayerId) directRatePlayerId.value = playerId;
     if (directRatePlayerName) directRatePlayerName.textContent = player.name;
@@ -1715,8 +1746,6 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: currentUser.id,
-            voterName: currentUser.name || currentUser.username,
             attack: directRatings.attack,
             defense: directRatings.defense,
             setPass: directRatings.set_pass,
@@ -1791,7 +1820,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Badge da aba
     if (attendanceCountBadge) {
       attendanceCountBadge.textContent = confirmed.length;
-      attendanceCountBadge.style.display = confirmed.length > 0 ? 'inline-block' : 'none';
+      attendanceCountBadge.hidden = confirmed.length === 0;
     }
 
     // Progresso
@@ -1808,46 +1837,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (waitlistSection) waitlistSection.style.display = waitlist.length > 0 ? 'block' : 'none';
 
     // Ação do usuário logado
-    const isLuixAdmin = currentUser && (currentUser.role === 'admin' || (currentUser.username && currentUser.username.toLowerCase() === 'luix314@gmail.com'));
+    const isAdmin = canManageActive();
     if (adminAttendancePanel) {
-      adminAttendancePanel.style.display = isLuixAdmin ? 'flex' : 'none';
+      adminAttendancePanel.style.display = isAdmin ? 'flex' : 'none';
       populateAdminAttendanceSelect();
     }
 
     if (attendanceUserActionContainer) {
-      if (!currentUser) {
+      const myAtt = currentAttendanceList.find(a => Number(a.userId || a.user_id) === Number(currentUser.id));
+      if (myAtt) {
+        const isWait = myAtt.status === 'waitlist';
         attendanceUserActionContainer.innerHTML = `
-          <button type="button" class="btn-pelada btn-pelada-primary" id="btnAttendanceLogin">
-            <span>🔒</span> Entrar para Confirmar Presença
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: ${isWait ? '#fbbf24' : '#10b981'}; font-weight: 700; font-size: 0.9rem;">
+              ${isWait ? '⏳ Na Fila de Espera' : '✅ Presença Confirmada!'}
+            </span>
+            <button type="button" class="btn-pelada" id="btnCancelMyAttendance" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239,68,68,0.5); color: #fca5a5; font-size: 0.8rem; padding: 6px 12px;">
+              Cancelar Presença
+            </button>
+          </div>
+        `;
+        const btnCancel = document.getElementById('btnCancelMyAttendance');
+        if (btnCancel) btnCancel.addEventListener('click', () => toggleMyAttendance());
+      } else {
+        attendanceUserActionContainer.innerHTML = `
+          <button type="button" class="btn-pelada btn-pelada-primary" id="btnConfirmMyAttendance" style="font-weight: 800; padding: 10px 20px;">
+            <span>⚡</span> Confirmar Minha Presença Hoje!
           </button>
         `;
-        const btnL = document.getElementById('btnAttendanceLogin');
-        if (btnL && modalAuth) btnL.addEventListener('click', () => modalAuth.classList.add('show'));
-      } else {
-        const myAtt = currentAttendanceList.find(a => Number(a.userId || a.user_id) === Number(currentUser.id));
-        if (myAtt) {
-          const isWait = myAtt.status === 'waitlist';
-          attendanceUserActionContainer.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="color: ${isWait ? '#fbbf24' : '#10b981'}; font-weight: 700; font-size: 0.9rem;">
-                ${isWait ? '⏳ Na Fila de Espera' : '✅ Presença Confirmada!'}
-              </span>
-              <button type="button" class="btn-pelada" id="btnCancelMyAttendance" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239,68,68,0.5); color: #fca5a5; font-size: 0.8rem; padding: 6px 12px;">
-                Cancelar Presença
-              </button>
-            </div>
-          `;
-          const btnCancel = document.getElementById('btnCancelMyAttendance');
-          if (btnCancel) btnCancel.addEventListener('click', () => toggleMyAttendance());
-        } else {
-          attendanceUserActionContainer.innerHTML = `
-            <button type="button" class="btn-pelada btn-pelada-primary" id="btnConfirmMyAttendance" style="font-weight: 800; padding: 10px 20px;">
-              <span>⚡</span> Confirmar Minha Presença Hoje!
-            </button>
-          `;
-          const btnConf = document.getElementById('btnConfirmMyAttendance');
-          if (btnConf) btnConf.addEventListener('click', () => toggleMyAttendance());
-        }
+        const btnConf = document.getElementById('btnConfirmMyAttendance');
+        if (btnConf) btnConf.addEventListener('click', () => toggleMyAttendance());
       }
     }
 
@@ -1862,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         confirmedListGrid.innerHTML = '';
         confirmed.forEach((att, idx) => {
-          const card = createAttendanceChip(att, idx + 1, false, isLuixAdmin);
+          const card = createAttendanceChip(att, idx + 1, false, isAdmin);
           confirmedListGrid.appendChild(card);
         });
       }
@@ -1872,13 +1891,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (waitlistGrid) {
       waitlistGrid.innerHTML = '';
       waitlist.forEach((att, idx) => {
-        const card = createAttendanceChip(att, idx + 1, true, isLuixAdmin);
+        const card = createAttendanceChip(att, idx + 1, true, isAdmin);
         waitlistGrid.appendChild(card);
       });
     }
   }
 
-  function createAttendanceChip(att, orderNum, isWaitlist, isLuixAdmin) {
+  function createAttendanceChip(att, orderNum, isWaitlist, isAdmin) {
     const chip = document.createElement('div');
     chip.className = `attendance-player-chip ${isWaitlist ? 'waitlist' : ''}`;
     const initial = (att.playerName || att.player_name || 'A').charAt(0).toUpperCase();
@@ -1895,7 +1914,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <img src="${escapeHtml(matchedPlayer.photo_url)}" alt="Foto" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${isWaitlist ? '#fbbf24' : '#10b981'};">
       ` : `
         <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #38bdf8; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.1);">
-          ${initial}
+          ${escapeHtml(initial)}
         </div>
       `}
       <div style="flex: 1; min-width: 0;">
@@ -1906,7 +1925,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${isWaitlist ? 'Fila de Espera' : '✓ Confirmado'}
         </span>
       </div>
-      ${isLuixAdmin ? `
+      ${isAdmin ? `
         <button type="button" class="btn-remove-attendance" data-id="${att.id}" style="background: transparent; border: none; color: #f87171; cursor: pointer; padding: 4px; font-size: 0.85rem;" title="Remover presença">
           &times;
         </button>
@@ -1917,7 +1936,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnRem) {
       btnRem.addEventListener('click', async () => {
         if (confirm(`Remover presença de ${att.playerName || att.player_name}?`)) {
-          await fetch(`/api/peladas/${activePeladaId}/attendance/${att.id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/peladas/${activePeladaId}/attendance/${att.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!data.success) alert(data.error || 'Erro ao remover presença.');
           await loadAttendance();
         }
       });
@@ -1927,17 +1948,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function toggleMyAttendance() {
-    if (!currentUser) return;
     const targetDate = inputAttendanceDate ? inputAttendanceDate.value : todayStr;
     try {
       const res = await fetch(`/api/peladas/${activePeladaId}/attendance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
-        body: JSON.stringify({
-          date: targetDate,
-          userId: currentUser.id,
-          playerName: currentUser.name || currentUser.username
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: targetDate })
       });
       const data = await res.json();
       if (data.success) {
@@ -1977,16 +1993,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`/api/peladas/${activePeladaId}/attendance`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            date: targetDate,
-            playerId: player.id,
-            playerName: player.name
-          })
+          body: JSON.stringify({ date: targetDate, playerId: player.id })
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`Presença de ${player.name} adicionada!`);
+          const removed = data.result && data.result.action === 'removed';
+          showToast(removed ? `Presença de ${player.name} removida.` : `Presença de ${player.name} adicionada!`);
           await loadAttendance(targetDate);
+        } else {
+          alert(data.error || 'Erro ao atualizar presença.');
         }
       } catch(e) {
         showToast('Erro ao adicionar atleta.');
@@ -2070,7 +2085,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <img src="${escapeHtml(s.photo_url)}" alt="${escapeHtml(s.name)}" class="podium-avatar">
           ` : `
             <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #334155); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #38bdf8; font-size: 1.3rem; margin: 4px auto; border: 2px solid rgba(255,255,255,0.15);">
-              ${initial}
+              ${escapeHtml(initial)}
             </div>
           `}
           <strong style="color: #fff; font-size: 1.1rem;">${escapeHtml(s.name)}</strong>
@@ -2111,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <img src="${escapeHtml(s.photo_url)}" alt="${escapeHtml(s.name)}" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
               ` : `
                 <div style="width: 32px; height: 32px; border-radius: 8px; background: #1e293b; color: #38bdf8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;">
-                  ${initial}
+                  ${escapeHtml(initial)}
                 </div>
               `}
               <strong style="color: #fff;">${escapeHtml(s.name)}</strong>
@@ -2376,9 +2391,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadMvpData(date = null) {
     const targetDate = date || (inputMvpDate ? inputMvpDate.value : todayStr);
     try {
-      const url = currentUser ? 
-        `/api/peladas/${activePeladaId}/mvp?date=${targetDate}&userId=${currentUser.id}` : 
-        `/api/peladas/${activePeladaId}/mvp?date=${targetDate}`;
+      const url = `/api/peladas/${activePeladaId}/mvp?date=${encodeURIComponent(targetDate)}`;
 
       const res = await fetch(url);
       const data = await res.json();
@@ -2460,7 +2473,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="podium-avatar" style="border-color:${cat.color};">
             ` : `
               <div style="width: 56px; height: 56px; border-radius: 50%; background: #1e293b; color: ${cat.color}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; margin: 4px auto; border: 2px solid ${cat.color};">
-                ${initial}
+                ${escapeHtml(initial)}
               </div>
             `}
             <strong style="color: #fff; font-size: 1.05rem;">${escapeHtml(p.name)}</strong>
@@ -2485,12 +2498,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (formMvpVote) {
     formMvpVote.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!currentUser) {
-        if (modalAuth) modalAuth.classList.add('show');
-        showToast('🔒 Faça login para votar nos craques da rodada!');
-        return;
-      }
-
       const votes = {
         mvpPlayerId: selectMvpPlayer ? selectMvpPlayer.value : null,
         defensePlayerId: selectDefensePlayer ? selectDefensePlayer.value : null,
@@ -2507,13 +2514,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch(`/api/peladas/${activePeladaId}/mvp`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id },
-          body: JSON.stringify({
-            date: targetDate,
-            userId: currentUser.id,
-            voterName: currentUser.name || currentUser.username,
-            votes
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: targetDate, votes })
         });
 
         const data = await res.json();
@@ -2536,7 +2538,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  loadAttendance();
-  initUserAuth();
-  loadPeladas();
+  // Inicialização: descobre a pelada ativa e então carrega jogadores, votos e presença dela
+  updateAuthUI();
+  Auth.refreshUser().then(user => {
+    if (user) {
+      currentUser = user;
+      updateAuthUI();
+    }
+  });
+  loadPeladas().then(async () => {
+    await loadPlayers(activePeladaId);
+    loadUserRatings();
+    loadAttendance();
+  });
 });

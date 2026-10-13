@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { Sequelize, DataTypes, Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
+const { hashPassword, verifyPassword, isSuperAdmin } = require('./auth');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const FALLBACK_DB_FILE = path.join(DATA_DIR, 'db_fallback.json');
@@ -30,26 +31,15 @@ let User = null;
 let Pelada = null;
 let Player = null;
 let PlayerRating = null;
-let PeladaSession = null;
+let PeladaAdmin = null;
+let AppSetting = null;
 let Attendance = null;
 let MvpVote = null;
+// Fica true somente depois que initDb() autentica e sincroniza o PostgreSQL
 let isPostgres = false;
 
-// ==========================================
-// SEGURANÇA E HASHING DE SENHAS
-// ==========================================
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(String(password), salt, 1000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, storedHash) {
-  if (!storedHash || !storedHash.includes(':')) return false;
-  const [salt, originalHash] = storedHash.split(':');
-  const hash = crypto.pbkdf2Sync(String(password), salt, 1000, 64, 'sha512').toString('hex');
-  return hash === originalHash;
-}
+// Pelada padrao usada pelo placar quando nenhuma sala foi escolhida
+const DEFAULT_PELADA_ID = 733849;
 
 
 // Detecta qualquer variavel de conexao PostgreSQL suportada pelo Railway e outros provedores
@@ -124,9 +114,12 @@ if (dbUrl) {
     User = sequelize.define('User', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       username: { type: DataTypes.STRING(60), unique: true, allowNull: false },
-      passwordHash: { type: DataTypes.STRING(255), allowNull: false },
+      // Nulo para contas criadas exclusivamente pelo login com Google
+      passwordHash: { type: DataTypes.STRING(255), allowNull: true },
+      googleId: { type: DataTypes.STRING(64), unique: true, allowNull: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
-      role: { type: DataTypes.STRING(20), defaultValue: 'user' } // 'admin' ou 'user'
+      // Coluna legada: o papel efetivo agora vem de SUPER_ADMIN_EMAILS e dos admins de cada pelada
+      role: { type: DataTypes.STRING(20), defaultValue: 'user' }
     }, {
       tableName: 'users',
       timestamps: true,
@@ -137,7 +130,7 @@ if (dbUrl) {
     Match = sequelize.define('Match', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       roomId: { type: DataTypes.STRING, defaultValue: 'DEFAULT' },
-      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
+      peladaId: { type: DataTypes.INTEGER, defaultValue: DEFAULT_PELADA_ID },
       teamA: { type: DataTypes.STRING, defaultValue: 'LADO A' },
       scoreA: { type: DataTypes.INTEGER, defaultValue: 0 },
       teamB: { type: DataTypes.STRING, defaultValue: 'LADO B' },
@@ -157,9 +150,43 @@ if (dbUrl) {
     Pelada = sequelize.define('Pelada', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       name: { type: DataTypes.STRING(150), allowNull: false, defaultValue: 'Pelada Principal' },
-      adminName: { type: DataTypes.STRING(100), defaultValue: 'Administrador' }
+      // Nome exibido do criador (informativo); a permissao real vem de ownerId e pelada_admins
+      adminName: { type: DataTypes.STRING(100), defaultValue: 'Administrador' },
+      ownerId: { type: DataTypes.INTEGER, allowNull: true }
     }, {
       tableName: 'peladas',
+      timestamps: true,
+      underscored: true
+    });
+
+    // Administradores adicionais de cada pelada (alem do criador)
+    PeladaAdmin = sequelize.define('PeladaAdmin', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      peladaId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'peladas', key: 'id' },
+        onDelete: 'CASCADE'
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'users', key: 'id' },
+        onDelete: 'CASCADE'
+      }
+    }, {
+      tableName: 'pelada_admins',
+      timestamps: true,
+      underscored: true,
+      indexes: [{ unique: true, fields: ['pelada_id', 'user_id'] }]
+    });
+
+    // Configuracoes internas persistentes (ex: segredo dos tokens de sessao)
+    AppSetting = sequelize.define('AppSetting', {
+      key: { type: DataTypes.STRING(60), primaryKey: true },
+      value: { type: DataTypes.TEXT, allowNull: false }
+    }, {
+      tableName: 'app_settings',
       timestamps: true,
       underscored: true
     });
@@ -211,34 +238,15 @@ if (dbUrl) {
       underscored: true
     });
 
-    // Modelo de Sessoes de Pelada / Escalacoes
-    PeladaSession = sequelize.define('PeladaSession', {
-      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      peladaId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: { model: 'peladas', key: 'id' },
-        onDelete: 'SET NULL'
-      },
-      title: { type: DataTypes.STRING(150), defaultValue: 'Pelada do Dia' },
-      format: { type: DataTypes.STRING(50), defaultValue: '6x6' },
-      teams: { type: DataTypes.JSONB },
-      bench: { type: DataTypes.JSONB }
-    }, {
-      tableName: 'pelada_sessions',
-      timestamps: true,
-      underscored: true
-    });
-
     // Modelo de Lista de Presenca (Attendance)
     Attendance = sequelize.define('Attendance', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
+      peladaId: { type: DataTypes.INTEGER }, // Sem defaultValue: o Sequelize gera SQL invalido ao alterar coluna com default + FK
       date: { type: DataTypes.STRING(20), allowNull: false },
       userId: { type: DataTypes.INTEGER, allowNull: true },
       playerId: { type: DataTypes.INTEGER, allowNull: true },
       playerName: { type: DataTypes.STRING(100), allowNull: false },
-      isWaitingList: { type: DataTypes.BOOLEAN, defaultValue: false }
+      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'confirmed' } // 'confirmed' ou 'waitlist'
     }, {
       tableName: 'attendances',
       timestamps: true,
@@ -248,7 +256,7 @@ if (dbUrl) {
     // Modelo de Votacao de Craques da Rodada (MVP)
     MvpVote = sequelize.define('MvpVote', {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      peladaId: { type: DataTypes.INTEGER, defaultValue: 733849 },
+      peladaId: { type: DataTypes.INTEGER }, // Sem defaultValue (ver Attendance)
       date: { type: DataTypes.STRING(20), allowNull: false },
       userId: { type: DataTypes.INTEGER, allowNull: false },
       voterName: { type: DataTypes.STRING(100), defaultValue: 'Atleta' },
@@ -269,14 +277,13 @@ if (dbUrl) {
     PlayerRating.belongsTo(Player, { foreignKey: 'playerId', as: 'player' });
     User.hasMany(PlayerRating, { foreignKey: 'userId', as: 'ratings', onDelete: 'SET NULL' });
     PlayerRating.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-    Pelada.hasMany(PeladaSession, { foreignKey: 'peladaId', as: 'sessions' });
-    PeladaSession.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
     Pelada.hasMany(Attendance, { foreignKey: 'peladaId', as: 'attendances' });
     Attendance.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
     Pelada.hasMany(MvpVote, { foreignKey: 'peladaId', as: 'mvpVotes' });
     MvpVote.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
+    Pelada.hasMany(PeladaAdmin, { foreignKey: 'peladaId', as: 'admins', onDelete: 'CASCADE' });
+    PeladaAdmin.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-    isPostgres = true;
     console.log('Sequelize ORM configurado com PostgreSQL (Railway).');
   } catch (err) {
     console.error('Erro ao inicializar Sequelize com PostgreSQL:', err.message);
@@ -302,94 +309,54 @@ const INITIAL_PELADA_PLAYERS = [
   'Bia'
 ];
 
-// Helper para banco de dados fallback local JSON
+// Helper para banco de dados fallback local JSON (uso em desenvolvimento local, sem PostgreSQL)
+function createInitialFallbackData() {
+  const now = new Date().toISOString();
+  return {
+    users: [],
+    peladas: [{ id: DEFAULT_PELADA_ID, name: 'Sala 733849', admin_name: 'Administrador', owner_id: null, created_at: now }],
+    pelada_admins: [],
+    matches: [],
+    players: INITIAL_PELADA_PLAYERS.map((name, idx) => ({
+      id: idx + 1,
+      pelada_id: DEFAULT_PELADA_ID,
+      name,
+      nickname: name,
+      position: 'Geral',
+      photo_url: '',
+      active: true,
+      created_at: now
+    })),
+    player_ratings: [],
+    attendances: [],
+    mvp_votes: [],
+    settings: {}
+  };
+}
+
 function getFallbackData() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  const defaultPeladas = [
-    {
-      id: 1,
-      name: 'Pelada Principal',
-      admin_name: 'Administrador',
-      created_at: new Date().toISOString()
-    }
-  ];
-
-  const defaultPlayers = INITIAL_PELADA_PLAYERS.map((name, idx) => ({
-    id: idx + 1,
-    pelada_id: 1,
-    name: name,
-    nickname: name,
-    position: 'Geral',
-    active: true,
-    createdAt: new Date().toISOString()
-  }));
-
   if (!fs.existsSync(FALLBACK_DB_FILE)) {
-    const initial = {
-      users: [
-        {
-          id: 1,
-          username: 'admin',
-          password_hash: hashPassword('admin123'),
-          name: 'Administrador Principal',
-          role: 'admin',
-          created_at: new Date().toISOString()
-        }
-      ],
-      peladas: defaultPeladas,
-      matches: [],
-      players: defaultPlayers,
-      player_ratings: [],
-      pelada_sessions: []
-    };
-    fs.writeFileSync(FALLBACK_DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
+    const initial = createInitialFallbackData();
+    saveFallbackData(initial);
     return initial;
   }
+
   try {
     const parsed = JSON.parse(fs.readFileSync(FALLBACK_DB_FILE, 'utf8'));
-
-    if (!parsed.users || parsed.users.length === 0) {
-      parsed.users = [
-        {
-          id: 1,
-          username: 'admin',
-          password_hash: hashPassword('admin123'),
-          name: 'Administrador Principal',
-          role: 'admin',
-          created_at: new Date().toISOString()
-        }
-      ];
-      saveFallbackData(parsed);
-    }
-    // Garante que peladas exista
-    if (!parsed.peladas || parsed.peladas.length === 0) {
-      parsed.peladas = defaultPeladas;
-    }
-
-    // Se ainda tiver os jogadores antigos de exemplo, atualiza para os 12 novos
-    const hasOldExamples = (parsed.players || []).some(p => p.name === 'Lucas Silva' || p.name === 'Gabriel Souza');
-    if (hasOldExamples || !parsed.players || parsed.players.length === 0) {
-      parsed.players = defaultPlayers;
-      parsed.player_ratings = [];
-      saveFallbackData(parsed);
-    } else {
-      // Garante pelada_id nos jogadores existentes
-      let updated = false;
-      const defaultPeladaId = parsed.peladas[0].id;
-      parsed.players.forEach(p => {
-        if (!p.pelada_id) {
-          p.pelada_id = defaultPeladaId;
-          updated = true;
-        }
-      });
-      if (updated) saveFallbackData(parsed);
-    }
+    const defaults = createInitialFallbackData();
+    // Garante que todas as colecoes existam sem sobrescrever dados existentes
+    ['users', 'peladas', 'pelada_admins', 'matches', 'players', 'player_ratings', 'attendances', 'mvp_votes'].forEach(k => {
+      if (!Array.isArray(parsed[k])) parsed[k] = defaults[k];
+    });
+    if (!parsed.settings || typeof parsed.settings !== 'object') parsed.settings = {};
     return parsed;
   } catch (err) {
-    return { peladas: defaultPeladas, matches: [], players: defaultPlayers, player_ratings: [], pelada_sessions: [] };
+    console.error('Erro ao ler fallback db, usando estrutura vazia:', err.message);
+    return createInitialFallbackData();
   }
 }
 
@@ -402,6 +369,10 @@ function saveFallbackData(data) {
   } catch (err) {
     console.error('Erro ao salvar fallback db:', err.message);
   }
+}
+
+function nextFallbackId(list) {
+  return list.length > 0 ? Math.max(...list.map(item => Number(item.id) || 0)) + 1 : 1;
 }
 
 // ==========================================
@@ -429,80 +400,85 @@ async function initDb() {
         throw authErr;
       }
     }
+  } catch (err) {
+    dbConnectionError = err.message;
+    console.error('Nao foi possivel conectar ao PostgreSQL. Usando fallback JSON:', err.message);
+    getFallbackData();
+    return;
+  }
 
+  // Conectado: os dados ficam no PostgreSQL mesmo que algum ajuste de esquema falhe,
+  // para nunca alternar silenciosamente para o JSON local (o que pareceria "apagar" os dados).
+  isPostgres = true;
+  try {
     console.log('Executando sincronizacao autonoma do banco (Sequelize auto-alter)...');
     await sequelize.sync({ alter: true });
-    isPostgres = true;
     console.log('Banco de dados PostgreSQL 100% sincronizado com sucesso!');
-    // Garante usuario admin inicial no Postgres
-    const adminUser = await User.findOne({ where: { username: 'admin' } });
-    if (!adminUser) {
-      await User.create({
-        username: 'admin',
-        passwordHash: hashPassword('admin123'),
-        name: 'Administrador Principal',
-        role: 'admin'
-      });
-      console.log('👤 Usuario admin padrao criado no PostgreSQL.');
+
+    // Garante a pelada padrao do placar; os jogadores iniciais so sao criados junto com ela
+    const defaultPelada = await Pelada.findByPk(DEFAULT_PELADA_ID);
+    if (!defaultPelada) {
+      await Pelada.create({ id: DEFAULT_PELADA_ID, name: 'Sala 733849', adminName: 'Administrador' });
+      await Player.bulkCreate(INITIAL_PELADA_PLAYERS.map(name => ({
+        peladaId: DEFAULT_PELADA_ID,
+        name,
+        nickname: name,
+        position: 'Geral',
+        active: true
+      })));
+      console.log(`Pelada padrao #${DEFAULT_PELADA_ID} criada com os jogadores iniciais.`);
     }
 
-    // Garante que a Sala 733849 solicitada pelo usuario exista e tenha luix314@gmail.com como administrador
-    let sala733849 = await Pelada.findByPk(733849);
-    if (!sala733849) {
-      sala733849 = await Pelada.create({
-        id: 733849,
-        name: 'Sala 733849',
-        adminName: 'luix314@gmail.com'
-      });
-      console.log('🏐 Sala 733849 (#733849) criada no PostgreSQL com admin luix314@gmail.com.');
-    } else {
-      sala733849.adminName = 'luix314@gmail.com';
-      await sala733849.save();
-    }
-
-    // Promove luix314@gmail.com para administrador caso ja exista no PostgreSQL
-    try {
-      const luixUser = await User.findOne({ where: { username: 'luix314@gmail.com' } });
-      if (luixUser && luixUser.role !== 'admin') {
-        luixUser.role = 'admin';
-        await luixUser.save();
-        console.log('👑 Promovido luix314@gmail.com a administrador no PostgreSQL.');
-      }
-    } catch (uErr) {
-      console.warn('Verificacao de luix314@gmail.com:', uErr.message);
-    }
-
-    // Migra todos os jogadores cadastrados para a sala 733849
-    await Player.update(
-      { peladaId: 733849 },
-      { where: { [Op.or]: [{ peladaId: 1 }, { peladaId: null }] } }
-    );
-
-    // Remove jogadores de exemplo antigos se existirem
-    const oldExampleNames = ['Lucas Silva', 'Gabriel Souza', 'Matheus Costa', 'Rafael Dias', 'Bruno Lima', 'Carlos Eduardo', 'Thiago Alves'];
-    await Player.destroy({
-      where: {
-        name: oldExampleNames
-      }
-    });
-
-    // Insere os 12 novos jogadores solicitados na pelada padrao caso ainda nao existam
-    for (const name of INITIAL_PELADA_PLAYERS) {
-      const exists = await Player.findOne({ where: { name, peladaId: 733849 } });
-      if (!exists) {
-        await Player.create({
-          peladaId: 733849,
-          name: name,
-          nickname: name,
-          position: 'Geral',
-          active: true
-        });
-        console.log('Jogador ' + name + ' adicionado a Pelada #733849 no PostgreSQL.');
-      }
-    }
+    await migratePeladaOwners();
   } catch (err) {
-    console.error('Erro na sincronizacao autonoma do Sequelize:', err.message);
+    dbConnectionError = err.message;
+    console.error('ERRO na sincronizacao do esquema PostgreSQL (o app segue usando o PostgreSQL):', err.message);
   }
+}
+
+// Peladas criadas antes do controle de dono guardavam apenas o nome/e-mail do criador em adminName.
+// Quando esse texto identifica um unico usuario (e-mail ou nome exato), ele passa a ser o dono.
+async function migratePeladaOwners() {
+  const orphans = await Pelada.findAll({ where: { ownerId: null } });
+  if (orphans.length === 0) return;
+
+  const users = (await User.findAll({ attributes: ['id', 'username', 'name'] })).map(u => u.toJSON());
+  for (const pelada of orphans) {
+    const ref = String(pelada.adminName || '').trim().toLowerCase();
+    if (!ref) continue;
+    let matches = users.filter(u => u.username.toLowerCase() === ref);
+    if (matches.length === 0) matches = users.filter(u => String(u.name || '').trim().toLowerCase() === ref);
+    if (matches.length === 1) {
+      pelada.ownerId = matches[0].id;
+      await pelada.save();
+      console.log(`Pelada #${pelada.id}: dono definido como ${matches[0].username}.`);
+    }
+  }
+}
+
+// ==========================================
+// CONFIGURACOES INTERNAS PERSISTENTES
+// ==========================================
+async function getOrCreateSetting(key, generate) {
+  if (isPostgres && AppSetting) {
+    const existing = await AppSetting.findByPk(key);
+    if (existing) return existing.value;
+    const value = generate();
+    const [row] = await AppSetting.findOrCreate({ where: { key }, defaults: { value } });
+    return row.value;
+  }
+
+  const data = getFallbackData();
+  if (!data.settings[key]) {
+    data.settings[key] = generate();
+    saveFallbackData(data);
+  }
+  return data.settings[key];
+}
+
+async function getAuthSecret() {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  return getOrCreateSetting('auth_secret', () => crypto.randomBytes(48).toString('hex'));
 }
 
 
@@ -510,20 +486,26 @@ async function initDb() {
 // METODOS DE AUTENTICACAO & USUARIOS
 // ==========================================
 
-async function createUser(username, password, name, role = 'user') {
-  const cleanUsername = String(username || '').trim().toLowerCase();
-  const cleanName = String(name || '').trim();
-  let cleanRole = role === 'admin' ? 'admin' : 'user';
-  if (cleanUsername === 'luix314@gmail.com') {
-    cleanRole = 'admin';
-  }
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!cleanUsername || !emailRegex.test(cleanUsername)) {
+// Formato publico do usuario enviado ao navegador (nunca inclui hash de senha)
+function toPublicUser(raw) {
+  if (!raw) return null;
+  const user = { id: Number(raw.id), username: raw.username, name: raw.name };
+  user.role = isSuperAdmin(user) ? 'admin' : 'user';
+  return user;
+}
+
+async function createUser(username, password, name) {
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  const cleanName = String(name || '').trim().slice(0, 100);
+
+  if (!cleanUsername || !EMAIL_REGEX.test(cleanUsername) || cleanUsername.length > 60) {
     throw new Error('O usuário deve ser um e-mail válido.');
   }
-  if (!password || String(password).length < 4) {
-    throw new Error('A senha deve ter pelo menos 4 caracteres.');
+  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
   }
   if (!cleanName) {
     throw new Error('O nome do usuario e obrigatorio.');
@@ -531,97 +513,121 @@ async function createUser(username, password, name, role = 'user') {
 
   const passHash = hashPassword(password);
 
-  if (isPostgres && User) {
-    try {
-      const exists = await User.findOne({ where: { username: cleanUsername } });
-      if (exists) throw new Error('Este e-mail já está cadastrado.');
-
-      const user = await User.create({
-        username: cleanUsername,
-        passwordHash: passHash,
-        name: cleanName,
-        role: cleanRole
-      });
-      const raw = user.toJSON();
-      return { id: raw.id, username: raw.username, name: raw.name, role: raw.role, created_at: raw.createdAt };
-    } catch (err) {
-      console.error('Erro ao criar usuario no Sequelize:', err.message);
-      throw err;
-    }
+  if (isPostgres) {
+    const exists = await User.findOne({ where: { username: cleanUsername } });
+    if (exists) throw new Error('Este e-mail já está cadastrado.');
+    const user = await User.create({ username: cleanUsername, passwordHash: passHash, name: cleanName });
+    return toPublicUser(user.toJSON());
   }
 
-  // Fallback JSON
   const data = getFallbackData();
-  if (!data.users) data.users = [];
-  const exists = data.users.find(u => u.username.toLowerCase() === cleanUsername);
-  if (exists) throw new Error('Este e-mail já está cadastrado.');
-
-  const nextId = data.users.length > 0 ? Math.max(...data.users.map(u => Number(u.id))) + 1 : 1;
+  if (data.users.find(u => u.username.toLowerCase() === cleanUsername)) {
+    throw new Error('Este e-mail já está cadastrado.');
+  }
   const newUser = {
-    id: nextId,
+    id: nextFallbackId(data.users),
     username: cleanUsername,
     password_hash: passHash,
+    google_id: null,
     name: cleanName,
-    role: cleanRole,
     created_at: new Date().toISOString()
   };
   data.users.push(newUser);
   saveFallbackData(data);
-  return { id: newUser.id, username: newUser.username, name: newUser.name, role: newUser.role, created_at: newUser.created_at };
+  return toPublicUser(newUser);
 }
 
 async function authenticateUser(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!cleanUsername || !emailRegex.test(cleanUsername) || !password) {
+  if (!cleanUsername || !EMAIL_REGEX.test(cleanUsername) || !password) {
     throw new Error('Informe um e-mail válido e a senha.');
   }
 
-  if (isPostgres && User) {
-    try {
-      const user = await User.findOne({ where: { username: cleanUsername } });
-      if (!user) throw new Error('Usuario ou senha incorretos.');
-      const valid = verifyPassword(password, user.passwordHash);
-      if (!valid) throw new Error('Usuario ou senha incorretos.');
-      const raw = user.toJSON();
-      if (raw.username === 'luix314@gmail.com' && raw.role !== 'admin') {
-        user.role = 'admin';
-        await user.save();
-        raw.role = 'admin';
-      }
-      return { id: raw.id, username: raw.username, name: raw.name, role: raw.role };
-    } catch (err) {
-      throw err;
+  if (isPostgres) {
+    const user = await User.findOne({ where: { username: cleanUsername } });
+    if (!user || !user.passwordHash) throw new Error('E-mail ou senha incorretos.');
+    const { valid, needsRehash } = verifyPassword(password, user.passwordHash);
+    if (!valid) throw new Error('E-mail ou senha incorretos.');
+    if (needsRehash) {
+      user.passwordHash = hashPassword(password);
+      await user.save();
     }
+    return toPublicUser(user.toJSON());
   }
 
-  // Fallback JSON
   const data = getFallbackData();
-  const user = (data.users || []).find(u => u.username.toLowerCase() === cleanUsername);
-  if (!user) throw new Error('Usuario ou senha incorretos.');
-  const valid = verifyPassword(password, user.password_hash);
-  if (!valid) throw new Error('Usuario ou senha incorretos.');
-  return { id: user.id, username: user.username, name: user.name, role: user.role };
+  const user = data.users.find(u => u.username.toLowerCase() === cleanUsername);
+  if (!user || !user.password_hash) throw new Error('E-mail ou senha incorretos.');
+  const { valid, needsRehash } = verifyPassword(password, user.password_hash);
+  if (!valid) throw new Error('E-mail ou senha incorretos.');
+  if (needsRehash) {
+    user.password_hash = hashPassword(password);
+    saveFallbackData(data);
+  }
+  return toPublicUser(user);
+}
+
+// Login com Google: encontra a conta pelo googleId ou pelo e-mail (vinculando-a) ou cria uma nova.
+async function findOrCreateGoogleUser({ googleId, email, name }) {
+  const cleanName = String(name || email).trim().slice(0, 100);
+
+  if (isPostgres) {
+    let user = await User.findOne({ where: { googleId } });
+    if (!user) {
+      user = await User.findOne({ where: { username: email } });
+      if (user) {
+        user.googleId = googleId;
+        await user.save();
+      } else {
+        user = await User.create({ username: email, googleId, name: cleanName, passwordHash: null });
+      }
+    }
+    return toPublicUser(user.toJSON());
+  }
+
+  const data = getFallbackData();
+  let user = data.users.find(u => u.google_id === googleId) || data.users.find(u => u.username.toLowerCase() === email);
+  if (user) {
+    user.google_id = googleId;
+  } else {
+    user = {
+      id: nextFallbackId(data.users),
+      username: email,
+      password_hash: null,
+      google_id: googleId,
+      name: cleanName,
+      created_at: new Date().toISOString()
+    };
+    data.users.push(user);
+  }
+  saveFallbackData(data);
+  return toPublicUser(user);
 }
 
 async function getUserById(id) {
   const numId = parseInt(id, 10);
-  if (isPostgres && User) {
-    try {
-      const user = await User.findByPk(numId);
-      if (!user) return null;
-      const raw = user.toJSON();
-      return { id: raw.id, username: raw.username, name: raw.name, role: raw.role };
-    } catch (err) {
-      console.error('Erro ao buscar usuario por ID:', err.message);
-      return null;
-    }
+  if (!numId) return null;
+
+  if (isPostgres) {
+    const user = await User.findByPk(numId);
+    return user ? toPublicUser(user.toJSON()) : null;
   }
 
   const data = getFallbackData();
-  const user = (data.users || []).find(u => Number(u.id) === numId);
-  if (!user) return null;
-  return { id: user.id, username: user.username, name: user.name, role: user.role };
+  return toPublicUser(data.users.find(u => Number(u.id) === numId));
+}
+
+async function getUserByEmail(email) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+
+  if (isPostgres) {
+    const user = await User.findOne({ where: { username: cleanEmail } });
+    return user ? toPublicUser(user.toJSON()) : null;
+  }
+
+  const data = getFallbackData();
+  return toPublicUser(data.users.find(u => u.username.toLowerCase() === cleanEmail));
 }
 
 // Retorna mapa { [playerId]: rating } dos votos ja dados por um usuario especifico
@@ -670,160 +676,224 @@ async function getUserRatingsMap(userId) {
 // ==========================================
 // METODOS DE PELADAS (PELADAS / SESSOES)
 // ==========================================
-async function getPeladas() {
-  if (isPostgres && Pelada) {
-    try {
-      const peladas = await Pelada.findAll({
-        order: [['id', 'ASC']],
-        include: [{
-          model: Player,
-          as: 'players',
-          attributes: ['id']
-        }]
-      });
+function toPublicPelada(raw, playerCount) {
+  return {
+    id: Number(raw.id),
+    name: raw.name,
+    admin_name: raw.adminName || raw.admin_name || 'Administrador',
+    owner_id: raw.ownerId !== undefined ? raw.ownerId : (raw.owner_id || null),
+    player_count: playerCount || 0,
+    created_at: raw.createdAt || raw.created_at
+  };
+}
 
-      return peladas.map(p => {
-        const raw = p.toJSON();
-        return {
-          id: raw.id,
-          name: raw.name,
-          admin_name: raw.adminName || 'Administrador',
-          player_count: (raw.players || []).length,
-          created_at: raw.createdAt
-        };
-      });
-    } catch (err) {
-      console.error('Erro ao buscar peladas no Sequelize:', err.message);
-    }
+async function getPeladas() {
+  if (isPostgres) {
+    const peladas = await Pelada.findAll({
+      order: [['id', 'ASC']],
+      include: [{ model: Player, as: 'players', attributes: ['id'] }]
+    });
+    return peladas.map(p => {
+      const raw = p.toJSON();
+      return toPublicPelada(raw, (raw.players || []).length);
+    });
   }
 
-  // Fallback
   const data = getFallbackData();
-  const peladas = data.peladas || [];
-  const players = data.players || [];
-
-  return peladas.map(p => ({
-    id: p.id,
-    name: p.name,
-    admin_name: p.admin_name || 'Administrador',
-    player_count: players.filter(pl => Number(pl.pelada_id) === Number(p.id)).length,
-    created_at: p.created_at
-  }));
+  return data.peladas.map(p => toPublicPelada(p, data.players.filter(pl => Number(pl.pelada_id) === Number(p.id)).length));
 }
 
 async function getPeladaById(id) {
   const numId = parseInt(id, 10);
-  if (isPostgres && Pelada) {
-    try {
-      const pelada = await Pelada.findByPk(numId);
-      if (pelada) {
-        const raw = pelada.toJSON();
-        return {
-          id: raw.id,
-          name: raw.name,
-          admin_name: raw.adminName || 'Administrador',
-          created_at: raw.createdAt
-        };
-      }
-      return null;
-    } catch (err) {
-      console.error('Erro ao buscar pelada por ID no Sequelize:', err.message);
-    }
+  if (!numId) return null;
+
+  if (isPostgres) {
+    const pelada = await Pelada.findByPk(numId);
+    if (!pelada) return null;
+    const count = await Player.count({ where: { peladaId: numId } });
+    return toPublicPelada(pelada.toJSON(), count);
   }
 
   const data = getFallbackData();
-  return (data.peladas || []).find(p => Number(p.id) === numId) || null;
+  const pelada = data.peladas.find(p => Number(p.id) === numId);
+  if (!pelada) return null;
+  return toPublicPelada(pelada, data.players.filter(pl => Number(pl.pelada_id) === numId).length);
 }
 
-async function createPelada(name, adminName = 'Administrador') {
-  const cleanName = String(name || '').trim();
+async function createPelada(name, owner) {
+  const cleanName = String(name || '').trim().slice(0, 150);
   if (!cleanName) throw new Error('O nome da pelada e obrigatorio.');
+  const adminName = String(owner.name || owner.username).slice(0, 100);
 
-  if (isPostgres && Pelada) {
-    try {
-      const pelada = await Pelada.create({
-        name: cleanName,
-        adminName: String(adminName || 'Administrador').trim()
-      });
-      const raw = pelada.toJSON();
-      return {
-        id: raw.id,
-        name: raw.name,
-        admin_name: raw.adminName,
-        player_count: 0,
-        created_at: raw.createdAt
-      };
-    } catch (err) {
-      console.error('Erro ao criar pelada no Sequelize:', err.message);
-      throw err;
-    }
+  if (isPostgres) {
+    const pelada = await Pelada.create({ name: cleanName, adminName, ownerId: owner.id });
+    return toPublicPelada(pelada.toJSON(), 0);
   }
 
-  // Fallback
   const data = getFallbackData();
-  if (!data.peladas) data.peladas = [];
-  const nextId = data.peladas.length > 0 ? Math.max(...data.peladas.map(p => Number(p.id))) + 1 : 1;
   const newPelada = {
-    id: nextId,
+    id: nextFallbackId(data.peladas),
     name: cleanName,
-    admin_name: String(adminName || 'Administrador').trim(),
+    admin_name: adminName,
+    owner_id: owner.id,
     created_at: new Date().toISOString()
   };
   data.peladas.push(newPelada);
   saveFallbackData(data);
-  return { ...newPelada, player_count: 0 };
+  return toPublicPelada(newPelada, 0);
 }
 
-async function updatePelada(id, name, adminName) {
+async function updatePelada(id, name) {
   const numId = parseInt(id, 10);
-  const cleanName = String(name || '').trim();
+  const cleanName = String(name || '').trim().slice(0, 150);
   if (!cleanName) throw new Error('O nome da pelada nao pode ser vazio.');
 
-  if (isPostgres && Pelada) {
-    try {
-      const pelada = await Pelada.findByPk(numId);
-      if (!pelada) throw new Error('Pelada nao encontrada.');
-      pelada.name = cleanName;
-      if (adminName !== undefined) pelada.adminName = adminName;
-      await pelada.save();
-      return {
-        id: pelada.id,
-        name: pelada.name,
-        admin_name: pelada.adminName,
-        created_at: pelada.createdAt
-      };
-    } catch (err) {
-      console.error('Erro ao atualizar pelada no Sequelize:', err.message);
-      throw err;
-    }
+  if (isPostgres) {
+    const pelada = await Pelada.findByPk(numId);
+    if (!pelada) throw new Error('Pelada nao encontrada.');
+    pelada.name = cleanName;
+    await pelada.save();
+    return toPublicPelada(pelada.toJSON());
   }
 
-  // Fallback
   const data = getFallbackData();
-  const pelada = (data.peladas || []).find(p => Number(p.id) === numId);
+  const pelada = data.peladas.find(p => Number(p.id) === numId);
   if (!pelada) throw new Error('Pelada nao encontrada.');
   pelada.name = cleanName;
-  if (adminName !== undefined) pelada.admin_name = adminName;
   saveFallbackData(data);
-  return pelada;
+  return toPublicPelada(pelada);
 }
 
 async function deletePelada(id) {
   const numId = parseInt(id, 10);
-  if (isPostgres && Pelada) {
-    try {
-      await Pelada.destroy({ where: { id: numId } });
-      return { success: true };
-    } catch (err) {
-      console.error('Erro ao excluir pelada no Sequelize:', err.message);
-      throw err;
-    }
+
+  if (isPostgres) {
+    await Pelada.destroy({ where: { id: numId } });
+    return { success: true };
   }
 
-  // Fallback
   const data = getFallbackData();
-  data.peladas = (data.peladas || []).filter(p => Number(p.id) !== numId);
-  data.players = (data.players || []).filter(p => Number(p.pelada_id) !== numId);
+  const removedPlayerIds = new Set(data.players.filter(p => Number(p.pelada_id) === numId).map(p => Number(p.id)));
+  data.peladas = data.peladas.filter(p => Number(p.id) !== numId);
+  data.players = data.players.filter(p => Number(p.pelada_id) !== numId);
+  data.player_ratings = data.player_ratings.filter(r => !removedPlayerIds.has(Number(r.player_id)));
+  data.pelada_admins = data.pelada_admins.filter(a => Number(a.pelada_id) !== numId);
+  data.attendances = data.attendances.filter(a => Number(a.pelada_id) !== numId);
+  data.mvp_votes = data.mvp_votes.filter(v => Number(v.pelada_id) !== numId);
+  saveFallbackData(data);
+  return { success: true };
+}
+
+// ==========================================
+// PERMISSOES E ADMINISTRADORES DAS PELADAS
+// ==========================================
+
+// Retorna { exists, isOwner, isAdmin } do usuario em relacao a pelada.
+// isAdmin inclui o dono e os administradores adicionais.
+async function getPeladaRole(peladaId, userId) {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+  const result = { exists: false, isOwner: false, isAdmin: false };
+  if (!numPelada) return result;
+
+  if (isPostgres) {
+    const pelada = await Pelada.findByPk(numPelada, { attributes: ['id', 'ownerId'] });
+    if (!pelada) return result;
+    result.exists = true;
+    if (!numUser) return result;
+    result.isOwner = Number(pelada.ownerId) === numUser;
+    result.isAdmin = result.isOwner || Boolean(await PeladaAdmin.findOne({ where: { peladaId: numPelada, userId: numUser } }));
+    return result;
+  }
+
+  const data = getFallbackData();
+  const pelada = data.peladas.find(p => Number(p.id) === numPelada);
+  if (!pelada) return result;
+  result.exists = true;
+  if (!numUser) return result;
+  result.isOwner = Number(pelada.owner_id) === numUser;
+  result.isAdmin = result.isOwner || data.pelada_admins.some(a => Number(a.pelada_id) === numPelada && Number(a.user_id) === numUser);
+  return result;
+}
+
+// Ids das peladas em que o usuario e dono ou administrador
+async function getManagedPeladaIds(userId) {
+  const numUser = parseInt(userId, 10);
+  if (!numUser) return new Set();
+
+  if (isPostgres) {
+    const owned = await Pelada.findAll({ where: { ownerId: numUser }, attributes: ['id'] });
+    const admin = await PeladaAdmin.findAll({ where: { userId: numUser }, attributes: ['peladaId'] });
+    return new Set([...owned.map(p => Number(p.id)), ...admin.map(a => Number(a.peladaId))]);
+  }
+
+  const data = getFallbackData();
+  return new Set([
+    ...data.peladas.filter(p => Number(p.owner_id) === numUser).map(p => Number(p.id)),
+    ...data.pelada_admins.filter(a => Number(a.user_id) === numUser).map(a => Number(a.pelada_id))
+  ]);
+}
+
+async function getPeladaAdmins(peladaId) {
+  const numPelada = parseInt(peladaId, 10);
+
+  if (isPostgres) {
+    const pelada = await Pelada.findByPk(numPelada, { attributes: ['id', 'ownerId'] });
+    if (!pelada) throw new Error('Pelada nao encontrada.');
+    const owner = pelada.ownerId ? await getUserById(pelada.ownerId) : null;
+    const rows = await PeladaAdmin.findAll({
+      where: { peladaId: numPelada },
+      include: [{ model: User, as: 'user', attributes: ['id', 'username', 'name'] }],
+      order: [['createdAt', 'ASC']]
+    });
+    return {
+      owner,
+      admins: rows.filter(r => r.user).map(r => toPublicUser(r.user.toJSON()))
+    };
+  }
+
+  const data = getFallbackData();
+  const pelada = data.peladas.find(p => Number(p.id) === numPelada);
+  if (!pelada) throw new Error('Pelada nao encontrada.');
+  const findUser = (uid) => toPublicUser(data.users.find(u => Number(u.id) === Number(uid)));
+  return {
+    owner: pelada.owner_id ? findUser(pelada.owner_id) : null,
+    admins: data.pelada_admins
+      .filter(a => Number(a.pelada_id) === numPelada)
+      .map(a => findUser(a.user_id))
+      .filter(Boolean)
+  };
+}
+
+async function addPeladaAdmin(peladaId, userId) {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+
+  if (isPostgres) {
+    await PeladaAdmin.findOrCreate({ where: { peladaId: numPelada, userId: numUser } });
+    return { success: true };
+  }
+
+  const data = getFallbackData();
+  const exists = data.pelada_admins.some(a => Number(a.pelada_id) === numPelada && Number(a.user_id) === numUser);
+  if (!exists) {
+    data.pelada_admins.push({ id: nextFallbackId(data.pelada_admins), pelada_id: numPelada, user_id: numUser, created_at: new Date().toISOString() });
+    saveFallbackData(data);
+  }
+  return { success: true };
+}
+
+async function removePeladaAdmin(peladaId, userId) {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+
+  if (isPostgres) {
+    await PeladaAdmin.destroy({ where: { peladaId: numPelada, userId: numUser } });
+    return { success: true };
+  }
+
+  const data = getFallbackData();
+  data.pelada_admins = data.pelada_admins.filter(a => !(Number(a.pelada_id) === numPelada && Number(a.user_id) === numUser));
   saveFallbackData(data);
   return { success: true };
 }
@@ -835,7 +905,7 @@ async function saveMatch(matchData) {
   const { roomId, teamA, scoreA, teamB, scoreB, winner, durationSeconds, matchNumber, teamAPlayers, teamBPlayers, peladaId } = matchData;
   const teamAStr = Array.isArray(teamAPlayers) ? JSON.stringify(teamAPlayers) : (teamAPlayers || null);
   const teamBStr = Array.isArray(teamBPlayers) ? JSON.stringify(teamBPlayers) : (teamBPlayers || null);
-  const numPelada = peladaId ? parseInt(peladaId, 10) : 733849;
+  const numPelada = peladaId ? parseInt(peladaId, 10) : DEFAULT_PELADA_ID;
 
   if (isPostgres && Match) {
     try {
@@ -1026,47 +1096,75 @@ async function getPlayersWithRatings(peladaId = null) {
   }).sort((a, b) => (b.overall - a.overall) || a.name.localeCompare(b.name));
 }
 
-async function addPlayer(name, nickname = '', position = 'Geral', photoUrl = '', peladaId = null) {
-  const cleanName = String(name || '').trim();
-  const cleanNick = String(nickname || '').trim() || cleanName;
-  const cleanPos = String(position || 'Geral').trim();
-  let numPeladaId = peladaId ? parseInt(peladaId, 10) : null;
+const MAX_PHOTO_LENGTH = 2 * 1024 * 1024;
 
-  if (!cleanName) throw new Error('O nome do jogador e obrigatorio.');
+// Aceita apenas imagens embutidas (data:image/...) ou links http(s); qualquer outro valor vira vazio
+function sanitizePhotoUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (url.length > MAX_PHOTO_LENGTH) throw new Error('A foto e muito grande. Use uma imagem menor.');
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(url)) return url;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(url)) return url;
+  throw new Error('Formato de foto invalido. Envie uma imagem ou um link http(s).');
+}
 
-  if (isPostgres && Player) {
-    try {
-      if (!numPeladaId) {
-        const first = await Pelada.findOne({ order: [['id', 'ASC']] });
-        numPeladaId = first ? first.id : 1;
-      }
-      const p = await Player.create({
-        peladaId: numPeladaId,
-        name: cleanName,
-        nickname: cleanNick,
-        position: cleanPos,
-        photoUrl: photoUrl || null,
-        active: true
-      });
-      return { ...p.toJSON(), pelada_id: numPeladaId };
-    } catch (err) {
-      console.error('Erro ao adicionar jogador no Sequelize:', err.message);
-      throw err;
-    }
+function cleanPlayerFields(fields) {
+  const result = {};
+  if (fields.name !== undefined) {
+    result.name = String(fields.name).trim().slice(0, 100);
+    if (!result.name) throw new Error('O nome do jogador e obrigatorio.');
+  }
+  if (fields.nickname !== undefined) result.nickname = String(fields.nickname).trim().slice(0, 50);
+  if (fields.position !== undefined) result.position = String(fields.position).trim().slice(0, 50) || 'Geral';
+  const photo = fields.photoUrl !== undefined ? fields.photoUrl : fields.photo_url;
+  if (photo !== undefined) result.photoUrl = sanitizePhotoUrl(photo);
+  if (fields.active !== undefined) result.active = Boolean(fields.active);
+  return result;
+}
+
+async function getPlayerById(id) {
+  const numId = parseInt(id, 10);
+  if (!numId) return null;
+
+  if (isPostgres) {
+    const player = await Player.findByPk(numId);
+    if (!player) return null;
+    const raw = player.toJSON();
+    return { ...raw, pelada_id: raw.peladaId, photo_url: raw.photoUrl };
   }
 
-  // Fallback
   const data = getFallbackData();
-  if (!numPeladaId) {
-    numPeladaId = (data.peladas && data.peladas.length > 0) ? data.peladas[0].id : 1;
+  return data.players.find(p => Number(p.id) === numId) || null;
+}
+
+async function addPlayer(fields, peladaId) {
+  const numPeladaId = parseInt(peladaId, 10);
+  if (!numPeladaId) throw new Error('Informe a pelada do jogador.');
+  const clean = cleanPlayerFields({ name: '', ...fields });
+  const nickname = clean.nickname || clean.name;
+  const position = clean.position || 'Geral';
+
+  if (isPostgres) {
+    const p = await Player.create({
+      peladaId: numPeladaId,
+      name: clean.name,
+      nickname,
+      position,
+      photoUrl: clean.photoUrl || null,
+      active: true
+    });
+    const raw = p.toJSON();
+    return { ...raw, pelada_id: raw.peladaId, photo_url: raw.photoUrl };
   }
+
+  const data = getFallbackData();
   const newPlayer = {
-    id: Date.now(),
+    id: nextFallbackId(data.players),
     pelada_id: numPeladaId,
-    name: cleanName,
-    nickname: cleanNick,
-    position: cleanPos,
-    photo_url: photoUrl || '',
+    name: clean.name,
+    nickname,
+    position,
+    photo_url: clean.photoUrl || '',
     active: true,
     created_at: new Date().toISOString()
   };
@@ -1075,61 +1173,44 @@ async function addPlayer(name, nickname = '', position = 'Geral', photoUrl = '',
   return newPlayer;
 }
 
+// Atualiza dados cadastrais do jogador. A pelada do jogador nao pode ser trocada por aqui.
 async function updatePlayer(id, updates = {}) {
   const numId = parseInt(id, 10);
-  if (isPostgres && Player) {
-    try {
-      const player = await Player.findByPk(numId);
-      if (!player) throw new Error('Jogador nao encontrado.');
-      if (updates.name !== undefined) player.name = String(updates.name).trim();
-      if (updates.nickname !== undefined) player.nickname = String(updates.nickname).trim();
-      if (updates.position !== undefined) player.position = String(updates.position).trim();
-      if (updates.photoUrl !== undefined) player.photoUrl = updates.photoUrl;
-      if (updates.photo_url !== undefined) player.photoUrl = updates.photo_url;
-      if (updates.peladaId !== undefined) player.peladaId = parseInt(updates.peladaId, 10);
-      if (updates.pelada_id !== undefined) player.peladaId = parseInt(updates.pelada_id, 10);
-      if (updates.active !== undefined) player.active = Boolean(updates.active);
-      await player.save();
-      const raw = player.toJSON();
-      return { ...raw, photo_url: raw.photoUrl, pelada_id: raw.peladaId };
-    } catch (err) {
-      console.error('Erro ao atualizar jogador no Sequelize:', err.message);
-      throw err;
-    }
+  const clean = cleanPlayerFields(updates);
+
+  if (isPostgres) {
+    const player = await Player.findByPk(numId);
+    if (!player) throw new Error('Jogador nao encontrado.');
+    Object.entries(clean).forEach(([key, value]) => {
+      player[key] = key === 'photoUrl' ? (value || null) : value;
+    });
+    await player.save();
+    const raw = player.toJSON();
+    return { ...raw, photo_url: raw.photoUrl, pelada_id: raw.peladaId };
   }
 
-  // Fallback
   const data = getFallbackData();
-  const player = (data.players || []).find(p => Number(p.id) === numId);
+  const player = data.players.find(p => Number(p.id) === numId);
   if (!player) throw new Error('Jogador nao encontrado.');
-  if (updates.name !== undefined) player.name = String(updates.name).trim();
-  if (updates.nickname !== undefined) player.nickname = String(updates.nickname).trim();
-  if (updates.position !== undefined) player.position = String(updates.position).trim();
-  if (updates.photoUrl !== undefined) player.photo_url = updates.photoUrl;
-  if (updates.photo_url !== undefined) player.photo_url = updates.photo_url;
-  if (updates.peladaId !== undefined) player.pelada_id = parseInt(updates.peladaId, 10);
-  if (updates.pelada_id !== undefined) player.pelada_id = parseInt(updates.pelada_id, 10);
-  if (updates.active !== undefined) player.active = Boolean(updates.active);
+  Object.entries(clean).forEach(([key, value]) => {
+    if (key === 'photoUrl') player.photo_url = value;
+    else player[key] = value;
+  });
   saveFallbackData(data);
   return player;
 }
 
 async function deletePlayer(id) {
   const numId = parseInt(id, 10);
-  if (isPostgres && Player) {
-    try {
-      await Player.destroy({ where: { id: numId } });
-      return { success: true };
-    } catch (err) {
-      console.error('Erro ao excluir jogador no Sequelize:', err.message);
-      throw err;
-    }
+
+  if (isPostgres) {
+    await Player.destroy({ where: { id: numId } });
+    return { success: true };
   }
 
-  // Fallback
   const data = getFallbackData();
-  data.players = (data.players || []).filter(p => p.id !== numId);
-  data.player_ratings = (data.player_ratings || []).filter(r => r.player_id !== numId);
+  data.players = data.players.filter(p => Number(p.id) !== numId);
+  data.player_ratings = data.player_ratings.filter(r => Number(r.player_id) !== numId);
   saveFallbackData(data);
   return { success: true };
 }
@@ -1220,141 +1301,100 @@ async function addPlayerRating(playerId, voterName, attack, defense, setPass, mo
   return newRating;
 }
 
-async function getPlayerRatings(playerId) {
-  const pId = parseInt(playerId, 10);
-  if (isPostgres && PlayerRating) {
-    try {
-      const ratings = await PlayerRating.findAll({
-        where: { playerId: pId },
-        order: [['created_at', 'DESC']]
-      });
-      return ratings.map(r => r.toJSON());
-    } catch (err) {
-      console.error('Erro ao buscar avaliacoes no Sequelize:', err.message);
-    }
-  }
-  const data = getFallbackData();
-  return (data.player_ratings || []).filter(r => r.player_id === pId).reverse();
-}
-
-// ==========================================
-// SALVAR SESSOES DE PELADA
-// ==========================================
-async function savePeladaSession(title, format, teams, bench = [], peladaId = null) {
-  const numPeladaId = peladaId ? parseInt(peladaId, 10) : null;
-  if (isPostgres && PeladaSession) {
-    try {
-      const session = await PeladaSession.create({
-        peladaId: numPeladaId,
-        title: title || 'Pelada do Dia',
-        format: format || '6x6',
-        teams: teams,
-        bench: bench
-      });
-      return session.toJSON();
-    } catch (err) {
-      console.error('Erro ao salvar sessao de pelada no Sequelize:', err.message);
-    }
-  }
-
-  const data = getFallbackData();
-  const session = {
-    id: Date.now(),
-    pelada_id: numPeladaId,
-    title: title || 'Pelada do Dia',
-    format: format || '6x6',
-    teams,
-    bench,
-    created_at: new Date().toISOString()
-  };
-  if (!data.pelada_sessions) data.pelada_sessions = [];
-  data.pelada_sessions.unshift(session);
-  saveFallbackData(data);
-  return session;
-}
-
-
 // ==========================================
 // FUNCAO 1: LISTA DE PRESENCA & CHECK-IN
 // ==========================================
-async function getAttendance(peladaId = 733849, date = null) {
-  const numPelada = parseInt(peladaId, 10) || 733849;
-  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
-
-  if (isPostgres && Attendance) {
-    try {
-      const records = await Attendance.findAll({
-        where: { peladaId: numPelada, date: targetDate },
-        order: [['createdAt', 'ASC']]
-      });
-      return records.map(r => r.toJSON());
-    } catch (err) {
-      console.error('Erro ao buscar lista de presenca no Sequelize:', err.message);
-    }
-  }
-
-  const data = getFallbackData();
-  data.attendances = data.attendances || [];
-  return data.attendances.filter(a => Number(a.pelada_id) === numPelada && a.date === targetDate);
+function normalizeDate(date) {
+  const str = date ? String(date).slice(0, 10) : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(str) ? str : new Date().toISOString().slice(0, 10);
 }
 
-async function toggleAttendance(peladaId = 733849, date = null, userId = null, playerName = '', playerId = null, maxSpots = 12) {
-  const numPelada = parseInt(peladaId, 10) || 733849;
-  const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const cleanName = String(playerName || '').trim();
-  const numUserId = userId ? parseInt(userId, 10) : null;
-  const numPlayerId = playerId ? parseInt(playerId, 10) : null;
+// Formato unico (camelCase) para registros de presenca vindos do Postgres ou do fallback
+function toPublicAttendance(a) {
+  return {
+    id: Number(a.id),
+    peladaId: Number(a.peladaId !== undefined ? a.peladaId : a.pelada_id),
+    date: a.date,
+    userId: a.userId !== undefined ? a.userId : (a.user_id || null),
+    playerId: a.playerId !== undefined ? a.playerId : (a.player_id || null),
+    playerName: a.playerName || a.player_name,
+    status: a.status || 'confirmed',
+    createdAt: a.createdAt || a.created_at
+  };
+}
 
-  if (isPostgres && Attendance) {
-    try {
-      // Se usuario logado, verifica se ja confirmou hoje
-      let existing = null;
-      if (numUserId) {
-        existing = await Attendance.findOne({
-          where: { peladaId: numPelada, date: targetDate, userId: numUserId }
-        });
-      } else if (cleanName) {
-        existing = await Attendance.findOne({
-          where: { peladaId: numPelada, date: targetDate, playerName: cleanName }
-        });
-      }
+async function getAttendance(peladaId, date = null) {
+  const numPelada = parseInt(peladaId, 10) || DEFAULT_PELADA_ID;
+  const targetDate = normalizeDate(date);
 
-      if (existing) {
-        // Se ja existe, remove a presenca (toggle cancelar)
-        await existing.destroy();
-        return { action: 'removed', date: targetDate };
-      }
-
-      // Conta confirmados atuais para decidir se vai para fila de espera
-      const confirmedCount = await Attendance.count({
-        where: { peladaId: numPelada, date: targetDate, status: 'confirmed' }
-      });
-      const status = confirmedCount >= maxSpots ? 'waitlist' : 'confirmed';
-
-      const record = await Attendance.create({
-        peladaId: numPelada,
-        date: targetDate,
-        userId: numUserId,
-        playerId: numPlayerId,
-        playerName: cleanName || 'Atleta',
-        status: status
-      });
-
-      return { action: 'added', attendance: record.toJSON() };
-    } catch (err) {
-      console.error('Erro ao alternar presenca no Sequelize:', err.message);
-      throw err;
-    }
+  if (isPostgres) {
+    const records = await Attendance.findAll({
+      where: { peladaId: numPelada, date: targetDate },
+      order: [['createdAt', 'ASC']]
+    });
+    return records.map(r => toPublicAttendance(r.toJSON()));
   }
 
-  // Fallback
   const data = getFallbackData();
-  data.attendances = data.attendances || [];
-  const idx = data.attendances.findIndex(a => 
-    Number(a.pelada_id) === numPelada && 
-    a.date === targetDate && 
-    ((numUserId && Number(a.user_id) === numUserId) || (cleanName && a.player_name.toLowerCase() === cleanName.toLowerCase()))
-  );
+  return data.attendances
+    .filter(a => Number(a.pelada_id) === numPelada && a.date === targetDate)
+    .map(toPublicAttendance);
+}
+
+async function getAttendanceById(attendanceId) {
+  const numId = parseInt(attendanceId, 10);
+  if (!numId) return null;
+
+  if (isPostgres) {
+    const record = await Attendance.findByPk(numId);
+    return record ? toPublicAttendance(record.toJSON()) : null;
+  }
+
+  const data = getFallbackData();
+  const record = data.attendances.find(a => Number(a.id) === numId);
+  return record ? toPublicAttendance(record) : null;
+}
+
+// Marca/desmarca presenca. Usuario logado e identificado pelo userId; jogador adicionado
+// por um admin e identificado pelo playerId (ou pelo nome, se nao houver cadastro).
+async function toggleAttendance(peladaId, date, userId, playerName, playerId, maxSpots = 12) {
+  const numPelada = parseInt(peladaId, 10) || DEFAULT_PELADA_ID;
+  const targetDate = normalizeDate(date);
+  const cleanName = String(playerName || '').trim().slice(0, 100);
+  const numUserId = userId ? parseInt(userId, 10) : null;
+  const numPlayerId = playerId ? parseInt(playerId, 10) : null;
+  const spots = Math.max(1, Math.min(100, parseInt(maxSpots, 10) || 12));
+
+  if (isPostgres) {
+    const base = { peladaId: numPelada, date: targetDate };
+    let existing = null;
+    if (numUserId) existing = await Attendance.findOne({ where: { ...base, userId: numUserId } });
+    else if (numPlayerId) existing = await Attendance.findOne({ where: { ...base, playerId: numPlayerId } });
+    else if (cleanName) existing = await Attendance.findOne({ where: { ...base, playerName: cleanName } });
+
+    if (existing) {
+      await existing.destroy();
+      return { action: 'removed', date: targetDate };
+    }
+
+    const confirmedCount = await Attendance.count({ where: { ...base, status: 'confirmed' } });
+    const record = await Attendance.create({
+      ...base,
+      userId: numUserId,
+      playerId: numPlayerId,
+      playerName: cleanName || 'Atleta',
+      status: confirmedCount >= spots ? 'waitlist' : 'confirmed'
+    });
+    return { action: 'added', attendance: toPublicAttendance(record.toJSON()) };
+  }
+
+  const data = getFallbackData();
+  const sameDay = (a) => Number(a.pelada_id) === numPelada && a.date === targetDate;
+  const idx = data.attendances.findIndex(a => sameDay(a) && (
+    (numUserId && Number(a.user_id) === numUserId) ||
+    (!numUserId && numPlayerId && Number(a.player_id) === numPlayerId) ||
+    (!numUserId && !numPlayerId && cleanName && String(a.player_name).toLowerCase() === cleanName.toLowerCase())
+  ));
 
   if (idx !== -1) {
     data.attendances.splice(idx, 1);
@@ -1362,37 +1402,31 @@ async function toggleAttendance(peladaId = 733849, date = null, userId = null, p
     return { action: 'removed', date: targetDate };
   }
 
-  const confirmedCount = data.attendances.filter(a => Number(a.pelada_id) === numPelada && a.date === targetDate && a.status === 'confirmed').length;
-  const status = confirmedCount >= maxSpots ? 'waitlist' : 'confirmed';
-
+  const confirmedCount = data.attendances.filter(a => sameDay(a) && a.status === 'confirmed').length;
   const newAtt = {
-    id: Date.now(),
+    id: nextFallbackId(data.attendances),
     pelada_id: numPelada,
     date: targetDate,
     user_id: numUserId,
     player_id: numPlayerId,
     player_name: cleanName || 'Atleta',
-    status,
+    status: confirmedCount >= spots ? 'waitlist' : 'confirmed',
     created_at: new Date().toISOString()
   };
   data.attendances.push(newAtt);
   saveFallbackData(data);
-  return { action: 'added', attendance: newAtt };
+  return { action: 'added', attendance: toPublicAttendance(newAtt) };
 }
 
 async function removeAttendance(attendanceId) {
   const numId = parseInt(attendanceId, 10);
-  if (isPostgres && Attendance) {
-    try {
-      await Attendance.destroy({ where: { id: numId } });
-      return { success: true };
-    } catch (err) {
-      console.error('Erro ao remover presenca no Sequelize:', err.message);
-    }
+
+  if (isPostgres) {
+    await Attendance.destroy({ where: { id: numId } });
+    return { success: true };
   }
 
   const data = getFallbackData();
-  data.attendances = data.attendances || [];
   data.attendances = data.attendances.filter(a => Number(a.id) !== numId);
   saveFallbackData(data);
   return { success: true };
@@ -1401,8 +1435,8 @@ async function removeAttendance(attendanceId) {
 // ==========================================
 // FUNCAO 3: ESTATISTICAS & RANKING DE VITORIAS
 // ==========================================
-async function getPlayerStats(peladaId = 733849) {
-  const numPelada = parseInt(peladaId, 10) || 733849;
+async function getPlayerStats(peladaId) {
+  const numPelada = parseInt(peladaId, 10) || DEFAULT_PELADA_ID;
   const players = await getPlayersWithRatings(numPelada);
   let matches = [];
 
@@ -1503,8 +1537,8 @@ async function getPlayerStats(peladaId = 733849) {
 // ==========================================
 // FUNCAO 5: VOTACAO DE CRAQUES DA RODADA (MVP)
 // ==========================================
-async function getMvpVotes(peladaId = 733849, date = null, userId = null) {
-  const numPelada = parseInt(peladaId, 10) || 733849;
+async function getMvpVotes(peladaId, date = null, userId = null) {
+  const numPelada = parseInt(peladaId, 10) || DEFAULT_PELADA_ID;
   const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
   const numUserId = userId ? parseInt(userId, 10) : null;
 
@@ -1524,8 +1558,14 @@ async function getMvpVotes(peladaId = 733849, date = null, userId = null) {
     allVotes = data.mvp_votes.filter(v => Number(v.pelada_id) === numPelada && v.date === targetDate);
   }
 
-  // Identifica voto do usuário requisitante
-  const myVote = numUserId ? allVotes.find(v => Number(v.userId || v.user_id) === numUserId) : null;
+  // Identifica voto do usuário requisitante (mesmo formato camelCase para Postgres e fallback)
+  const myRaw = numUserId ? allVotes.find(v => Number(v.userId || v.user_id) === numUserId) : null;
+  const myVote = myRaw ? {
+    mvpPlayerId: myRaw.mvpPlayerId || myRaw.mvp_player_id || null,
+    defensePlayerId: myRaw.defensePlayerId || myRaw.defense_player_id || null,
+    passPlayerId: myRaw.passPlayerId || myRaw.pass_player_id || null,
+    funnyPlayerId: myRaw.funnyPlayerId || myRaw.funny_player_id || null
+  } : null;
 
   // Contabiliza votos para cada categoria
   const counts = {
@@ -1573,8 +1613,8 @@ async function getMvpVotes(peladaId = 733849, date = null, userId = null) {
   };
 }
 
-async function saveMvpVote(peladaId = 733849, date = null, userId, voterName, votes) {
-  const numPelada = parseInt(peladaId, 10) || 733849;
+async function saveMvpVote(peladaId, date, userId, voterName, votes) {
+  const numPelada = parseInt(peladaId, 10) || DEFAULT_PELADA_ID;
   const targetDate = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
   const numUserId = parseInt(userId, 10);
   const cleanVoter = String(voterName || 'Atleta').trim();
@@ -1645,7 +1685,15 @@ async function saveMvpVote(peladaId = 733849, date = null, userId, voterName, vo
 }
 
 
-function getDbStatus() {
+// Resumo publico do banco; os detalhes de conexao so sao incluidos para super administradores.
+function getDbStatus(detailed = false) {
+  const summary = {
+    isPostgres,
+    databaseEngine: isPostgres ? 'PostgreSQL' : 'JSON Fallback Local (NÃO PERSISTE APÓS REDEPLOY)',
+    connectionStatus: isPostgres ? 'Conectado e gravando no PostgreSQL' : 'PostgreSQL indisponivel; usando fallback JSON local'
+  };
+  if (!detailed) return summary;
+
   const detectedUrl = getDatabaseUrl();
   let masked = null;
   if (detectedUrl) {
@@ -1657,58 +1705,51 @@ function getDbStatus() {
     }
   }
 
-  let foundKey = null;
-  for (const [key, val] of Object.entries(process.env)) {
-    if (val === detectedUrl) {
-      foundKey = key;
-      break;
-    }
-  }
-
-  const relatedEnvKeys = Object.keys(process.env).filter(k => 
-    /postgres|database|db_|pg/i.test(k)
-  );
+  const foundKey = Object.keys(process.env).find(key => process.env[key] === detectedUrl) || null;
 
   return {
-    isPostgres,
-    databaseEngine: isPostgres ? 'PostgreSQL' : 'JSON Fallback Local (NÃO PERSISTE APÓS REDEPLOY)',
-    connectionStatus: isPostgres ? 'Conectado e gravando no PostgreSQL' : (detectedUrl ? 'URL encontrada mas falhou ao autenticar' : 'Nenhuma variável de PostgreSQL vinculada ao serviço da aplicação web'),
+    ...summary,
     detectedEnvVar: masked,
     envVarKey: foundKey || (process.env.PGHOST ? 'PGHOST' : 'NENHUMA_VARIAVEL_ENCONTRADA'),
-    relatedEnvKeysInService: relatedEnvKeys,
+    relatedEnvKeysInService: Object.keys(process.env).filter(k => /postgres|database|db_|pg/i.test(k)),
     dbConnectionError: dbConnectionError || null,
-    instruction: isPostgres 
-      ? 'O banco PostgreSQL está conectado e os dados são permanentes!' 
+    instruction: isPostgres
+      ? 'O banco PostgreSQL está conectado e os dados são permanentes!'
       : 'No Railway, clique no card do serviço web "placarchampions" -> aba "Variables" -> adicione a variável DATABASE_URL com o valor ${{Postgres.DATABASE_URL}}'
   };
 }
 
 module.exports = {
-  sequelize,
+  DEFAULT_PELADA_ID,
   getDbStatus,
-  models: { Match, User, Pelada, Player, PlayerRating, PeladaSession },
-  isPostgres: () => isPostgres,
   initDb,
+  getAuthSecret,
   createUser,
   authenticateUser,
+  findOrCreateGoogleUser,
   getUserById,
+  getUserByEmail,
   getUserRatingsMap,
   getPeladas,
   getPeladaById,
   createPelada,
   updatePelada,
   deletePelada,
+  getPeladaRole,
+  getManagedPeladaIds,
+  getPeladaAdmins,
+  addPeladaAdmin,
+  removePeladaAdmin,
   saveMatch,
   getMatches,
   getPlayersWithRatings,
+  getPlayerById,
   addPlayer,
   updatePlayer,
   deletePlayer,
   addPlayerRating,
-  getPlayerRatings,
-  savePeladaSession,
-  calculateOverall,
   getAttendance,
+  getAttendanceById,
   toggleAttendance,
   removeAttendance,
   getPlayerStats,

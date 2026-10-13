@@ -68,3 +68,26 @@ Aplicação web moderna, ultrarrápida e em tempo real para controle de placar d
 
 - **Repositório GitHub:** [https://github.com/luiz314/placar_champions](https://github.com/luiz314/placar_champions)
 - Conecte o repositório no [railway.app](https://railway.app/) para deploy automático em nuvem.
+
+### Variáveis de ambiente
+
+| Variável | Obrigatória | Para que serve |
+|---|---|---|
+| `DATABASE_URL` | Sim (produção) | Conexão com o PostgreSQL. Sem ela, os dados ficam em `data/db_fallback.json` (somente para desenvolvimento). |
+| `GOOGLE_CLIENT_ID` | Não | Ativa o botão "Entrar com Google". Sem ela, o botão não aparece. |
+| `SUPER_ADMIN_EMAILS` | Não | E-mails (separados por vírgula) com acesso de administrador a todas as peladas. Padrão: `luix314@gmail.com`. |
+| `AUTH_SECRET` | Não | Segredo que assina as sessões de login. Se ausente, um segredo aleatório é gerado e guardado no banco. |
+
+#### Configurar o login com Google
+
+1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), crie uma credencial **ID do cliente OAuth** do tipo **Aplicativo da Web**.
+2. Em **Origens JavaScript autorizadas**, adicione o domínio do Railway (ex: `https://seu-app.up.railway.app`) e `http://localhost:3000` para testes locais. Não é preciso URI de redirecionamento.
+3. Copie o **ID do cliente** e cadastre-o no Railway como `GOOGLE_CLIENT_ID`.
+
+### Permissões
+
+- **Visitante**: apenas assiste/controla o placar ao vivo.
+- **Usuário logado**: avalia jogadores, vota no MVP, confirma presença e pode criar peladas.
+- **Criador da pelada**: administra a pelada e pode dar acesso de administrador a outras contas (botão **👥 Admins**).
+- **Administrador da pelada**: cadastra, edita e exclui jogadores, renomeia a pelada e gerencia a lista de presença.
+- **Super admin** (`SUPER_ADMIN_EMAILS`): administra todas as peladas.
