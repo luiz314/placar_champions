@@ -1879,29 +1879,47 @@
   </div>
 
 
-  <!-- MODAL DE ADMINISTRADORES DA PELADA -->
+  <!-- MODAL DE ADMINISTRADORES E MEMBROS DA PELADA -->
   <div class="modal-overlay" id="modalPeladaAdmins">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 600px;">
       <h3 class="modal-title">
-        <span>👥</span> Administradores da Pelada
+        <span>👥</span> Membros, Convites & Permissões
       </h3>
       <p style="margin: 0 0 14px 0; color: #94a3b8; font-size: 0.85rem;">
-        Administradores podem cadastrar, editar e excluir jogadores, renomear a pelada e gerenciar a lista de presença de
-        <strong id="adminsModalPeladaName" style="color: #ffffff;"></strong>.
+        Gerencie quem tem acesso a <strong id="adminsModalPeladaName" style="color: #ffffff;"></strong> e defina os papéis de quem pode votar ou apenas assistir.
       </p>
 
-      <div id="adminsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+      <!-- CARD DO CÓDIGO E LINK DE CONVITE -->
+      <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 14px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Código de Convite da Sala:</div>
+          <strong id="displayPeladaInviteCode" style="font-size: 1.15rem; color: #00f2fe; letter-spacing: 1px;">-</strong>
+        </div>
+        <button type="button" class="btn-pelada" id="btnCopyInviteLink" style="font-size: 0.8rem; padding: 6px 14px; background: rgba(0, 242, 254, 0.15); border-color: rgba(0, 242, 254, 0.4); color: #00f2fe; font-weight: 700;">
+          📋 Copiar Link de Convite
+        </button>
+      </div>
+
+      <!-- LISTA DE MEMBROS E PAPÉIS -->
+      <div style="font-size: 0.8rem; color: #cbd5e1; font-weight: 700; margin-bottom: 8px;">Pessoas com Acesso à Sala:</div>
+      <div id="adminsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 280px; overflow-y: auto;">
         <div style="color: #94a3b8; font-size: 0.85rem;">Carregando...</div>
       </div>
 
+      <!-- FORMULÁRIO DE ADICIONAR / CONVIDAR MEMBRO -->
       <form id="formAddPeladaAdmin" hidden>
         <div class="form-group">
-          <label for="inputNewAdminEmail">Dar acesso de administrador (e-mail da conta):</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="email" id="inputNewAdminEmail" class="form-input" placeholder="pessoa@email.com" required style="flex: 1;">
-            <button type="submit" class="btn-pelada btn-pelada-primary" id="btnAddPeladaAdmin">Adicionar</button>
+          <label for="inputNewAdminEmail">Convidar por E-mail:</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="email" id="inputNewAdminEmail" class="form-input" placeholder="pessoa@email.com" required style="flex: 2; min-width: 180px;">
+            <select id="selectNewMemberRole" class="form-input" style="flex: 1; min-width: 140px; font-weight: 600;">
+              <option value="votante" selected>🏐 Votante</option>
+              <option value="espectador">👁️ Espectador</option>
+              <option value="admin">⭐ Administrador</option>
+            </select>
+            <button type="submit" class="btn-pelada btn-pelada-primary" id="btnAddPeladaAdmin" style="white-space: nowrap;">Adicionar</button>
           </div>
-          <small style="color: #64748b; font-size: 0.75rem;">A pessoa precisa já ter uma conta no Placar Champions.</small>
+          <small style="color: #64748b; font-size: 0.75rem;">A pessoa precisa já ter uma conta cadastrada no Placar Champions.</small>
         </div>
       </form>
 

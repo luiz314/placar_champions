@@ -1018,6 +1018,19 @@
         </div>
       </div>
 
+      <!-- ENTRAR COM CÓDIGO DE CONVITE -->
+      <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+        <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <span>🎟️</span> Entrar em Sala por Convite:
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="inputJoinSessionCode" class="form-input" placeholder="Código de convite (ex: V-733849...)" style="flex: 1; text-transform: uppercase;">
+          <button type="button" class="btn-card-action btn-gold" id="btnJoinSessionByCode" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem; white-space: nowrap;">
+            Entrar
+          </button>
+        </div>
+      </div>
+
       <!-- FORMULÁRIO DE CRIAR NOVA SESSÃO -->
       <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
         <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -1221,7 +1234,67 @@
         if (Auth.isSuperAdmin(user)) roleLabel = '👑 SUPER ADMIN';
         else if (canManageActive) roleLabel = '⭐ ADMIN DESTA PELADA';
 
-        // Bloco principal na primeira dobra: Sessão Atual com opção de Escolher ou Criar Nova
+        // Caso 1: Usuário novo que ainda não possui salas nem foi convidado
+        if (userPeladas.length === 0) {
+          accessPortalContent.innerHTML = `
+            <div class="logged-session-card">
+              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px; width: 100%;">
+                <div class="user-pill" style="margin: 0;">
+                  <div class="user-avatar-tag">${escapeHtml(initial)}</div>
+                  <div class="user-info-text">
+                    <span class="user-name-display">${escapeHtml(Auth.displayName(user))}</span>
+                    <span class="user-role-badge">${roleLabel}</span>
+                  </div>
+                </div>
+                <button type="button" class="btn-portal-logout" id="btnLogoutSessionCard" title="Sair da conta">Sair</button>
+              </div>
+
+              <div style="background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 16px; padding: 22px 18px; margin: 8px 0; text-align: center;">
+                <div style="font-size: 2.4rem; margin-bottom: 8px;">🏐</div>
+                <h3 style="margin: 0 0 6px 0; font-size: 1.25rem; color: #fbbf24; font-weight: 800;">Nenhuma Sala Disponível</h3>
+                <p style="margin: 0 0 16px 0; font-size: 0.88rem; color: #94a3b8; line-height: 1.45; max-width: 440px; margin-left: auto; margin-right: auto;">
+                  As salas só aparecem para novos usuários após <strong>convite de um administrador</strong>. Se você recebeu um código de convite, insira abaixo para acessar sua pelada:
+                </p>
+
+                <div style="display: flex; gap: 8px; max-width: 380px; margin: 0 auto 14px auto;">
+                  <input type="text" id="inputWelcomeJoinCode" class="form-input" placeholder="Código do convite (ex: V-733849...)" style="text-transform: uppercase; font-weight: 700; text-align: center; flex: 1;">
+                  <button type="button" class="btn-card-action btn-gold" id="btnWelcomeJoinCode" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem; white-space: nowrap;">
+                    Entrar na Sala
+                  </button>
+                </div>
+
+                <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; margin-top: 14px;">
+                  <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px;">Ou você pode criar sua própria pelada e convidar outros jogadores:</div>
+                  <button type="button" class="btn-compact" id="btnWelcomeCreateSession" style="background: rgba(0, 242, 254, 0.15); border-color: rgba(0, 242, 254, 0.4); color: #38bdf8; font-weight: 700;">
+                    <span>➕</span> Criar Minha Própria Pelada
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+
+          const inputWelcome = document.getElementById('inputWelcomeJoinCode');
+          const btnWelcomeJoin = document.getElementById('btnWelcomeJoinCode');
+          if (btnWelcomeJoin && inputWelcome) {
+            btnWelcomeJoin.addEventListener('click', () => handleJoinPelada(inputWelcome.value));
+            inputWelcome.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') handleJoinPelada(inputWelcome.value);
+            });
+          }
+
+          const btnWelcomeCreate = document.getElementById('btnWelcomeCreateSession');
+          if (btnWelcomeCreate) {
+            btnWelcomeCreate.addEventListener('click', () => {
+              openSessionModal();
+              setTimeout(() => {
+                if (inputNewSessionName) inputNewSessionName.focus();
+              }, 200);
+            });
+          }
+          return;
+        }
+
+        // Caso 2: Usuário já possui ou foi convidado para uma ou mais salas
         accessPortalContent.innerHTML = `
           <div class="logged-session-card">
             <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px; width: 100%;">
@@ -1721,6 +1794,48 @@
         }
       });
 
+      // Entrar em pelada usando código de convite
+      async function handleJoinPelada(code) {
+        const cleanCode = String(code || '').trim();
+        if (!cleanCode) {
+          alert('Por favor, digite o código de convite da pelada.');
+          return;
+        }
+        if (!Auth.getUser()) {
+          requireLoginAlert('🔒 Faça login primeiro para entrar na sala por convite.');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/peladas/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inviteCode: cleanCode })
+          });
+          const data = await res.json();
+          if (data.success && data.pelada) {
+            currentRoom = String(data.pelada.id);
+            currentPeladaName = data.pelada.name;
+            closeSessionModal();
+            await renderPortalUI();
+            alert(`🎉 Convite aceito! Você agora é membro da sala "${data.pelada.name}" (#${data.pelada.id}).`);
+          } else {
+            alert(data.error || 'Código de convite não encontrado ou inválido.');
+          }
+        } catch(err) {
+          alert('Erro de conexão ao validar código de convite.');
+        }
+      }
+
+      const inputJoinSessionCode = document.getElementById('inputJoinSessionCode');
+      const btnJoinSessionByCode = document.getElementById('btnJoinSessionByCode');
+      if (btnJoinSessionByCode && inputJoinSessionCode) {
+        btnJoinSessionByCode.addEventListener('click', () => handleJoinPelada(inputJoinSessionCode.value));
+        inputJoinSessionCode.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') handleJoinPelada(inputJoinSessionCode.value);
+        });
+      }
+
       // Logout (um único handler para o botão "Sair" renderizado dinamicamente)
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#btnLogoutSessionCard')) return;
@@ -1737,7 +1852,13 @@
 
       // Inicializa (confirma a sessão salva com o servidor antes de desenhar a tela)
       Auth.refreshUser().finally(() => {
-        renderPortalUI().then(() => {
+        renderPortalUI().then(async () => {
+          // Processa convite por URL caso o usuário tenha acessado com ?convite=... ou ?sala=...
+          const inviteUrlCode = urlParams.get('convite') || urlParams.get('invite') || urlParams.get('codigo');
+          if (inviteUrlCode && Auth.getUser()) {
+            await handleJoinPelada(inviteUrlCode);
+          }
+
           // Se foi redirecionado com authRequired, exibe alerta explicativo
           if (urlParams.get('authRequired') && !Auth.getUser()) {
             requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');

@@ -438,18 +438,32 @@
         </div>
         </div>
 
-        <!-- AVALIADOR AUTENTICADO -->
+        <!-- AVALIADOR AUTENTICADO E ROLE -->
         <div class="field-group" id="voterAuthInfoGroup">
           <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div id="voterAvatarPill" style="width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">U</div>
+              <div id="voterAvatarPill" style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">U</div>
               <div>
-                <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Avaliador Autenticado:</div>
-                <strong id="voterAuthName" style="color: #ffffff; font-size: 0.95rem;">Carregando...</strong>
+                <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Sua Cédula de Votação:</div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <strong id="voterAuthName" style="color: #ffffff; font-size: 0.95rem;">Carregando...</strong>
+                  <span id="voterRoleBadge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 800; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Carregando papel...</span>
+                </div>
               </div>
             </div>
             <a href="/login" style="font-size: 0.78rem; color: #38bdf8; text-decoration: none; font-weight: 600; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;">Trocar Conta</a>
           </div>
+        </div>
+
+        <!-- AVISO DE ESPECTADOR (BLOQUEADO PARA VOTAR) -->
+        <div id="spectatorWarningBanner" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; color: #fca5a5; font-size: 0.85rem; line-height: 1.45;">
+          ⚠️ <strong>Modo Apenas Leitura (Espectador):</strong><br>
+          Você está cadastrado como espectador nesta sala e não possui permissão para emitir votos. Para liberar sua cédula de votação, solicite a role de <strong>Votante</strong> ao administrador da pelada.
+        </div>
+
+        <!-- STATUS DE VOTO PESSOAL -->
+        <div id="personalVoteStatusText" style="display: none; font-size: 0.8rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 6px 12px; margin-bottom: 14px;">
+          ✓ Você já avaliou este atleta anteriormente. Altere as estrelas abaixo para atualizar seu voto.
         </div>
 
         <!-- OS 4 ATRIBUTOS EXIGIDOS: ATAQUE, DEFESA, PASSE, MOVIMENTAÇÃO -->

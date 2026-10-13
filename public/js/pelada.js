@@ -1482,60 +1482,136 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // ADMINISTRADORES DA PELADA (criador concede acesso a outros usuários)
   // ==========================================
+  // ==========================================
+  // ADMINISTRADORES E MEMBROS DA PELADA (Convites & Permissões de Voto)
+  // ==========================================
   const modalPeladaAdmins = document.getElementById('modalPeladaAdmins');
   const adminsModalPeladaName = document.getElementById('adminsModalPeladaName');
   const adminsList = document.getElementById('adminsList');
   const formAddPeladaAdmin = document.getElementById('formAddPeladaAdmin');
   const inputNewAdminEmail = document.getElementById('inputNewAdminEmail');
+  const selectNewMemberRole = document.getElementById('selectNewMemberRole');
   const btnAddPeladaAdmin = document.getElementById('btnAddPeladaAdmin');
   const btnClosePeladaAdmins = document.getElementById('btnClosePeladaAdmins');
   const btnQuickAdmins = document.getElementById('btnQuickAdmins');
+  const displayPeladaInviteCode = document.getElementById('displayPeladaInviteCode');
+  const btnCopyInviteLink = document.getElementById('btnCopyInviteLink');
   let adminsModalPeladaId = null;
 
-  function adminRowHtml(user, badge, removable) {
+  function memberRowHtml(user, badge, badgeColor, canEdit, isMember = false) {
+    const isMe = Number(user.id) === Number(currentUser.id);
     return `
-      <div class="admin-list-row">
-        <div style="min-width: 0;">
-          <strong style="color: #fff; font-size: 0.9rem;">${escapeHtml(Auth.displayName(user))}</strong>
+      <div class="admin-list-row" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(30, 41, 59, 0.5); border-radius: 10px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="min-width: 0; flex: 1;">
+          <strong style="color: #fff; font-size: 0.9rem;">${escapeHtml(Auth.displayName(user))} ${isMe ? '<span style="color: #38bdf8; font-size: 0.75rem;">(Você)</span>' : ''}</strong>
           <div style="font-size: 0.75rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(user.username)}</div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <span style="font-size: 0.7rem; font-weight: 800; color: #fbbf24;">${badge}</span>
-          ${removable ? `<button type="button" class="btn-action-small btn-action-delete btn-remove-admin" data-id="${Number(user.id)}" title="Remover acesso de administrador">Remover</button>` : ''}
+          <span style="font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${badgeColor.bg}; color: ${badgeColor.color}; border: 1px solid ${badgeColor.border};">
+            ${badge}
+          </span>
+          ${canEdit && isMember ? `
+            <button type="button" class="btn-action-small btn-toggle-role" data-id="${Number(user.id)}" data-role="${user.peladaRole === 'espectador' ? 'votante' : 'espectador'}" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); font-size: 0.75rem; color: #cbd5e1;" title="Alternar papel de voto">
+              ${user.peladaRole === 'espectador' ? 'Tornar Votante' : 'Tornar Espectador'}
+            </button>
+            <button type="button" class="btn-action-small btn-action-delete btn-remove-member" data-id="${Number(user.id)}" title="Remover da sala">
+              ✕
+            </button>
+          ` : ''}
+          ${canEdit && !isMember && !isMe && badge.includes('ADMIN') ? `
+            <button type="button" class="btn-action-small btn-action-delete btn-remove-admin" data-id="${Number(user.id)}" title="Remover acesso de administrador">
+              Remover Admin
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
   }
 
   async function renderAdminsList() {
-    adminsList.innerHTML = '<div style="color: #94a3b8; font-size: 0.85rem;">Carregando...</div>';
+    adminsList.innerHTML = '<div style="color: #94a3b8; font-size: 0.85rem;">Carregando membros...</div>';
     try {
-      const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`);
+      const res = await fetch(`/api/peladas/${adminsModalPeladaId}/members`);
       const data = await res.json();
       if (!data.success) {
-        adminsList.innerHTML = `<div style="color: #fca5a5; font-size: 0.85rem;">${escapeHtml(data.error || 'Erro ao carregar administradores.')}</div>`;
+        adminsList.innerHTML = `<div style="color: #fca5a5; font-size: 0.85rem;">${escapeHtml(data.error || 'Erro ao carregar membros.')}</div>`;
         return;
       }
 
       const rows = [];
-      rows.push(data.owner
-        ? adminRowHtml(data.owner, 'CRIADOR', false)
-        : '<div style="color: #94a3b8; font-size: 0.82rem;">Esta pelada não tem criador registrado (criada antes do controle de administradores).</div>');
-      data.admins.forEach(admin => {
-        const isMe = Number(admin.id) === Number(currentUser.id);
-        rows.push(adminRowHtml(admin, isMe ? 'ADMIN (VOCÊ)' : 'ADMIN', data.can_edit || isMe));
-      });
-      if (data.admins.length === 0) {
-        rows.push('<div style="color: #64748b; font-size: 0.8rem;">Nenhum administrador adicional ainda.</div>');
+      if (data.owner) {
+        rows.push(memberRowHtml(data.owner, '⭐ CRIADOR', { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.4)' }, false, false));
       }
+      (data.admins || []).forEach(admin => {
+        if (data.owner && Number(admin.id) === Number(data.owner.id)) return;
+        rows.push(memberRowHtml(admin, '⭐ ADMIN', { bg: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.4)' }, data.can_edit, false));
+      });
+      (data.members || []).forEach(mem => {
+        const isVotante = mem.peladaRole !== 'espectador';
+        const badgeText = isVotante ? '🏐 VOTANTE' : '👁️ ESPECTADOR';
+        const badgeColors = isVotante
+          ? { bg: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: 'rgba(16, 185, 129, 0.4)' }
+          : { bg: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', border: 'rgba(239, 68, 68, 0.4)' };
+        rows.push(memberRowHtml(mem, badgeText, badgeColors, data.can_edit, true));
+      });
+
+      if (rows.length === 0) {
+        rows.push('<div style="color: #64748b; font-size: 0.8rem;">Nenhum membro registrado ainda nesta pelada.</div>');
+      }
+
       adminsList.innerHTML = rows.join('');
       formAddPeladaAdmin.hidden = !data.can_edit;
 
+      // Listeners de alternar role
+      adminsList.querySelectorAll('.btn-toggle-role').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uId = btn.getAttribute('data-id');
+          const newRole = btn.getAttribute('data-role');
+          try {
+            const roleRes = await fetch(`/api/peladas/${adminsModalPeladaId}/members/${uId}/role`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role: newRole })
+            });
+            const roleData = await roleRes.json();
+            if (roleData.success) {
+              showToast(`Papel atualizado para ${newRole === 'votante' ? 'Votante' : 'Espectador'}!`);
+              renderAdminsList();
+            } else {
+              alert(roleData.error || 'Erro ao alterar papel.');
+            }
+          } catch(err) {
+            alert('Erro de conexão ao alterar papel.');
+          }
+        });
+      });
+
+      // Listeners de remover membro
+      adminsList.querySelectorAll('.btn-remove-member').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Deseja remover este membro da sala?')) return;
+          const uId = btn.getAttribute('data-id');
+          try {
+            const remRes = await fetch(`/api/peladas/${adminsModalPeladaId}/members/${uId}`, { method: 'DELETE' });
+            const remData = await remRes.json();
+            if (remData.success) {
+              showToast('Membro removido da sala.');
+              renderAdminsList();
+            } else {
+              alert(remData.error || 'Erro ao remover membro.');
+            }
+          } catch(err) {
+            alert('Erro de conexão ao remover membro.');
+          }
+        });
+      });
+
+      // Listeners de remover admin
       adminsList.querySelectorAll('.btn-remove-admin').forEach(btn => {
         btn.addEventListener('click', () => removePeladaAdmin(btn.getAttribute('data-id')));
       });
     } catch (err) {
-      adminsList.innerHTML = '<div style="color: #fca5a5; font-size: 0.85rem;">Erro de conexão ao carregar administradores.</div>';
+      adminsList.innerHTML = '<div style="color: #fca5a5; font-size: 0.85rem;">Erro de conexão ao carregar membros.</div>';
     }
   }
 
@@ -1570,6 +1646,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!pelada || !pelada.can_manage) return;
     adminsModalPeladaId = pelada.id;
     adminsModalPeladaName.textContent = `${pelada.name} (#${pelada.id})`;
+
+    const inviteCode = pelada.invite_code || String(pelada.id);
+    if (displayPeladaInviteCode) displayPeladaInviteCode.textContent = inviteCode;
+
+    if (btnCopyInviteLink) {
+      btnCopyInviteLink.onclick = () => {
+        const link = `${window.location.origin}/?convite=${encodeURIComponent(inviteCode)}`;
+        navigator.clipboard.writeText(link).then(() => {
+          showToast('📋 Link de convite copiado para a área de transferência!');
+        }).catch(() => {
+          prompt('Copie o link de convite:', link);
+        });
+      };
+    }
+
     formAddPeladaAdmin.hidden = true;
     formAddPeladaAdmin.reset();
     modalPeladaAdmins.classList.add('show');
@@ -1583,24 +1674,42 @@ document.addEventListener('DOMContentLoaded', () => {
     formAddPeladaAdmin.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = inputNewAdminEmail.value.trim().toLowerCase();
+      const role = selectNewMemberRole ? selectNewMemberRole.value : 'votante';
       if (!email) return;
       btnAddPeladaAdmin.disabled = true;
+
       try {
-        const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(`${Auth.displayName(data.admin)} agora é administrador desta pelada!`);
-          formAddPeladaAdmin.reset();
-          renderAdminsList();
+        if (role === 'admin') {
+          const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(`${Auth.displayName(data.admin)} agora é administrador desta pelada!`);
+            formAddPeladaAdmin.reset();
+            renderAdminsList();
+          } else {
+            alert(data.error || 'Erro ao adicionar administrador.');
+          }
         } else {
-          alert(data.error || 'Erro ao adicionar administrador.');
+          const res = await fetch(`/api/peladas/${adminsModalPeladaId}/members`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(`${Auth.displayName(data.member)} adicionado como ${role === 'votante' ? 'Votante' : 'Espectador'}!`);
+            formAddPeladaAdmin.reset();
+            renderAdminsList();
+          } else {
+            alert(data.error || 'Erro ao adicionar membro.');
+          }
         }
       } catch (err) {
-        alert('Erro de conexão ao adicionar administrador.');
+        alert('Erro de conexão ao adicionar membro.');
       } finally {
         btnAddPeladaAdmin.disabled = false;
       }

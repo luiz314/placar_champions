@@ -349,8 +349,19 @@ async function withPermissions(req, peladas) {
 }
 
 app.get('/api/peladas', route(async (req, res) => {
-  const peladas = await withPermissions(req, await db.getPeladas());
+  const isSuper = auth.isSuperAdmin(req.user);
+  const userPeladas = await db.getPeladasForUser(req.user ? req.user.id : null, isSuper);
+  const peladas = await withPermissions(req, userPeladas);
   res.json({ success: true, peladas });
+}));
+
+// Entrar em uma pelada usando código de convite
+app.post('/api/peladas/join', route(async (req, res) => {
+  const user = requireUser(req);
+  const { inviteCode } = req.body || {};
+  const pelada = await db.joinPeladaByCode(user.id, inviteCode);
+  const [withPerms] = await withPermissions(req, [pelada]);
+  res.json({ success: true, pelada: withPerms, message: 'Você entrou na sala com sucesso!' });
 }));
 
 app.get('/api/peladas/:id', route(async (req, res) => {
@@ -358,6 +369,61 @@ app.get('/api/peladas/:id', route(async (req, res) => {
   if (!pelada) throw httpError(404, 'Pelada não encontrada.');
   const [withPerms] = await withPermissions(req, [pelada]);
   res.json({ success: true, pelada: withPerms });
+}));
+
+// Role do usuário logado nesta pelada e permissão de voto
+app.get('/api/peladas/:id/my-role', route(async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    return res.json({ success: true, role: 'espectador', canVote: false, isLogged: false });
+  }
+  const isSuper = auth.isSuperAdmin(user);
+  const role = await db.getUserPeladaRole(user.id, req.params.id);
+  const canVote = await db.canUserVote(user.id, req.params.id);
+  res.json({ success: true, role: isSuper ? 'admin' : (role || 'espectador'), canVote, isLogged: true });
+}));
+
+// Membros e convidados da pelada (com seus papéis de votação)
+app.get('/api/peladas/:id/members', route(async (req, res) => {
+  const user = requireUser(req);
+  const role = await db.getPeladaRole(req.params.id, user.id);
+  const isSuper = auth.isSuperAdmin(user);
+  if (!role.exists) throw httpError(404, 'Pelada não encontrada.');
+  const membersData = await db.getPeladaMembers(req.params.id);
+  res.json({ success: true, ...membersData, can_edit: role.isAdmin || isSuper });
+}));
+
+// Convidar/adicionar membro à pelada com role de votante ou espectador
+app.post('/api/peladas/:id/members', route(async (req, res) => {
+  await requirePeladaAdmin(req, req.params.id);
+  const { email, role = 'votante' } = req.body || {};
+  const target = await db.getUserByEmail(email);
+  if (!target) {
+    throw httpError(404, 'Nenhum usuário cadastrado com este e-mail. Peça para a pessoa criar uma conta primeiro.');
+  }
+  await db.addPeladaMember(req.params.id, target.id, role);
+  res.status(201).json({ success: true, member: { ...target, peladaRole: role } });
+}));
+
+// Alterar role do membro na pelada (votante vs espectador)
+app.put('/api/peladas/:id/members/:userId/role', route(async (req, res) => {
+  await requirePeladaAdmin(req, req.params.id);
+  const { role } = req.body || {};
+  if (role !== 'votante' && role !== 'espectador') {
+    throw httpError(400, 'Papel inválido. Escolha entre "votante" ou "espectador".');
+  }
+  await db.updatePeladaMemberRole(req.params.id, req.params.userId, role);
+  res.json({ success: true, role });
+}));
+
+// Remover membro da pelada
+app.delete('/api/peladas/:id/members/:userId', route(async (req, res) => {
+  const user = requireUser(req);
+  if (Number(req.params.userId) !== Number(user.id)) {
+    await requirePeladaAdmin(req, req.params.id);
+  }
+  await db.removePeladaMember(req.params.id, req.params.userId);
+  res.json({ success: true });
 }));
 
 app.post('/api/peladas', route(async (req, res) => {
@@ -469,6 +535,10 @@ app.get('/api/peladas/:id/mvp', route(async (req, res) => {
 
 app.post('/api/peladas/:id/mvp', route(async (req, res) => {
   const user = requireUser(req);
+  const canVote = await db.canUserVote(user.id, req.params.id);
+  if (!canVote) {
+    throw httpError(403, 'Você não possui permissão para votar no MVP desta pelada (seu papel atual é Espectador ou você não é membro desta sala).');
+  }
   const { date, votes } = req.body || {};
   if (!votes || typeof votes !== 'object') throw httpError(400, 'Votos sao obrigatorios.');
   const vote = await db.saveMvpVote(req.params.id, date, user.id, user.name || user.username, votes);
@@ -517,7 +587,7 @@ app.delete('/api/players/:id', route(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Enviar ou editar avaliação (1 voto por usuário, sempre editável)
+// Enviar ou editar avaliação (1 voto por usuário, sempre editável, protegido por role de votante)
 app.post('/api/players/:id/rate', route(async (req, res) => {
   const user = requireUser(req);
   const { attack, defense, setPass, set_pass, movement } = req.body || {};
@@ -527,6 +597,11 @@ app.post('/api/players/:id/rate', route(async (req, res) => {
   }
   const player = await db.getPlayerById(req.params.id);
   if (!player) throw httpError(404, 'Jogador não encontrado.');
+
+  const canVote = await db.canUserVote(user.id, player.pelada_id);
+  if (!canVote) {
+    throw httpError(403, 'Você não possui permissão para votar nesta pelada (seu papel atual é Espectador ou você não foi convidado para esta sala). Solicite permissão de Votante ao administrador.');
+  }
 
   const rating = await db.addPlayerRating(
     player.id,

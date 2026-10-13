@@ -32,6 +32,7 @@ let Pelada = null;
 let Player = null;
 let PlayerRating = null;
 let PeladaAdmin = null;
+let PeladaMember = null;
 let AppSetting = null;
 let Attendance = null;
 let MvpVote = null;
@@ -152,7 +153,8 @@ if (dbUrl) {
       name: { type: DataTypes.STRING(150), allowNull: false, defaultValue: 'Pelada Principal' },
       // Nome exibido do criador (informativo); a permissao real vem de ownerId e pelada_admins
       adminName: { type: DataTypes.STRING(100), defaultValue: 'Administrador' },
-      ownerId: { type: DataTypes.INTEGER, allowNull: true }
+      ownerId: { type: DataTypes.INTEGER, allowNull: true },
+      inviteCode: { type: DataTypes.STRING(32), allowNull: true }
     }, {
       tableName: 'peladas',
       timestamps: true,
@@ -176,6 +178,32 @@ if (dbUrl) {
       }
     }, {
       tableName: 'pelada_admins',
+      timestamps: true,
+      underscored: true,
+      indexes: [{ unique: true, fields: ['pelada_id', 'user_id'] }]
+    });
+
+    // Membros/convidados da pelada com roles de votacao ('votante' ou 'espectador')
+    PeladaMember = sequelize.define('PeladaMember', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      peladaId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'peladas', key: 'id' },
+        onDelete: 'CASCADE'
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'users', key: 'id' },
+        onDelete: 'CASCADE'
+      },
+      role: {
+        type: DataTypes.STRING(30),
+        defaultValue: 'votante' // 'votante' ou 'espectador'
+      }
+    }, {
+      tableName: 'pelada_members',
       timestamps: true,
       underscored: true,
       indexes: [{ unique: true, fields: ['pelada_id', 'user_id'] }]
@@ -283,6 +311,10 @@ if (dbUrl) {
     MvpVote.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
     Pelada.hasMany(PeladaAdmin, { foreignKey: 'peladaId', as: 'admins', onDelete: 'CASCADE' });
     PeladaAdmin.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+    Pelada.hasMany(PeladaMember, { foreignKey: 'peladaId', as: 'members', onDelete: 'CASCADE' });
+    PeladaMember.belongsTo(Pelada, { foreignKey: 'peladaId', as: 'pelada' });
+    PeladaMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+    User.hasMany(PeladaMember, { foreignKey: 'userId', as: 'memberships', onDelete: 'CASCADE' });
 
     console.log('Sequelize ORM configurado com PostgreSQL (Railway).');
   } catch (err) {
@@ -314,8 +346,9 @@ function createInitialFallbackData() {
   const now = new Date().toISOString();
   return {
     users: [],
-    peladas: [{ id: DEFAULT_PELADA_ID, name: 'Sala 733849', admin_name: 'Administrador', owner_id: null, created_at: now }],
+    peladas: [{ id: DEFAULT_PELADA_ID, name: 'Sala 733849', admin_name: 'Administrador', owner_id: null, invite_code: '733849', created_at: now }],
     pelada_admins: [],
+    pelada_members: [],
     matches: [],
     players: INITIAL_PELADA_PLAYERS.map((name, idx) => ({
       id: idx + 1,
@@ -349,7 +382,7 @@ function getFallbackData() {
     const parsed = JSON.parse(fs.readFileSync(FALLBACK_DB_FILE, 'utf8'));
     const defaults = createInitialFallbackData();
     // Garante que todas as colecoes existam sem sobrescrever dados existentes
-    ['users', 'peladas', 'pelada_admins', 'matches', 'players', 'player_ratings', 'attendances', 'mvp_votes'].forEach(k => {
+    ['users', 'peladas', 'pelada_admins', 'pelada_members', 'matches', 'players', 'player_ratings', 'attendances', 'mvp_votes'].forEach(k => {
       if (!Array.isArray(parsed[k])) parsed[k] = defaults[k];
     });
     if (!parsed.settings || typeof parsed.settings !== 'object') parsed.settings = {};
@@ -682,6 +715,7 @@ function toPublicPelada(raw, playerCount) {
     name: raw.name,
     admin_name: raw.adminName || raw.admin_name || 'Administrador',
     owner_id: raw.ownerId !== undefined ? raw.ownerId : (raw.owner_id || null),
+    invite_code: raw.inviteCode || raw.invite_code || String(raw.id),
     player_count: playerCount || 0,
     created_at: raw.createdAt || raw.created_at
   };
@@ -701,6 +735,65 @@ async function getPeladas() {
 
   const data = getFallbackData();
   return data.peladas.map(p => toPublicPelada(p, data.players.filter(pl => Number(pl.pelada_id) === Number(p.id)).length));
+}
+
+// Retorna apenas as salas em que o usuario e dono, admin ou membro convidado.
+// Novos usuarios sem convite recebem lista vazia [].
+async function getPeladasForUser(userId, isSuper = false) {
+  if (isSuper) {
+    return getPeladas();
+  }
+  const numUser = parseInt(userId, 10);
+  if (!numUser) {
+    return [];
+  }
+
+  if (isPostgres) {
+    const owned = await Pelada.findAll({
+      where: { ownerId: numUser },
+      include: [{ model: Player, as: 'players', attributes: ['id'] }]
+    });
+
+    const adminRows = await PeladaAdmin.findAll({
+      where: { userId: numUser },
+      attributes: ['peladaId']
+    });
+    const adminPeladaIds = adminRows.map(r => r.peladaId);
+
+    const memberRows = await PeladaMember.findAll({
+      where: { userId: numUser },
+      attributes: ['peladaId']
+    });
+    const memberPeladaIds = memberRows.map(r => r.peladaId);
+
+    const otherIds = [...new Set([...adminPeladaIds, ...memberPeladaIds])].filter(id => !owned.some(p => p.id === id));
+    let others = [];
+    if (otherIds.length > 0) {
+      others = await Pelada.findAll({
+        where: { id: { [Op.in]: otherIds } },
+        include: [{ model: Player, as: 'players', attributes: ['id'] }]
+      });
+    }
+
+    const all = [...owned, ...others].sort((a, b) => a.id - b.id);
+    return all.map(p => {
+      const raw = p.toJSON();
+      return toPublicPelada(raw, (raw.players || []).length);
+    });
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = data.pelada_members || [];
+  const memberPeladaIds = new Set(data.pelada_members.filter(m => Number(m.user_id) === numUser).map(m => Number(m.pelada_id)));
+  const adminPeladaIds = new Set(data.pelada_admins.filter(a => Number(a.user_id) === numUser).map(a => Number(a.pelada_id)));
+
+  const userPeladas = data.peladas.filter(p => 
+    Number(p.owner_id) === numUser ||
+    adminPeladaIds.has(Number(p.id)) ||
+    memberPeladaIds.has(Number(p.id))
+  );
+
+  return userPeladas.map(p => toPublicPelada(p, data.players.filter(pl => Number(pl.pelada_id) === Number(p.id)).length));
 }
 
 async function getPeladaById(id) {
@@ -724,9 +817,10 @@ async function createPelada(name, owner) {
   const cleanName = String(name || '').trim().slice(0, 150);
   if (!cleanName) throw new Error('O nome da pelada e obrigatorio.');
   const adminName = String(owner.name || owner.username).slice(0, 100);
+  const inviteCode = crypto.randomBytes(4).toString('hex').toUpperCase();
 
   if (isPostgres) {
-    const pelada = await Pelada.create({ name: cleanName, adminName, ownerId: owner.id });
+    const pelada = await Pelada.create({ name: cleanName, adminName, ownerId: owner.id, inviteCode });
     return toPublicPelada(pelada.toJSON(), 0);
   }
 
@@ -736,6 +830,7 @@ async function createPelada(name, owner) {
     name: cleanName,
     admin_name: adminName,
     owner_id: owner.id,
+    invite_code: inviteCode,
     created_at: new Date().toISOString()
   };
   data.peladas.push(newPelada);
@@ -778,6 +873,7 @@ async function deletePelada(id) {
   data.players = data.players.filter(p => Number(p.pelada_id) !== numId);
   data.player_ratings = data.player_ratings.filter(r => !removedPlayerIds.has(Number(r.player_id)));
   data.pelada_admins = data.pelada_admins.filter(a => Number(a.pelada_id) !== numId);
+  data.pelada_members = (data.pelada_members || []).filter(m => Number(m.pelada_id) !== numId);
   data.attendances = data.attendances.filter(a => Number(a.pelada_id) !== numId);
   data.mvp_votes = data.mvp_votes.filter(v => Number(v.pelada_id) !== numId);
   saveFallbackData(data);
@@ -899,6 +995,192 @@ async function removePeladaAdmin(peladaId, userId) {
 }
 
 // ==========================================
+// MEMBROS, CONVITES E ROLES DE VOTACAO
+// ==========================================
+
+async function getUserPeladaRole(userId, peladaId) {
+  const numUser = parseInt(userId, 10);
+  const numPelada = parseInt(peladaId, 10);
+  if (!numUser || !numPelada) return null;
+
+  const peladaRole = await getPeladaRole(numPelada, numUser);
+  if (peladaRole.isAdmin) return 'admin';
+
+  if (isPostgres && PeladaMember) {
+    const member = await PeladaMember.findOne({ where: { peladaId: numPelada, userId: numUser } });
+    if (member) return member.role || 'votante';
+    return null;
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = data.pelada_members || [];
+  const mem = data.pelada_members.find(m => Number(m.pelada_id) === numPelada && Number(m.user_id) === numUser);
+  if (mem) return mem.role || 'votante';
+  return null;
+}
+
+async function canUserVote(userId, peladaId) {
+  const numUser = parseInt(userId, 10);
+  const numPelada = parseInt(peladaId, 10);
+  if (!numUser || !numPelada) return false;
+
+  const user = await getUserById(numUser);
+  if (user && isSuperAdmin(user)) return true;
+
+  const role = await getUserPeladaRole(numUser, numPelada);
+  if (!role) return false;
+  return role === 'admin' || role === 'votante';
+}
+
+async function getPeladaMembers(peladaId) {
+  const numPelada = parseInt(peladaId, 10);
+  if (!numPelada) return { owner: null, admins: [], members: [] };
+
+  const adminsData = await getPeladaAdmins(numPelada);
+
+  if (isPostgres && PeladaMember) {
+    const rows = await PeladaMember.findAll({
+      where: { peladaId: numPelada },
+      include: [{ model: User, as: 'user', attributes: ['id', 'username', 'name'] }],
+      order: [['createdAt', 'ASC']]
+    });
+    const members = rows.filter(r => r.user).map(r => ({
+      ...toPublicUser(r.user.toJSON()),
+      peladaRole: r.role || 'votante'
+    }));
+    return { ...adminsData, members };
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = data.pelada_members || [];
+  const findUser = (uid) => toPublicUser(data.users.find(u => Number(u.id) === Number(uid)));
+  const members = data.pelada_members
+    .filter(m => Number(m.pelada_id) === numPelada)
+    .map(m => {
+      const u = findUser(m.user_id);
+      return u ? { ...u, peladaRole: m.role || 'votante' } : null;
+    })
+    .filter(Boolean);
+
+  return { ...adminsData, members };
+}
+
+async function addPeladaMember(peladaId, userId, role = 'votante') {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+  const cleanRole = role === 'espectador' ? 'espectador' : 'votante';
+
+  if (isPostgres && PeladaMember) {
+    const [member, created] = await PeladaMember.findOrCreate({
+      where: { peladaId: numPelada, userId: numUser },
+      defaults: { role: cleanRole }
+    });
+    if (!created && member.role !== cleanRole) {
+      member.role = cleanRole;
+      await member.save();
+    }
+    return { success: true, member };
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = data.pelada_members || [];
+  let existing = data.pelada_members.find(m => Number(m.pelada_id) === numPelada && Number(m.user_id) === numUser);
+  if (existing) {
+    existing.role = cleanRole;
+  } else {
+    data.pelada_members.push({
+      id: nextFallbackId(data.pelada_members),
+      pelada_id: numPelada,
+      user_id: numUser,
+      role: cleanRole,
+      created_at: new Date().toISOString()
+    });
+  }
+  saveFallbackData(data);
+  return { success: true };
+}
+
+async function updatePeladaMemberRole(peladaId, userId, role) {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+  const cleanRole = role === 'espectador' ? 'espectador' : 'votante';
+
+  if (isPostgres && PeladaMember) {
+    const member = await PeladaMember.findOne({ where: { peladaId: numPelada, userId: numUser } });
+    if (!member) {
+      await PeladaMember.create({ peladaId: numPelada, userId: numUser, role: cleanRole });
+    } else {
+      member.role = cleanRole;
+      await member.save();
+    }
+    return { success: true, role: cleanRole };
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = data.pelada_members || [];
+  let member = data.pelada_members.find(m => Number(m.pelada_id) === numPelada && Number(m.user_id) === numUser);
+  if (!member) {
+    data.pelada_members.push({
+      id: nextFallbackId(data.pelada_members),
+      pelada_id: numPelada,
+      user_id: numUser,
+      role: cleanRole,
+      created_at: new Date().toISOString()
+    });
+  } else {
+    member.role = cleanRole;
+  }
+  saveFallbackData(data);
+  return { success: true, role: cleanRole };
+}
+
+async function removePeladaMember(peladaId, userId) {
+  const numPelada = parseInt(peladaId, 10);
+  const numUser = parseInt(userId, 10);
+
+  if (isPostgres && PeladaMember) {
+    await PeladaMember.destroy({ where: { peladaId: numPelada, userId: numUser } });
+    return { success: true };
+  }
+
+  const data = getFallbackData();
+  data.pelada_members = (data.pelada_members || []).filter(m => !(Number(m.pelada_id) === numPelada && Number(m.user_id) === numUser));
+  saveFallbackData(data);
+  return { success: true };
+}
+
+async function joinPeladaByCode(userId, inviteCode) {
+  const cleanCode = String(inviteCode || '').trim();
+  if (!cleanCode) throw new Error('Código de convite inválido.');
+
+  let targetPelada = null;
+  if (isPostgres && Pelada) {
+    targetPelada = await Pelada.findOne({
+      where: {
+        [Op.or]: [
+          { inviteCode: cleanCode },
+          { id: parseInt(cleanCode, 10) || 0 }
+        ]
+      }
+    });
+  } else {
+    const data = getFallbackData();
+    targetPelada = data.peladas.find(p => 
+      (p.invite_code && p.invite_code.toUpperCase() === cleanCode.toUpperCase()) ||
+      String(p.id) === cleanCode
+    );
+  }
+
+  if (!targetPelada) {
+    throw new Error('Nenhuma sala encontrada com este código de convite.');
+  }
+
+  const peladaId = Number(targetPelada.id);
+  await addPeladaMember(peladaId, userId, 'votante');
+  return targetPelada;
+}
+
+// ==========================================
 // METODOS DE PARTIDAS (MATCHES)
 // ==========================================
 async function saveMatch(matchData) {
@@ -983,6 +1265,51 @@ async function getMatches(limit = 50) {
 // ==========================================
 // METODOS DE JOGADORES (PLAYERS)
 // ==========================================
+function computeWeightedPlayerRatings(ratings, voterWeightsMap = {}) {
+  const count = ratings.length;
+  if (count === 0) {
+    return {
+      vote_count: 0,
+      avg_attack: 0,
+      avg_defense: 0,
+      avg_set_pass: 0,
+      avg_movement: 0,
+      overall: 0
+    };
+  }
+
+  let totalWeight = 0;
+  let weightedA = 0;
+  let weightedD = 0;
+  let weightedP = 0;
+  let weightedM = 0;
+
+  ratings.forEach(r => {
+    const uId = r.userId || r.user_id;
+    const w = (uId && voterWeightsMap[uId]) ? voterWeightsMap[uId] : 1.0;
+    totalWeight += w;
+    weightedA += Number(r.attack || 0) * w;
+    weightedD += Number(r.defense || 0) * w;
+    weightedP += Number(r.setPass !== undefined ? r.setPass : (r.set_pass || 0)) * w;
+    weightedM += Number(r.movement || 0) * w;
+  });
+
+  const avgA = totalWeight > 0 ? Number((weightedA / totalWeight).toFixed(1)) : 0;
+  const avgD = totalWeight > 0 ? Number((weightedD / totalWeight).toFixed(1)) : 0;
+  const avgP = totalWeight > 0 ? Number((weightedP / totalWeight).toFixed(1)) : 0;
+  const avgM = totalWeight > 0 ? Number((weightedM / totalWeight).toFixed(1)) : 0;
+  const overall = calculateOverall(avgA, avgD, avgP, avgM);
+
+  return {
+    vote_count: count,
+    avg_attack: avgA,
+    avg_defense: avgD,
+    avg_set_pass: avgP,
+    avg_movement: avgM,
+    overall: overall
+  };
+}
+
 async function getPlayersWithRatings(peladaId = null) {
   const filterPeladaId = (peladaId !== null && peladaId !== undefined && peladaId !== '') ? parseInt(peladaId, 10) : null;
 
@@ -1002,35 +1329,19 @@ async function getPlayersWithRatings(peladaId = null) {
 
       const players = await Player.findAll(queryOptions);
 
+      // Mapa de pesos dos votantes na pelada (Admins/Donos tem peso 1.5, Votantes comuns 1.0)
+      const voterWeightsMap = {};
+      if (filterPeladaId) {
+        const admins = await PeladaAdmin.findAll({ where: { peladaId: filterPeladaId }, attributes: ['userId'] });
+        admins.forEach(a => { voterWeightsMap[a.userId] = 1.5; });
+        const pelada = await Pelada.findByPk(filterPeladaId, { attributes: ['ownerId'] });
+        if (pelada && pelada.ownerId) voterWeightsMap[pelada.ownerId] = 1.5;
+      }
+
       return players.map(p => {
         const raw = p.toJSON();
         const ratings = raw.ratings || [];
-        const count = ratings.length;
-
-        if (count === 0) {
-          return {
-            id: raw.id,
-            pelada_id: raw.peladaId,
-            name: raw.name,
-            nickname: raw.nickname,
-            position: raw.position,
-            photo_url: raw.photoUrl,
-            active: raw.active,
-            created_at: raw.createdAt,
-            vote_count: 0,
-            avg_attack: 0,
-            avg_defense: 0,
-            avg_set_pass: 0,
-            avg_movement: 0,
-            overall: 0
-          };
-        }
-
-        const sumA = ratings.reduce((acc, cur) => acc + Number(cur.attack || 0), 0);
-        const sumD = ratings.reduce((acc, cur) => acc + Number(cur.defense || 0), 0);
-        const sumP = ratings.reduce((acc, cur) => acc + Number(cur.setPass || 0), 0);
-        const sumM = ratings.reduce((acc, cur) => acc + Number(cur.movement || 0), 0);
-        const sumO = ratings.reduce((acc, cur) => acc + Number(cur.overall || 0), 0);
+        const computed = computeWeightedPlayerRatings(ratings, voterWeightsMap);
 
         return {
           id: raw.id,
@@ -1041,12 +1352,7 @@ async function getPlayersWithRatings(peladaId = null) {
           photo_url: raw.photoUrl,
           active: raw.active,
           created_at: raw.createdAt,
-          vote_count: count,
-          avg_attack: Number((sumA / count).toFixed(1)),
-          avg_defense: Number((sumD / count).toFixed(1)),
-          avg_set_pass: Number((sumP / count).toFixed(1)),
-          avg_movement: Number((sumM / count).toFixed(1)),
-          overall: Number((sumO / count).toFixed(1))
+          ...computed
         };
       }).sort((a, b) => (b.overall - a.overall) || a.name.localeCompare(b.name));
     } catch (err) {
@@ -1062,36 +1368,23 @@ async function getPlayersWithRatings(peladaId = null) {
   }
   const ratings = data.player_ratings || [];
 
+  const voterWeightsMap = {};
+  if (filterPeladaId) {
+    (data.pelada_admins || [])
+      .filter(a => Number(a.pelada_id) === filterPeladaId)
+      .forEach(a => { voterWeightsMap[a.user_id] = 1.5; });
+    const pelada = (data.peladas || []).find(p => Number(p.id) === filterPeladaId);
+    if (pelada && pelada.owner_id) voterWeightsMap[pelada.owner_id] = 1.5;
+  }
+
   return players.map(p => {
-    const pRatings = ratings.filter(r => r.player_id === p.id);
-    const count = pRatings.length;
-    if (count === 0) {
-      return {
-        ...p,
-        pelada_id: p.pelada_id || 1,
-        vote_count: 0,
-        avg_attack: 0,
-        avg_defense: 0,
-        avg_set_pass: 0,
-        avg_movement: 0,
-        overall: 0
-      };
-    }
-    const sumA = pRatings.reduce((acc, cur) => acc + Number(cur.attack), 0);
-    const sumD = pRatings.reduce((acc, cur) => acc + Number(cur.defense), 0);
-    const sumP = pRatings.reduce((acc, cur) => acc + Number(cur.set_pass), 0);
-    const sumM = pRatings.reduce((acc, cur) => acc + Number(cur.movement), 0);
-    const sumO = pRatings.reduce((acc, cur) => acc + Number(cur.overall), 0);
+    const pRatings = ratings.filter(r => Number(r.player_id) === Number(p.id));
+    const computed = computeWeightedPlayerRatings(pRatings, voterWeightsMap);
 
     return {
       ...p,
       pelada_id: p.pelada_id || 1,
-      vote_count: count,
-      avg_attack: Number((sumA / count).toFixed(1)),
-      avg_defense: Number((sumD / count).toFixed(1)),
-      avg_set_pass: Number((sumP / count).toFixed(1)),
-      avg_movement: Number((sumM / count).toFixed(1)),
-      overall: Number((sumO / count).toFixed(1))
+      ...computed
     };
   }).sort((a, b) => (b.overall - a.overall) || a.name.localeCompare(b.name));
 }
@@ -1731,6 +2024,7 @@ module.exports = {
   getUserByEmail,
   getUserRatingsMap,
   getPeladas,
+  getPeladasForUser,
   getPeladaById,
   createPelada,
   updatePelada,
@@ -1740,6 +2034,13 @@ module.exports = {
   getPeladaAdmins,
   addPeladaAdmin,
   removePeladaAdmin,
+  getUserPeladaRole,
+  canUserVote,
+  getPeladaMembers,
+  addPeladaMember,
+  updatePeladaMemberRole,
+  removePeladaMember,
+  joinPeladaByCode,
   saveMatch,
   getMatches,
   getPlayersWithRatings,
