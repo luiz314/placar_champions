@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#07090e">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -194,7 +194,80 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.85rem;
+      gap: 1rem;
+    }
+
+    .hero-logo-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-logo-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.35) 0%, rgba(251, 191, 36, 0.2) 45%, rgba(0, 0, 0, 0) 70%);
+      filter: blur(32px);
+      z-index: 0;
+      pointer-events: none;
+      animation: logoGlowPulse 5s ease-in-out infinite alternate;
+    }
+
+    .hero-logo-img {
+      position: relative;
+      z-index: 1;
+      width: 210px;
+      max-width: 80vw;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 24px rgba(0, 242, 254, 0.22));
+      transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.35s ease;
+      animation: logoFloat 4.5s ease-in-out infinite;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .hero-logo-img:hover {
+      transform: scale(1.06) translateY(-4px);
+      filter: drop-shadow(0 20px 35px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.5));
+    }
+
+    @keyframes logoFloat {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    @keyframes logoGlowPulse {
+      0% {
+        transform: translate(-50%, -50%) scale(0.9);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.18);
+        opacity: 0.95;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-logo-img {
+        width: 165px;
+      }
+      .hero-logo-glow {
+        width: 180px;
+        height: 180px;
+      }
     }
 
     .hero-tag {
@@ -833,6 +906,10 @@
 
     <!-- HERO SECTION (PLACAR CHAMPIONS) -->
     <section class="hero-section">
+      <div class="hero-logo-container">
+        <div class="hero-logo-glow"></div>
+        <img src="/logo.png" alt="Logomarca Oficial Placar Champions" class="hero-logo-img" width="220" height="220">
+      </div>
       <h1 class="hero-title">Placar Champions</h1>
       <p class="hero-subtitle">
         Placar digital em tempo real, sorteio de times perfeitamente equilibrados por estrelas e votação de craques da rodada.
@@ -989,7 +1066,16 @@
 
   <!-- RODAPÉ -->
   <footer class="portal-footer">
-    <p>Placar Champions - Sistema de Placar e gestão de partidas</p>
+    <p>Placar Champions - Sistema de Placar e Gestão de Partidas</p>
+    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 0.82rem; flex-wrap: wrap;">
+      <a href="/privacidade" style="color: #93c5fd; text-decoration: underline; transition: color 0.2s;">Política de Privacidade</a>
+      <span style="opacity: 0.35;">•</span>
+      <a href="/placar" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Placar Ao Vivo</a>
+      <span style="opacity: 0.35;">•</span>
+      <a href="/pelada" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Gestão da Pelada</a>
+      <span style="opacity: 0.35;">•</span>
+      <a href="/avaliar" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Votação & Craques</a>
+    </div>
   </footer>
 
   <!-- SCRIPT CLIENTE -->

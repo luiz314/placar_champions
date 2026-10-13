@@ -218,6 +218,8 @@ app.get('/placar', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pl
 app.get('/login', (req, res) => res.redirect('/'));
 app.get('/pelada', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pelada.html')));
 app.get('/avaliar', (req, res) => res.sendFile(path.join(__dirname, 'public', 'avaliar.html')));
+app.get('/privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacidade.html')));
+app.get('/politica-de-privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacidade.html')));
 
 // ==========================================
 // AUTENTICAÇÃO E PERMISSÕES (MIDDLEWARES)

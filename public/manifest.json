@@ -1,7 +1,7 @@
 {
-  "name": "Placar de Vôlei Online",
-  "short_name": "Placar Vôlei",
-  "description": "Placar de Vôlei e Cronômetro em Tempo Real com suporte a funcionamento Offline",
+  "name": "Placar Champions",
+  "short_name": "Placar Champions",
+  "description": "Placar digital em tempo real, sorteador equilibrado de equipes e votação de craques para peladas de vôlei.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,6 +10,12 @@
   "theme_color": "#07090e",
   "categories": ["sports", "utilities"],
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "512x512",
