@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const activePeladaIdBadge = document.getElementById('activePeladaIdBadge');
   const activePeladaNameHeading = document.getElementById('activePeladaNameHeading');
   const selectActivePeladaDropdown = document.getElementById('selectActivePeladaDropdown');
+  const btnQuickRenamePelada = document.getElementById('btnQuickRenamePelada');
   const btnQuickNewPelada = document.getElementById('btnQuickNewPelada');
 
   // Elementos DOM - Abas
@@ -212,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function switchActivePelada(newId, shouldSwitchTab = false) {
     activePeladaId = parseInt(newId, 10);
     localStorage.setItem('activePeladaId', String(activePeladaId));
+    localStorage.setItem('volei_current_room', String(activePeladaId));
     selectedPlayerIds.clear();
     lastBalancedResult = null;
     if (balanceResultArea) balanceResultArea.classList.remove('active');
@@ -241,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success && Array.isArray(data.peladas)) {
         peladasList = data.peladas;
         if (peladasList.length > 0) {
-          const savedId = localStorage.getItem('activePeladaId');
+          const savedId = localStorage.getItem('activePeladaId') || localStorage.getItem('volei_current_room');
           const found733849 = peladasList.find(p => String(p.id) === '733849');
           const foundSaved = peladasList.find(p => String(p.id) === String(savedId));
 
@@ -373,6 +375,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnOpenModalAddPelada) btnOpenModalAddPelada.addEventListener('click', openAddPeladaModal);
   if (btnQuickNewPelada) btnQuickNewPelada.addEventListener('click', openAddPeladaModal);
 
+  if (btnQuickRenamePelada) {
+    btnQuickRenamePelada.addEventListener('click', () => {
+      if (!activePeladaId) return;
+      if (inputEditPeladaId) inputEditPeladaId.value = activePeladaId;
+      if (inputEditPeladaName) inputEditPeladaName.value = getActivePeladaName();
+      if (modalEditPelada) {
+        modalEditPelada.classList.add('show');
+        setTimeout(() => {
+          if (inputEditPeladaName) {
+            inputEditPeladaName.focus();
+            inputEditPeladaName.select();
+          }
+        }, 100);
+      }
+    });
+  }
+
   if (btnCancelAddPelada && modalAddPelada) {
     btnCancelAddPelada.addEventListener('click', () => {
       modalAddPelada.classList.remove('show');
@@ -437,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.success) {
           showToast(`Pelada renomeada para "${name}"!`);
           if (modalEditPelada) modalEditPelada.classList.remove('show');
+          localStorage.setItem('volei_current_room', String(id));
           await loadPeladas();
         } else {
           alert(data.error || 'Erro ao renomear pelada.');

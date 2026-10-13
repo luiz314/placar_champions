@@ -680,6 +680,101 @@
       background: rgba(0, 242, 254, 0.12);
     }
 
+    .btn-rename-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #93c5fd;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-rename-pill:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .session-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-session-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-session-action:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+
+    .btn-session-action.btn-action-rename {
+      color: #93c5fd;
+      border-color: rgba(147, 197, 253, 0.3);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-session-action.btn-action-rename:hover {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: #60a5fa;
+      color: #ffffff;
+    }
+
+    .btn-session-action.btn-action-delete {
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.08);
+      padding: 6px 8px;
+    }
+
+    .btn-session-action.btn-action-delete:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #ffffff;
+    }
+
+    .btn-session-action.btn-action-select {
+      background: rgba(0, 242, 254, 0.15);
+      border-color: rgba(0, 242, 254, 0.4);
+      color: #38bdf8;
+    }
+
+    .btn-session-action.btn-action-select:hover {
+      background: var(--accent-cyan);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .btn-session-action.btn-action-active {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #34d399;
+      font-weight: 700;
+      cursor: default;
+    }
+
     /* FOOTER */
     .portal-footer {
       border-top: 1px solid var(--border-card);
@@ -786,21 +881,21 @@
 
   </main>
 
-  <!-- MODAL: TROCAR / ESCOLHER SESSÃO OU CRIAR NOVA -->
+  <!-- MODAL: ADMINISTRAR, TROCAR OU CRIAR SESSÕES -->
   <div class="modal-overlay" id="modalChooseSession">
-    <div class="modal-dialog">
+    <div class="modal-dialog" style="max-width: 620px;">
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <h3 style="font-size: 1.25rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-          <span>🏐</span> Escolha ou Crie uma Sessão
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <span>🏐</span> Administrar Sessões e Salas
         </h3>
-        <button type="button" class="btn-compact" id="btnCloseSessionModal" style="background: transparent; border: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
+        <button type="button" class="btn-compact" id="btnCloseSessionModal" style="background: transparent; border: none; font-size: 1.4rem; cursor: pointer; color: #94a3b8;" title="Fechar">&times;</button>
       </div>
 
       <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-        Selecione em qual pelada/sala você quer jogar ou gerenciar agora:
+        Alterne entre as peladas, renomeie para organizar seus grupos de vôlei ou crie uma nova sessão:
       </p>
 
-      <!-- LISTA DE SESSÕES DISPONÍVEIS -->
+      <!-- LISTA DE SESSÕES DISPONÍVEIS COM GESTÃO COMPLETA -->
       <div class="sessions-list-grid" id="sessionsModalList">
         <div style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 15px;">
           Carregando sessões disponíveis...
@@ -809,16 +904,47 @@
 
       <!-- FORMULÁRIO DE CRIAR NOVA SESSÃO -->
       <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-        <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700; margin-bottom: 8px;">
-          ➕ Deseja criar uma nova sessão?
+        <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <span>➕</span> Criar Nova Sessão / Pelada:
         </div>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="inputNewSessionName" class="form-input" placeholder="Ex: Pelada de Quarta" style="flex: 1;">
-          <button type="button" class="btn-card-action btn-cyan" id="btnCreateNewSession" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem;">
+          <input type="text" id="inputNewSessionName" class="form-input" placeholder="Ex: Vôlei de Quinta 19h" style="flex: 1;" maxlength="60">
+          <button type="button" class="btn-card-action btn-cyan" id="btnCreateNewSession" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem; white-space: nowrap;">
             Criar Sessão
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RENOMEAR SESSÃO -->
+  <div class="modal-overlay" id="modalRenameSession">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="font-size: 1.2rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <span>✏️</span> Renomear Sessão
+        </h3>
+        <button type="button" class="btn-compact" id="btnCloseRenameModal" style="background: transparent; border: none; font-size: 1.3rem; cursor: pointer; color: #94a3b8;" title="Fechar">&times;</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
+        Defina um novo nome para facilitar a identificação e o controle desta sala:
+      </p>
+
+      <form id="formRenameSession">
+        <input type="hidden" id="inputRenameSessionId">
+        <div style="display: flex; flex-direction: column; gap: 6px; margin: 14px 0 16px 0;">
+          <label for="inputRenameSessionName" style="font-size: 0.8rem; color: #cbd5e1; font-weight: 600;">Novo Nome:</label>
+          <input type="text" id="inputRenameSessionName" class="form-input" placeholder="Ex: Pelada dos Campeões" required maxlength="60">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn-compact" id="btnCancelRenameSession">Cancelar</button>
+          <button type="submit" class="btn-card-action btn-cyan" id="btnSubmitRenameSession" style="width: auto; padding: 0.55rem 1.2rem; font-size: 0.88rem;">
+            Salvar Nome
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -862,6 +988,7 @@
         if (roomCode) {
           currentRoom = String(roomCode).trim().toUpperCase();
           localStorage.setItem('volei_current_room', currentRoom);
+          localStorage.setItem('activePeladaId', currentRoom);
         }
 
         const user = getStoredUser();
@@ -977,24 +1104,32 @@
 
               <div class="session-current-details">
                 <div class="session-icon-circle">🏐</div>
-                <div>
+                <div style="flex: 1; min-width: 0;">
                   <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Sessão / Pelada Selecionada:</div>
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
                     <strong style="font-size: 1.15rem; color: #ffffff;" id="activePeladaNameDisplay">${escapeHtml(currentPeladaName)}</strong>
                     <span class="session-pill-code">${currentRoom ? ('SALA #' + currentRoom) : 'SEM SALA'}</span>
+                    <button type="button" class="btn-rename-pill" id="btnQuickRenameCurrentSession" title="Renomear esta sessão ativa">
+                      <span>✏️</span>
+                      <span>Renomear</span>
+                    </button>
                   </div>
                 </div>
               </div>
 
               <div class="logged-session-actions">
-                <button type="button" class="btn-compact" id="btnOpenChooseSession" title="Escolher outra sessão ou pelada">
-                  <span>🔄</span>
-                  <span>Trocar Sessão (${userPeladas.length})</span>
+                <button type="button" class="btn-compact" id="btnOpenChooseSession" title="Gerenciar todas as sessões e salas">
+                  <span>⚙️</span>
+                  <span>Gerenciar Sessões (${userPeladas.length})</span>
                 </button>
                 <button type="button" class="btn-compact" id="btnOpenCreateSession" style="background: rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.4); color: #fbbf24; font-weight: 700;" title="Criar uma nova sessão de jogo">
                   <span>➕</span>
                   <span>Nova Sessão</span>
                 </button>
+                <a href="/pelada" class="btn-compact" style="background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;" title="Abrir escalação e sorteio de times desta pelada">
+                  <span>👥</span>
+                  <span>Gestão & Times</span>
+                </a>
                 <a href="${currentRoom ? ('/placar?room=' + encodeURIComponent(currentRoom)) : '/placar'}" class="btn-card-action btn-cyan" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
                   <span>Ir ao Placar</span>
                   <span>➔</span>
@@ -1019,6 +1154,13 @@
           const btnLogoutSessionCard = document.getElementById('btnLogoutSessionCard');
           if (btnLogoutSessionCard) {
             btnLogoutSessionCard.addEventListener('click', performLogout);
+          }
+
+          const btnQuickRenameCurrentSession = document.getElementById('btnQuickRenameCurrentSession');
+          if (btnQuickRenameCurrentSession) {
+            btnQuickRenameCurrentSession.addEventListener('click', () => {
+              openRenameModal(currentRoom, currentPeladaName);
+            });
           }
 
           const btnOpenChooseSession = document.getElementById('btnOpenChooseSession');
@@ -1260,8 +1402,16 @@
       }
 
       // ==========================================
-      // MODAL: SELETOR DE SESSÕES & CRIAR NOVA SESSÃO
+      // MODAL: ADMINISTRAÇÃO DE SESSÕES & RENOMEAR
       // ==========================================
+      const modalRenameSession = document.getElementById('modalRenameSession');
+      const btnCloseRenameModal = document.getElementById('btnCloseRenameModal');
+      const btnCancelRenameSession = document.getElementById('btnCancelRenameSession');
+      const formRenameSession = document.getElementById('formRenameSession');
+      const inputRenameSessionId = document.getElementById('inputRenameSessionId');
+      const inputRenameSessionName = document.getElementById('inputRenameSessionName');
+      const btnSubmitRenameSession = document.getElementById('btnSubmitRenameSession');
+
       function openSessionModal() {
         if (!modalChooseSession) return;
         renderSessionsModalList();
@@ -1274,6 +1424,82 @@
 
       if (btnCloseSessionModal) {
         btnCloseSessionModal.addEventListener('click', closeSessionModal);
+      }
+
+      function openRenameModal(id, currentName) {
+        const user = getStoredUser();
+        if (!user || !user.username) {
+          requireLoginAlert('🔒 Faça login para renomear e administrar sessões.');
+          closeSessionModal();
+          return;
+        }
+
+        if (!modalRenameSession || !inputRenameSessionId || !inputRenameSessionName) return;
+        inputRenameSessionId.value = id;
+        inputRenameSessionName.value = currentName || '';
+        modalRenameSession.classList.add('show');
+        setTimeout(() => {
+          inputRenameSessionName.focus();
+          inputRenameSessionName.select();
+        }, 150);
+      }
+
+      function closeRenameModal() {
+        if (modalRenameSession) modalRenameSession.classList.remove('show');
+      }
+
+      if (btnCloseRenameModal) {
+        btnCloseRenameModal.addEventListener('click', closeRenameModal);
+      }
+      if (btnCancelRenameSession) {
+        btnCancelRenameSession.addEventListener('click', closeRenameModal);
+      }
+
+      // Submissão do formulário de renomeação de sessão
+      if (formRenameSession) {
+        formRenameSession.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const id = inputRenameSessionId ? inputRenameSessionId.value : null;
+          const newName = inputRenameSessionName ? inputRenameSessionName.value.trim() : '';
+
+          if (!id || !newName) {
+            alert('Por favor, informe o novo nome da sessão.');
+            return;
+          }
+
+          if (btnSubmitRenameSession) {
+            btnSubmitRenameSession.disabled = true;
+            btnSubmitRenameSession.textContent = 'Salvando...';
+          }
+
+          try {
+            const res = await fetch(`/api/peladas/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: newName })
+            });
+            const data = await res.json();
+
+            if (data.success && data.pelada) {
+              if (String(currentRoom) === String(id)) {
+                currentPeladaName = data.pelada.name;
+              }
+              closeRenameModal();
+              await fetchSessions();
+              renderSessionsModalList();
+              renderPortalUI();
+            } else {
+              alert(data.error || 'Erro ao renomear sessão.');
+            }
+          } catch(err) {
+            alert('Erro de conexão ao renomear sessão.');
+          } finally {
+            if (btnSubmitRenameSession) {
+              btnSubmitRenameSession.disabled = false;
+              btnSubmitRenameSession.textContent = 'Salvar Nome';
+            }
+          }
+        });
       }
 
       function renderSessionsModalList() {
@@ -1289,26 +1515,89 @@
           return;
         }
 
+        const user = getStoredUser();
+        const isLoggedIn = Boolean(user && user.username);
+
         userPeladas.forEach(pelada => {
           const isCurrent = String(pelada.id) === String(currentRoom);
           const row = document.createElement('div');
           row.className = `session-item-row ${isCurrent ? 'active' : ''}`;
 
           row.innerHTML = `
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(pelada.name)}</strong>
                 ${isCurrent ? '<span style="background: #10b981; color: #000; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px;">SESSÃO ATIVA</span>' : ''}
               </div>
               <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
-                Sala #${pelada.id} &bull; Admin: ${escapeHtml(pelada.admin_name || 'Admin')} &bull; ${pelada.player_count || 0} atletas
+                Sala #${pelada.id} &bull; Admin: ${escapeHtml(pelada.admin_name || 'Admin')} &bull; ${pelada.player_count || 0} atleta${(pelada.player_count === 1) ? '' : 's'}
               </div>
             </div>
-            <button type="button" class="btn-compact" style="${isCurrent ? 'background: #00f2fe; color: #000; font-weight: 800;' : ''}">
-              ${isCurrent ? 'Selecionada' : 'Entrar nesta'}
-            </button>
+
+            <div class="session-actions-group">
+              <button type="button" class="btn-session-action btn-action-rename" title="Renomear esta sessão">
+                <span>✏️</span>
+                <span>Renomear</span>
+              </button>
+              ${isCurrent ? `
+                <span class="btn-session-action btn-action-active" title="Sessão selecionada no momento">
+                  <span>✓</span>
+                  <span>Ativa</span>
+                </span>
+              ` : `
+                <button type="button" class="btn-session-action btn-action-select" title="Tornar esta a sessão ativa">
+                  <span>Usar</span>
+                </button>
+              `}
+              ${(isLoggedIn && userPeladas.length > 1) ? `
+                <button type="button" class="btn-session-action btn-action-delete" title="Excluir esta sessão">
+                  <span>🗑️</span>
+                </button>
+              ` : ''}
+            </div>
           `;
 
+          // Botão Renomear
+          const btnRename = row.querySelector('.btn-action-rename');
+          if (btnRename) {
+            btnRename.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openRenameModal(pelada.id, pelada.name);
+            });
+          }
+
+          // Botão Excluir
+          const btnDelete = row.querySelector('.btn-action-delete');
+          if (btnDelete) {
+            btnDelete.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              if (confirm(`Tem certeza que deseja excluir a sessão "${pelada.name}" (#${pelada.id}) e seus dados associados?`)) {
+                btnDelete.disabled = true;
+                try {
+                  const res = await fetch(`/api/peladas/${pelada.id}`, { method: 'DELETE' });
+                  const data = await res.json();
+                  if (data.success) {
+                    await fetchSessions();
+                    if (String(currentRoom) === String(pelada.id)) {
+                      if (userPeladas.length > 0) {
+                        currentRoom = String(userPeladas[0].id);
+                        currentPeladaName = userPeladas[0].name;
+                        updateNavigationLinks(currentRoom);
+                      }
+                    }
+                    renderSessionsModalList();
+                    renderPortalUI();
+                  } else {
+                    alert(data.error || 'Erro ao excluir sessão.');
+                  }
+                } catch(err) {
+                  alert('Erro de conexão ao excluir sessão.');
+                }
+              }
+            });
+          }
+
+          // Botão Usar / Clique na Linha para Selecionar
           row.addEventListener('click', () => {
             currentRoom = String(pelada.id);
             currentPeladaName = pelada.name;
@@ -1324,14 +1613,21 @@
       // Criar nova sessão
       if (btnCreateNewSession) {
         btnCreateNewSession.addEventListener('click', async () => {
-          const name = inputNewSessionName ? inputNewSessionName.value.trim() : '';
-          if (!name) {
-            alert('Digite o nome da nova pelada/sessão.');
+          const user = getStoredUser();
+          if (!user || !user.username) {
+            requireLoginAlert('🔒 Faça login para criar e administrar novas sessões.');
+            closeSessionModal();
             return;
           }
 
-          const user = getStoredUser();
-          const adminName = user ? (user.name || user.username) : 'Administrador';
+          const name = inputNewSessionName ? inputNewSessionName.value.trim() : '';
+          if (!name) {
+            alert('Digite o nome da nova pelada/sessão.');
+            if (inputNewSessionName) inputNewSessionName.focus();
+            return;
+          }
+
+          const adminName = user.name || user.username || 'Administrador';
 
           btnCreateNewSession.disabled = true;
           btnCreateNewSession.textContent = 'Criando...';

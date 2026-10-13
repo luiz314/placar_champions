@@ -472,6 +472,7 @@ function updateState(state, fromServer = false) {
     if (currentRoomCodeDisplay) {
       currentRoomCodeDisplay.textContent = formatRoomCode(state.roomId);
     }
+    fetchRoomPeladaName(state.roomId);
   }
 
   if (roomPillLock) {
@@ -489,6 +490,29 @@ function updateState(state, fromServer = false) {
 
   renderHistory(currentState.matchHistory || []);
   persistCurrentState();
+}
+
+let lastFetchedRoomId = null;
+async function fetchRoomPeladaName(roomId) {
+  if (!roomId || roomId === 'LOCAL' || roomId === lastFetchedRoomId) return;
+  lastFetchedRoomId = roomId;
+  try {
+    const res = await fetch('/api/peladas');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.peladas)) {
+      const p = data.peladas.find(item => String(item.id) === String(roomId));
+      const nameEl = document.getElementById('currentRoomNameDisplay');
+      if (p && nameEl) {
+        nameEl.textContent = `• ${p.name}`;
+        nameEl.style.display = 'inline';
+        if (currentRoomCodeDisplay) {
+          currentRoomCodeDisplay.setAttribute('title', `Sessão: ${p.name} (#${roomId})`);
+        }
+      } else if (nameEl) {
+        nameEl.style.display = 'none';
+      }
+    }
+  } catch(e) {}
 }
 
 // Inicializa a UI imediatamente com o estado em cache (carregamento instantâneo)
