@@ -220,6 +220,8 @@ app.get('/pelada', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pe
 app.get('/avaliar', (req, res) => res.sendFile(path.join(__dirname, 'public', 'avaliar.html')));
 app.get('/privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacidade.html')));
 app.get('/politica-de-privacidade', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacidade.html')));
+app.get('/termos', (req, res) => res.sendFile(path.join(__dirname, 'public', 'termos.html')));
+app.get('/termos-de-servico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'termos.html')));
 
 // ==========================================
 // AUTENTICAÇÃO E PERMISSÕES (MIDDLEWARES)

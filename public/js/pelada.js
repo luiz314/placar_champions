@@ -223,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePeladaUI();
     renderPeladasTable();
     await loadPlayers(activePeladaId);
-    loadAttendance();
 
     showToast(`Sessão alterada para: ${getActivePeladaName()}`);
     if (shouldSwitchTab) {
@@ -2549,6 +2548,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadPeladas().then(async () => {
     await loadPlayers(activePeladaId);
     loadUserRatings();
-    loadAttendance();
   });
 });
