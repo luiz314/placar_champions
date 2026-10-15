@@ -29,24 +29,42 @@ function createTransporter(opts = {}) {
 
   const isGmail = user.toLowerCase().includes('@gmail.com') || host === 'smtp.gmail.com';
 
-  // Preset 1: Serviço nativo Gmail do Nodemailer (porta 465 SSL por padrão)
-  if (isGmail && !opts.forceDirect && (!process.env.SMTP_HOST || process.env.SMTP_HOST === 'smtp.gmail.com')) {
+  // Opção com porta explícita (587 ou 465) com IPv4 forçado
+  if (opts.port !== undefined) {
     return nodemailer.createTransport({
-      service: 'gmail',
+      host: host || 'smtp.gmail.com',
+      port: opts.port,
+      secure: opts.secure !== undefined ? opts.secure : (opts.port === 465),
+      requireTLS: opts.requireTLS || false,
       auth: { user, pass },
+      tls: { rejectUnauthorized: false },
+      family: 4, // Força IPv4 para contornar falha de roteamento IPv6 no Railway
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 10000
     });
   }
 
-  // Preset 2: Conexão direta SMTP com timeouts estritos para nunca travar requisições
+  // Preset 1: Serviço nativo Gmail com IPv4
+  if (isGmail && !opts.forceDirect && (!process.env.SMTP_HOST || process.env.SMTP_HOST === 'smtp.gmail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      family: 4,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000
+    });
+  }
+
+  // Preset 2: Conexão direta SMTP com timeouts estritos e IPv4
   return nodemailer.createTransport({
     host: host || 'smtp.gmail.com',
     port: opts.port || port || 465,
     secure: opts.secure !== undefined ? opts.secure : (secure || port === 465),
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
+    family: 4,
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 10000
@@ -320,8 +338,9 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
 
   // 3. Tentativas via SMTP tradicional (Gmail, etc.)
   const attempts = [
-    { name: 'Preset Oficial Gmail / SMTP', forceDirect: false },
-    { name: 'Conexão Direta Porta 465 (SMTPS)', forceDirect: true, port: 465, secure: true }
+    { name: 'Gmail Porta 587 (STARTTLS + IPv4)', port: 587, secure: false, requireTLS: true },
+    { name: 'Gmail Porta 465 (SMTPS + IPv4)', port: 465, secure: true },
+    { name: 'Preset Oficial Gmail (IPv4)', forceDirect: false }
   ];
 
   let lastError = null;
