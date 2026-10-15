@@ -897,6 +897,300 @@
       background: rgba(7, 9, 14, 0.6);
       margin-top: auto;
     }
+
+    /* BOTÃO TUTORIAL NO HERO */
+    .hero-tutorial-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      border-radius: 999px;
+      color: var(--accent-cyan);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 242, 254, 0.12);
+      margin-top: 0.25rem;
+    }
+    .hero-tutorial-link:hover {
+      background: rgba(0, 242, 254, 0.2);
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 242, 254, 0.28);
+      color: #ffffff;
+    }
+
+    /* SEÇÃO DE TUTORIAL INTERATIVO */
+    .tutorial-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      padding: 2.2rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      margin-top: 0.5rem;
+    }
+
+    .tutorial-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 8%;
+      right: 8%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.6), rgba(251, 191, 36, 0.6), transparent);
+    }
+
+    .tutorial-header {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 1.8rem;
+    }
+
+    .tutorial-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      color: var(--accent-gold);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 0.65rem;
+    }
+
+    .tutorial-title {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      line-height: 1.25;
+      background: linear-gradient(135deg, #ffffff 60%, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .tutorial-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* ABAS DO TUTORIAL */
+    .tutorial-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.6rem;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 242, 254, 0.3) transparent;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .tutorial-tab-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.22s ease;
+      white-space: nowrap;
+    }
+
+    .tutorial-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .tutorial-tab-btn.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(79, 172, 254, 0.14));
+      border-color: var(--accent-cyan);
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(0, 242, 254, 0.22);
+    }
+
+    /* CONTEÚDO DOS PASSOS DO TUTORIAL */
+    .tutorial-pane {
+      display: none;
+      animation: fadeInTutorial 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tutorial-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeInTutorial {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tutorial-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 1.5rem;
+    }
+
+    .tutorial-card-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tutorial-card-item:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0, 242, 254, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .tutorial-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #07090e;
+      font-size: 0.85rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-badge.gold {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #1a1300;
+    }
+
+    .step-badge.purple {
+      background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      color: #1e1035;
+    }
+
+    .step-badge.green {
+      background: linear-gradient(135deg, #34d399, #10b981);
+      color: #032b1d;
+    }
+
+    .tutorial-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+    }
+
+    .tutorial-card-desc {
+      color: #cbd5e1;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .tutorial-card-points {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tutorial-card-points li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.83rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .tutorial-card-points li strong {
+      color: #f1f5f9;
+    }
+
+    .tutorial-pro-tip {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(0, 242, 254, 0.05));
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 1.4rem;
+    }
+
+    .tutorial-pro-tip-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .tutorial-pro-tip-content {
+      flex: 1;
+    }
+
+    .tutorial-pro-tip-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 2px;
+    }
+
+    .tutorial-pro-tip-text {
+      color: #cbd5e1;
+      font-size: 0.84rem;
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .tutorial-footer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
   </style>
 </head>
 <body>
@@ -914,6 +1208,11 @@
       <p class="hero-subtitle">
         Placar digital em tempo real, sorteio de times perfeitamente equilibrados por estrelas e votação de craques da rodada.
       </p>
+      <div>
+        <a href="#tutorialSection" class="hero-tutorial-link" id="btnHeroTutorial">
+          <span>📖</span> Como Funciona (Guia & Tutorial)
+        </a>
+      </div>
     </section>
 
     <!-- SEÇÃO DE ACESSO PRIORITÁRIA (PRIMEIRA DOBRA: LOGIN / CONVIDADO OU SESSÃO LOGADA) -->
@@ -992,6 +1291,375 @@
           <span>Votar nos Atletas</span>
           <span>➔</span>
         </a>
+      </div>
+    </section>
+
+    <!-- SEÇÃO DE TUTORIAL INTERATIVO (GUIA COMPLETO) -->
+    <section id="tutorialSection" class="tutorial-section">
+      <div class="tutorial-header">
+        <div class="tutorial-badge">
+          <span>🎓</span> Guia Oficial de Uso
+        </div>
+        <h2 class="tutorial-title">Como Funciona o Placar Champions</h2>
+        <p class="tutorial-subtitle">
+          Descubra como aproveitar ao máximo cada ferramenta: do controle de pontos ao vivo na TV até o sorteio equilibrado por habilidades e a votação de craques.
+        </p>
+      </div>
+
+      <!-- NAVEGAÇÃO DE ABAS DO TUTORIAL -->
+      <nav class="tutorial-nav" aria-label="Navegação do Tutorial">
+        <button type="button" class="tutorial-tab-btn active" data-tutorial-tab="tut-placar">
+          <span>🏐</span> 1. Placar Ao Vivo
+        </button>
+        <button type="button" class="tutorial-tab-btn" data-tutorial-tab="tut-pelada">
+          <span>⚡</span> 2. Pelada & Sorteador
+        </button>
+        <button type="button" class="tutorial-tab-btn" data-tutorial-tab="tut-avaliar">
+          <span>⭐</span> 3. Avaliação & Craques
+        </button>
+        <button type="button" class="tutorial-tab-btn" data-tutorial-tab="tut-admins">
+          <span>👥</span> 4. Membros & Convites
+        </button>
+        <button type="button" class="tutorial-tab-btn" data-tutorial-tab="tut-dicas">
+          <span>💡</span> 5. Dicas & Atalhos
+        </button>
+      </nav>
+
+      <!-- ABA 1: PLACAR AO VIVO -->
+      <div id="tut-placar" class="tutorial-pane active">
+        <div class="tutorial-cards-grid">
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge">1</span>
+              <h3 class="tutorial-card-title">Pontuação e Sets em Tempo Real</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Gerencie o jogo sem complicação com contagem automática de sets e regras oficiais de vôlei.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>👉</span> <span><strong>Adicionar ponto:</strong> Toque no número do placar da equipe (Time A ou B) para somar +1 ponto.</span></li>
+              <li><span>↩️</span> <span><strong>Desfazer / Ajustar:</strong> Use os botões de ajuste fino (-1) caso pontue por engano.</span></li>
+              <li><span>🏆</span> <span><strong>Fechamento de Sets:</strong> O sistema encerra o set automaticamente aos 25 pontos (com 2 de vantagem) ou tie-break no 15.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge">2</span>
+              <h3 class="tutorial-card-title">Rotação de Saque & Apito Oficial</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Controle a posse do saque e mantenha o clima de torneio profissional na quadra.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>🏐</span> <span><strong>Posse de Saque:</strong> A bola iluminada indica quem está no serviço. Alterne com 1 toque.</span></li>
+              <li><span>📢</span> <span><strong>Apito Digital:</strong> Efeitos sonoros realistas de apito para início de set, pontos decisivos e tempo técnico.</span></li>
+              <li><span>⏱️</span> <span><strong>Cronômetro Integrado:</strong> Registre o tempo total disputado com contagem contínua da partida.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge">3</span>
+              <h3 class="tutorial-card-title">Transmissão para Smart TV e Celulares</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Espelhe na TV da quadra ou compartilhe a sala para que todos assistam.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>📺</span> <span><strong>Modo TV / Tela Cheia:</strong> Pressione F11 ou use o botão de tela cheia para transformar sua Smart TV em placar oficial.</span></li>
+              <li><span>🔄</span> <span><strong>Sincronização Instantânea:</strong> Qualquer ponto anotado no celular do árbitro aparece na TV no mesmo milissegundo.</span></li>
+              <li><span>📱</span> <span><strong>Acesso da Torcida:</strong> Os amigos na arquibancada podem acompanhar o placar pelo celular sem precisar logar.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-pro-tip">
+          <div class="tutorial-pro-tip-icon">💡</div>
+          <div class="tutorial-pro-tip-content">
+            <div class="tutorial-pro-tip-title">Dica de Mestre: Controle Remoto da Quadra</div>
+            <p class="tutorial-pro-tip-text">
+              Abra a mesma sala na Smart TV e no celular do árbitro. Conforme ele pontua da beira da quadra no smartphone, o telão atualiza ao vivo para toda a torcida!
+            </p>
+          </div>
+        </div>
+
+        <div class="tutorial-footer-actions">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Pronto para iniciar uma partida agora?</span>
+          <a href="/placar" class="btn-card-action btn-cyan" style="width: auto; padding: 0.6rem 1.4rem; font-size: 0.85rem;">
+            <span>Abrir Placar Ao Vivo</span> <span>➔</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ABA 2: PELADA & SORTEADOR -->
+      <div id="tut-pelada" class="tutorial-pane">
+        <div class="tutorial-cards-grid">
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge gold">1</span>
+              <h3 class="tutorial-card-title">Cadastro do Elenco de Atletas</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Organize quem joga com foto, apelido e posição de quadra.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>👤</span> <span><strong>Novo Atleta:</strong> Cadastre com foto, nome e posição (Levantador, Ponta, Central, Oposto ou Líbero).</span></li>
+              <li><span>⭐</span> <span><strong>Habilidades:</strong> Cada atleta possui notas de 1 a 5 em Ataque, Defesa, Passe e Movimentação.</span></li>
+              <li><span>📊</span> <span><strong>Overall Ponderado:</strong> O sistema calcula a nota geral do jogador para orientar a divisão das forças.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge gold">2</span>
+              <h3 class="tutorial-card-title">Check-in de Quem Compareceu</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              No dia do jogo, selecione com agilidade apenas quem veio jogar.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>☑️</span> <span><strong>Seleção Rápida:</strong> Toque nos cards dos presentes ou clique no botão "Marcar Todos".</span></li>
+              <li><span>🔢</span> <span><strong>Formatos de Jogo:</strong> Escolha entre 2 Times (A x B), 3 Times (Rei da Quadra) ou 4 Times (Torneio).</span></li>
+              <li><span>👥</span> <span><strong>Modalidades:</strong> Compatível com Sexteto (6x6), Quarteto (4x4) e Duplas de Praia (2x2).</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge gold">3</span>
+              <h3 class="tutorial-card-title">Algoritmo Inteligente de Equilíbrio</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Acabou a discussão de times "panela": o algoritmo equilibra perfeitamente.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>⚡</span> <span><strong>Cálculo Multidimensional:</strong> Equaliza as médias de ataque, passe e defesa entre todas as equipes.</span></li>
+              <li><span>🏐</span> <span><strong>Distribuição de Levantadores:</strong> Evita que um time fique sem levantador e outro com dois.</span></li>
+              <li><span>📈</span> <span><strong>Índice de Justiça:</strong> Exibe a porcentagem exata de equilíbrio das forças (ex: 98% justo).</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-pro-tip">
+          <div class="tutorial-pro-tip-icon">📲</div>
+          <div class="tutorial-pro-tip-content">
+            <div class="tutorial-pro-tip-title">Compartilhe a Escalação com 1 Toque</div>
+            <p class="tutorial-pro-tip-text">
+              Após clicar em "Equilibrar Times", use o botão <strong>"Copiar Escalação para WhatsApp"</strong> para gerar a mensagem formatada com emojis e lista dos times pronta para colar no grupo da pelada!
+            </p>
+          </div>
+        </div>
+
+        <div class="tutorial-footer-actions">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Quer montar equipes equilibradas para o próximo jogo?</span>
+          <a href="/pelada" class="btn-card-action btn-gold" style="width: auto; padding: 0.6rem 1.4rem; font-size: 0.85rem;">
+            <span>Acessar Gestão da Pelada</span> <span>➔</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ABA 3: AVALIAÇÃO & CRAQUES -->
+      <div id="tut-avaliar" class="tutorial-pane">
+        <div class="tutorial-cards-grid">
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge purple">1</span>
+              <h3 class="tutorial-card-title">Notas em Grade por Fundamentos</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Avalie de forma justa e transparente as 4 principais valências do voleibol:
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>💥</span> <span><strong>Ataque:</strong> Força de corte, aproveitamento de bola e eficiência na rede.</span></li>
+              <li><span>🛡️</span> <span><strong>Defesa:</strong> Posicionamento, peito, recuperação de bolas difíceis e bloqueio.</span></li>
+              <li><span>🎯</span> <span><strong>Passe & Levantamento:</strong> Qualidade na manchete, toque limpo e distribuição.</span></li>
+              <li><span>⚡</span> <span><strong>Movimentação:</strong> Cobertura de quadra, agilidade e presença constante.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge purple">2</span>
+              <h3 class="tutorial-card-title">Cédula de Votação do Craque (MVP)</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Transforme o pós-jogo em um momento divertido de consagração dos atletas.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>🗳️</span> <span><strong>Votação Democrática:</strong> Acesse a aba de votação pelo link direto <code>/avaliar</code>.</span></li>
+              <li><span>⭐</span> <span><strong>Voto Único por Jogador:</strong> Cada votante registrado escolhe quem foi o melhor da partida.</span></li>
+              <li><span>🏆</span> <span><strong>Pódio da Noite:</strong> O sistema apura os votos e revela o Craque da Partida e os destaques.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge purple">3</span>
+              <h3 class="tutorial-card-title">Evolução e Histórico da Temporada</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Acompanhe o rendimento e a evolução de cada atleta ao longo do tempo.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>📜</span> <span><strong>Registro de Partidas:</strong> Todas as vitórias e sets disputados salvos na sala.</span></li>
+              <li><span>🎖️</span> <span><strong>Quadro de Honra:</strong> Veja quem mais venceu jogos e quem coleciona mais troféus de Craque.</span></li>
+              <li><span>🔄</span> <span><strong>Ajuste Dinâmico:</strong> Conforme os atletas evoluem na quadra, suas médias sobem no sorteador!</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-pro-tip">
+          <div class="tutorial-pro-tip-icon">⭐</div>
+          <div class="tutorial-pro-tip-content">
+            <div class="tutorial-pro-tip-title">Avaliação Direta nas Estrelas</div>
+            <p class="tutorial-pro-tip-text">
+              Na aba "Peladas & Sessões", você pode dar notas clicando diretamente sobre as estrelinhas de cada atleta. As notas são salvas imediatamente sem precisar abrir formulários demorados!
+            </p>
+          </div>
+        </div>
+
+        <div class="tutorial-footer-actions">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Quer votar no destaque da última rodada?</span>
+          <a href="/avaliar" class="btn-card-action btn-purple" style="width: auto; padding: 0.6rem 1.4rem; font-size: 0.85rem;">
+            <span>Abrir Votação de Craques</span> <span>➔</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ABA 4: MEMBROS & CONVITES -->
+      <div id="tut-admins" class="tutorial-pane">
+        <div class="tutorial-cards-grid">
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge green">1</span>
+              <h3 class="tutorial-card-title">Salas e Peladas Independentes</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Você joga com turmas diferentes? Tenha uma sala para cada grupo!
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>🆔</span> <span><strong>ID e Nome Próprio:</strong> Crie salas como "Vôlei de Terça 19h" ou "Vôlei de Praia FDS".</span></li>
+              <li><span>📁</span> <span><strong>Elencos Separados:</strong> Os jogadores de uma pelada não se misturam com as outras turmas.</span></li>
+              <li><span>🔀</span> <span><strong>Troca Instantânea:</strong> Alterne de sala com apenas 1 clique no menu de sessões.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge green">2</span>
+              <h3 class="tutorial-card-title">Hierarquia de Permissões</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Controle quem pode editar informações e quem apenas vota ou assiste.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>👑</span> <span><strong>Criador (Dono):</strong> Administra a sala, renomeia, exclui e define outros administradores.</span></li>
+              <li><span>⭐</span> <span><strong>Administrador:</strong> Cadastra/edita atletas, ajusta notas e roda o sorteio balanceado.</span></li>
+              <li><span>🏐</span> <span><strong>Votante:</strong> Membro participante que pode emitir votos e eleger o MVP.</span></li>
+              <li><span>👁️</span> <span><strong>Espectador:</strong> Acompanha o placar e histórico sem direito de voto.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge green">3</span>
+              <h3 class="tutorial-card-title">Convite por Link ou Código</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Chamar seus amigos para a sala é simples e rápido.
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>📋</span> <span><strong>Link Direto:</strong> Clique em "Copiar Link de Convite" no botão 👥 Admins e envie no WhatsApp.</span></li>
+              <li><span>🎟️</span> <span><strong>Código de Convite:</strong> Qualquer jogador pode colar o código (ex: <code>V-733849</code>) na página inicial para entrar.</span></li>
+              <li><span>📧</span> <span><strong>Convidar por E-mail:</strong> O administrador pode adicionar e-mails cadastrados definindo o papel inicial.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-pro-tip">
+          <div class="tutorial-pro-tip-icon">🔒</div>
+          <div class="tutorial-pro-tip-content">
+            <div class="tutorial-pro-tip-title">Segurança e Privacidade dos Seus Grupos</div>
+            <p class="tutorial-pro-tip-text">
+              Somente usuários autorizados ou com código de convite conseguem visualizar o elenco e notas internas da pelada, garantindo total privacidade para sua turma!
+            </p>
+          </div>
+        </div>
+
+        <div class="tutorial-footer-actions">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Gerencie as permissões dos membros do seu grupo:</span>
+          <a href="/pelada" class="btn-card-action btn-cyan" style="width: auto; padding: 0.6rem 1.4rem; font-size: 0.85rem;">
+            <span>Gerenciar Minha Sala</span> <span>➔</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ABA 5: DICAS & ATALHOS -->
+      <div id="tut-dicas" class="tutorial-pane">
+        <div class="tutorial-cards-grid">
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge">📱</span>
+              <h3 class="tutorial-card-title">Instale como Aplicativo (PWA)</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Tenha o Placar Champions na tela inicial do seu celular sem precisar baixar nada da loja:
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>🤖</span> <span><strong>No Android (Chrome):</strong> Toque nos 3 pontinhos e selecione <em>"Instalar aplicativo"</em> ou <em>"Adicionar à tela inicial"</em>.</span></li>
+              <li><span>🍏</span> <span><strong>No iPhone (Safari):</strong> Toque no botão de compartilhar (ícone com seta) e escolha <em>"Adicionar à Tela de Início"</em>.</span></li>
+              <li><span>⚡</span> <span><strong>Vantagem:</strong> Abre em tela cheia, sem barra de endereços, super rápido e leve.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge gold">🖼️</span>
+              <h3 class="tutorial-card-title">Cards para Instagram Stories</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Divulgue os confrontos da pelada com visual gráfico de alta definição:
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>📸</span> <span><strong>Gerador Automático:</strong> Na aba do Sorteador, clique em <em>"Gerar Card (Stories/Post)"</em>.</span></li>
+              <li><span>🎨</span> <span><strong>Layout Profissional:</strong> Card com as cores das equipes, logos e nomes de todos os jogadores.</span></li>
+              <li><span>💾</span> <span><strong>Download em 1 Clique:</strong> Salve a imagem diretamente na galeria do celular pronta para postar.</span></li>
+            </ul>
+          </div>
+
+          <div class="tutorial-card-item">
+            <div class="tutorial-card-top">
+              <span class="step-badge purple">⌨️</span>
+              <h3 class="tutorial-card-title">Atalhos e Dicas de Jogo</h3>
+            </div>
+            <p class="tutorial-card-desc">
+              Praticidade máxima durante a correria da partida:
+            </p>
+            <ul class="tutorial-card-points">
+              <li><span>🔄</span> <span><strong>Troca de Lados:</strong> Ao finalizar um set ou quando desejar, use o botão de inverter lados da quadra.</span></li>
+              <li><span>🔊</span> <span><strong>Som do Apito:</strong> Conecte uma caixa Bluetooth à quadra para que todos escutem o apito oficial a cada ponto importante!</span></li>
+              <li><span>📊</span> <span><strong>Diferença de Pontos:</strong> O placar sinaliza automaticamente quando está em "Match Point" ou "Set Point".</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-pro-tip">
+          <div class="tutorial-pro-tip-icon">✨</div>
+          <div class="tutorial-pro-tip-content">
+            <div class="tutorial-pro-tip-title">Tudo Pronto para o Jogo?</div>
+            <p class="tutorial-pro-tip-text">
+              Crie sua sala, cadastre os atletas e deixe o Placar Champions cuidar do equilíbrio das equipes e do placar eletrônico ao vivo!
+            </p>
+          </div>
+        </div>
+
+        <div class="tutorial-footer-actions">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Ficou com alguma dúvida?</span>
+          <button type="button" class="btn-card-action btn-cyan" style="width: auto; padding: 0.6rem 1.4rem; font-size: 0.85rem;" onclick="document.querySelector('[data-tutorial-tab=\'tut-placar\']').click(); document.getElementById('tutorialSection').scrollIntoView({ behavior: 'smooth' });">
+            <span>Voltar ao Início do Guia</span> <span>⬆️</span>
+          </button>
+        </div>
       </div>
     </section>
 
@@ -1077,10 +1745,50 @@
     </div>
   </div>
 
+  <!-- MODAL: REDEFINIÇÃO DE SENHA -->
+  <div class="modal-overlay" id="modalResetPassword">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="font-size: 1.2rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <span>🔒</span> Criar Nova Senha
+        </h3>
+        <button type="button" class="btn-compact" id="btnCloseResetModal" style="background: transparent; border: none; font-size: 1.3rem; cursor: pointer; color: #94a3b8;" title="Fechar">&times;</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: #94a3b8; margin: 4px 0 0 0;">
+        Defina sua nova senha para acessar sua conta no Placar Champions:
+      </p>
+
+      <form id="formResetPasswordSubmit">
+        <input type="hidden" id="hiddenResetToken">
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="inputNewResetPassword" style="font-size: 0.8rem; color: #cbd5e1; font-weight: 600;">Nova Senha (mínimo 6 caracteres):</label>
+          <input type="password" id="inputNewResetPassword" class="form-input" required minlength="6" placeholder="Sua nova senha">
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="inputConfirmResetPassword" style="font-size: 0.8rem; color: #cbd5e1; font-weight: 600;">Confirmar Nova Senha:</label>
+          <input type="password" id="inputConfirmResetPassword" class="form-input" required minlength="6" placeholder="Repita a nova senha">
+        </div>
+
+        <div class="auth-feedback-box" id="resetModalFeedback" style="margin-top: 8px;"></div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px;">
+          <button type="button" class="btn-compact" id="btnCancelResetModal">Cancelar</button>
+          <button type="submit" class="btn-card-action btn-gold" id="btnSubmitNewPassword" style="width: auto; padding: 0.55rem 1.2rem; font-size: 0.88rem;">
+            Salvar Nova Senha
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- RODAPÉ -->
   <footer class="portal-footer">
     <p>Placar Champions - Sistema de Placar e Gestão de Partidas</p>
     <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 0.85rem; flex-wrap: wrap;">
+      <a href="#tutorialSection" style="color: #38bdf8; font-weight: 700; text-decoration: none; transition: color 0.2s;">📖 Guia & Tutorial</a>
+      <span style="opacity: 0.35;">•</span>
       <a href="/termos-de-servico" style="color: #93c5fd; font-weight: 600; text-decoration: underline; transition: color 0.2s;">Termos de Serviço</a>
       <span style="opacity: 0.35;">•</span>
       <a href="/privacidade" style="color: #93c5fd; font-weight: 600; text-decoration: underline; transition: color 0.2s;">Política de Privacidade</a>
@@ -1382,7 +2090,10 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="loginPassword">Senha</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="form-label" for="loginPassword" style="margin: 0;">Senha</label>
+                  <button type="button" id="btnForgotPass" style="background: none; border: none; color: #38bdf8; font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0;">Esqueci minha senha</button>
+                </div>
                 <input type="password" id="loginPassword" class="form-input" required autocomplete="current-password">
               </div>
 
@@ -1417,6 +2128,34 @@
                 <span>Criar Conta e Entrar</span>
                 <span>➔</span>
               </button>
+            </form>
+
+            <!-- FORMULÁRIO DE RECUPERAÇÃO DE SENHA -->
+            <form class="auth-form" id="formForgot" style="display: none;">
+              <div style="margin-bottom: 8px;">
+                <h4 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 1rem; font-weight: 700;">🔑 Recuperar Senha</h4>
+                <p style="margin: 0; color: #94a3b8; font-size: 0.8rem; line-height: 1.4;">
+                  Digite seu e-mail cadastrado. Enviaremos um link seguro para você redefinir sua senha.
+                </p>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="forgotUsername">E-mail Cadastrado</label>
+                <input type="email" id="forgotUsername" class="form-input" required autocomplete="email" placeholder="seu@email.com">
+              </div>
+
+              <div class="auth-feedback-box" id="forgotFeedback"></div>
+
+              <button type="submit" class="btn-card-action btn-gold" id="btnForgotSubmit">
+                <span>Enviar Link por E-mail</span>
+                <span>➔</span>
+              </button>
+
+              <div style="text-align: center; margin-top: 8px;">
+                <button type="button" id="btnBackToLogin" style="background: none; border: none; color: #38bdf8; font-size: 0.82rem; cursor: pointer; text-decoration: underline;">
+                  ← Voltar para o Login
+                </button>
+              </div>
             </form>
           </div>
 
@@ -1477,6 +2216,9 @@
         const tabBtnRegister = document.getElementById('tabBtnRegister');
         const formLogin = document.getElementById('formLogin');
         const formRegister = document.getElementById('formRegister');
+        const formForgot = document.getElementById('formForgot');
+        const btnForgotPass = document.getElementById('btnForgotPass');
+        const btnBackToLogin = document.getElementById('btnBackToLogin');
         const btnGuestEnter = document.getElementById('btnGuestEnter');
         const inputGuestRoomCode = document.getElementById('inputGuestRoomCode');
 
@@ -1485,6 +2227,7 @@
           tabBtnRegister.classList.remove('active');
           formLogin.style.display = 'flex';
           formRegister.style.display = 'none';
+          if (formForgot) formForgot.style.display = 'none';
         });
 
         tabBtnRegister.addEventListener('click', () => {
@@ -1492,7 +2235,62 @@
           tabBtnLogin.classList.remove('active');
           formLogin.style.display = 'none';
           formRegister.style.display = 'flex';
+          if (formForgot) formForgot.style.display = 'none';
         });
+
+        if (btnForgotPass) {
+          btnForgotPass.addEventListener('click', () => {
+            tabBtnLogin.classList.remove('active');
+            tabBtnRegister.classList.remove('active');
+            formLogin.style.display = 'none';
+            formRegister.style.display = 'none';
+            if (formForgot) {
+              formForgot.style.display = 'flex';
+              showFeedback('forgotFeedback', '', '');
+              const forgotUser = document.getElementById('forgotUsername');
+              if (forgotUser) {
+                forgotUser.value = document.getElementById('loginUsername').value.trim();
+                forgotUser.focus();
+              }
+            }
+          });
+        }
+
+        if (btnBackToLogin) {
+          btnBackToLogin.addEventListener('click', () => {
+            tabBtnLogin.classList.add('active');
+            tabBtnRegister.classList.remove('active');
+            if (formForgot) formForgot.style.display = 'none';
+            formLogin.style.display = 'flex';
+          });
+        }
+
+        if (formForgot) {
+          formForgot.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showFeedback('forgotFeedback', '', '');
+            const email = document.getElementById('forgotUsername').value.trim().toLowerCase();
+            const btnSubmit = document.getElementById('btnForgotSubmit');
+            btnSubmit.disabled = true;
+            try {
+              const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+              });
+              const data = await res.json();
+              if (data.success) {
+                showFeedback('forgotFeedback', 'success', data.message);
+              } else {
+                showFeedback('forgotFeedback', 'error', data.error || 'Erro ao processar solicitação.');
+              }
+            } catch (err) {
+              showFeedback('forgotFeedback', 'error', 'Erro ao conectar ao servidor. Verifique sua conexão.');
+            } finally {
+              btnSubmit.disabled = false;
+            }
+          });
+        }
 
         btnGuestEnter.addEventListener('click', () => {
           const roomVal = inputGuestRoomCode.value.replace(/\D/g, '');
@@ -1510,7 +2308,8 @@
           showFeedback('loginFeedback', '', '');
           const username = document.getElementById('loginUsername').value.trim().toLowerCase();
           const password = document.getElementById('loginPassword').value;
-          postAuth('/api/auth/login', { username, password }, 'loginFeedback', 'Login efetuado com sucesso! Conectando...');
+          const inviteToken = urlParams.get('inviteToken') || undefined;
+          postAuth('/api/auth/login', { username, password, inviteToken }, 'loginFeedback', 'Login efetuado com sucesso! Conectando...');
         });
 
         formRegister.addEventListener('submit', (e) => {
@@ -1519,7 +2318,8 @@
           const name = document.getElementById('regName').value.trim();
           const username = document.getElementById('regUsername').value.trim().toLowerCase();
           const password = document.getElementById('regPassword').value;
-          postAuth('/api/auth/register', { name, username, password }, 'regFeedback', 'Conta criada com sucesso! Conectando...');
+          const inviteToken = urlParams.get('inviteToken') || undefined;
+          postAuth('/api/auth/register', { name, username, password, inviteToken }, 'regFeedback', 'Conta criada com sucesso! Conectando...');
         });
       }
 
@@ -1859,6 +2659,18 @@
             await handleJoinPelada(inviteUrlCode);
           }
 
+          // Processa convite assinado por token (?inviteToken=...) se o usuário já estiver logado
+          const inviteTokenParam = urlParams.get('inviteToken');
+          if (inviteTokenParam && Auth.getUser()) {
+            await handleAcceptSignedInvite(inviteTokenParam);
+          }
+
+          // Processa link de redefinição de senha (?resetToken=...)
+          const resetTokenParam = urlParams.get('resetToken');
+          if (resetTokenParam) {
+            openResetPasswordModal(resetTokenParam);
+          }
+
           // Se foi redirecionado com authRequired, exibe alerta explicativo
           if (urlParams.get('authRequired') && !Auth.getUser()) {
             requireLoginAlert('🔒 Acesso restrito: Apenas usuários cadastrados e logados podem acessar a Gestão e Votações. Visitantes têm permissão exclusivamente para abrir o Placar.');
@@ -1869,6 +2681,144 @@
           }
         });
       });
+
+      // ==========================================
+      // MODAL DE REDEFINIÇÃO DE SENHA
+      // ==========================================
+      const modalResetPassword = document.getElementById('modalResetPassword');
+      const hiddenResetToken = document.getElementById('hiddenResetToken');
+      const formResetPasswordSubmit = document.getElementById('formResetPasswordSubmit');
+      const inputNewResetPassword = document.getElementById('inputNewResetPassword');
+      const inputConfirmResetPassword = document.getElementById('inputConfirmResetPassword');
+      const btnCloseResetModal = document.getElementById('btnCloseResetModal');
+      const btnCancelResetModal = document.getElementById('btnCancelResetModal');
+
+      function openResetPasswordModal(token) {
+        if (!modalResetPassword) return;
+        if (hiddenResetToken) hiddenResetToken.value = token;
+        showFeedback('resetModalFeedback', '', '');
+        modalResetPassword.classList.add('show');
+        setTimeout(() => {
+          if (inputNewResetPassword) inputNewResetPassword.focus();
+        }, 150);
+      }
+
+      function closeResetPasswordModal() {
+        if (modalResetPassword) modalResetPassword.classList.remove('show');
+        if (formResetPasswordSubmit) formResetPasswordSubmit.reset();
+      }
+
+      if (btnCloseResetModal) btnCloseResetModal.addEventListener('click', closeResetPasswordModal);
+      if (btnCancelResetModal) btnCancelResetModal.addEventListener('click', closeResetPasswordModal);
+
+      if (formResetPasswordSubmit) {
+        formResetPasswordSubmit.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          showFeedback('resetModalFeedback', '', '');
+          const token = hiddenResetToken ? hiddenResetToken.value : '';
+          const newPass = inputNewResetPassword ? inputNewResetPassword.value : '';
+          const confirmPass = inputConfirmResetPassword ? inputConfirmResetPassword.value : '';
+
+          if (newPass !== confirmPass) {
+            showFeedback('resetModalFeedback', 'error', 'As senhas digitadas não coincidem.');
+            return;
+          }
+          if (newPass.length < 6) {
+            showFeedback('resetModalFeedback', 'error', 'A senha deve ter pelo menos 6 caracteres.');
+            return;
+          }
+
+          const btnSubmit = document.getElementById('btnSubmitNewPassword');
+          btnSubmit.disabled = true;
+
+          try {
+            const res = await fetch('/api/auth/reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, newPassword: newPass })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showFeedback('resetModalFeedback', 'success', data.message);
+              setTimeout(() => {
+                closeResetPasswordModal();
+                alert('🎉 Senha alterada com sucesso! Você já pode entrar com sua nova senha.');
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }, 1200);
+            } else {
+              showFeedback('resetModalFeedback', 'error', data.error || 'Erro ao redefinir senha.');
+            }
+          } catch (err) {
+            showFeedback('resetModalFeedback', 'error', 'Erro de conexão com o servidor.');
+          } finally {
+            btnSubmit.disabled = false;
+          }
+        });
+      }
+
+      async function handleAcceptSignedInvite(token) {
+        try {
+          const res = await fetch('/api/peladas/accept-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inviteToken: token })
+          });
+          const data = await res.json();
+          if (data.success && data.pelada) {
+            currentRoom = String(data.pelada.id);
+            currentPeladaName = data.pelada.name;
+            await renderPortalUI();
+            alert(`🎉 Convite aceito! ${data.message || 'Você entrou na pelada com sucesso!'}`);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch(e) {}
+      }
+
+      // ==========================================
+      // CONTROLE DE ABAS DO TUTORIAL INTERATIVO
+      // ==========================================
+      const tutorialTabBtns = document.querySelectorAll('.tutorial-tab-btn');
+      const tutorialPanes = document.querySelectorAll('.tutorial-pane');
+
+      function switchTutorialTab(targetId) {
+        if (!targetId) return;
+        tutorialTabBtns.forEach(btn => {
+          const match = btn.getAttribute('data-tutorial-tab') === targetId;
+          btn.classList.toggle('active', match);
+        });
+        tutorialPanes.forEach(pane => {
+          const match = pane.id === targetId;
+          pane.classList.toggle('active', match);
+        });
+      }
+
+      tutorialTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-tutorial-tab');
+          switchTutorialTab(target);
+        });
+      });
+
+      // Rolagem suave para o tutorial se solicitado via link/hash
+      const btnHeroTutorial = document.getElementById('btnHeroTutorial');
+      if (btnHeroTutorial) {
+        btnHeroTutorial.addEventListener('click', (e) => {
+          e.preventDefault();
+          const tutSec = document.getElementById('tutorialSection');
+          if (tutSec) {
+            tutSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      }
+
+      if (window.location.hash === '#tutorialSection' || urlParams.get('tutorial')) {
+        setTimeout(() => {
+          const tutSec = document.getElementById('tutorialSection');
+          if (tutSec) {
+            tutSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 350);
+      }
     })();
   </script>
 </body>

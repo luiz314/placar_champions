@@ -1679,34 +1679,22 @@ document.addEventListener('DOMContentLoaded', () => {
       btnAddPeladaAdmin.disabled = true;
 
       try {
-        if (role === 'admin') {
-          const res = await fetch(`/api/peladas/${adminsModalPeladaId}/admins`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-          const data = await res.json();
-          if (data.success) {
-            showToast(`${Auth.displayName(data.admin)} agora é administrador desta pelada!`);
-            formAddPeladaAdmin.reset();
-            renderAdminsList();
-          } else {
-            alert(data.error || 'Erro ao adicionar administrador.');
-          }
+        const endpoint = role === 'admin' 
+          ? `/api/peladas/${adminsModalPeladaId}/admins`
+          : `/api/peladas/${adminsModalPeladaId}/members`;
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, role })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message || `✉️ Convite enviado para ${email}!`);
+          formAddPeladaAdmin.reset();
+          renderAdminsList();
         } else {
-          const res = await fetch(`/api/peladas/${adminsModalPeladaId}/members`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, role })
-          });
-          const data = await res.json();
-          if (data.success) {
-            showToast(`${Auth.displayName(data.member)} adicionado como ${role === 'votante' ? 'Votante' : 'Espectador'}!`);
-            formAddPeladaAdmin.reset();
-            renderAdminsList();
-          } else {
-            alert(data.error || 'Erro ao adicionar membro.');
-          }
+          alert(data.error || 'Erro ao enviar convite por e-mail.');
         }
       } catch (err) {
         alert('Erro de conexão ao adicionar membro.');

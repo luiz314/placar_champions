@@ -83,6 +83,81 @@ function verifyToken(token) {
 }
 
 // ==========================================
+// TOKENS DE RECUPERAÇÃO DE SENHA (1 hora)
+// ==========================================
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+function issuePasswordResetToken(user) {
+  const passFingerprint = String(user.passwordHash || user.password_hash || 'no-pass').slice(-16);
+  const payload = Buffer.from(JSON.stringify({
+    uid: Number(user.id),
+    email: String(user.username).toLowerCase(),
+    fp: passFingerprint,
+    exp: Date.now() + RESET_TOKEN_TTL_MS
+  })).toString('base64url');
+  return `${payload}.${sign(payload)}`;
+}
+
+function verifyPasswordResetToken(token, user) {
+  if (!token || typeof token !== 'string' || !tokenSecret) return null;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+
+  const expected = sign(payload);
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!data.uid || !data.exp || data.exp < Date.now()) return null;
+    if (user) {
+      if (Number(user.id) !== Number(data.uid)) return null;
+      const currentFp = String(user.passwordHash || user.password_hash || 'no-pass').slice(-16);
+      if (data.fp !== currentFp) return null; // Senha já foi redefinida com este token
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ==========================================
+// TOKENS DE CONVITE PARA PELADA (7 dias)
+// ==========================================
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function issuePeladaInviteToken({ peladaId, email, role, inviterId }) {
+  const payload = Buffer.from(JSON.stringify({
+    pid: Number(peladaId),
+    email: String(email).toLowerCase().trim(),
+    role: role || 'votante',
+    inviter: Number(inviterId || 0),
+    exp: Date.now() + INVITE_TOKEN_TTL_MS
+  })).toString('base64url');
+  return `${payload}.${sign(payload)}`;
+}
+
+function verifyPeladaInviteToken(token) {
+  if (!token || typeof token !== 'string' || !tokenSecret) return null;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+
+  const expected = sign(payload);
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!data.pid || !data.email || !data.exp || data.exp < Date.now()) return null;
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ==========================================
 // SUPER ADMINISTRADORES (definidos pela variavel SUPER_ADMIN_EMAILS)
 // ==========================================
 const SUPER_ADMIN_EMAILS = String(process.env.SUPER_ADMIN_EMAILS || 'luix314@gmail.com')
@@ -168,6 +243,10 @@ module.exports = {
   setTokenSecret,
   issueToken,
   verifyToken,
+  issuePasswordResetToken,
+  verifyPasswordResetToken,
+  issuePeladaInviteToken,
+  verifyPeladaInviteToken,
   isSuperAdmin,
   isLoginBlocked,
   registerLoginFailure,

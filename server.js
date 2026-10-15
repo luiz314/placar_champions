@@ -7,12 +7,20 @@ const fs = require('fs');
 const db = require('./db');
 const auth = require('./auth');
 const balancer = require('./balancer');
+const mailer = require('./mailer');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' }
 });
+
+function getBaseUrl(req) {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/+$/, '');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.get('host');
+  return `${proto}://${host}`;
+}
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -299,13 +307,27 @@ app.get('/api/auth/config', (req, res) => {
 });
 
 app.post('/api/auth/register', route(async (req, res) => {
-  const { username, password, name } = req.body || {};
+  const { username, password, name, inviteToken } = req.body || {};
   const user = await db.createUser(username, password, name);
+
+  // Se veio por um convite assinado, aceita automaticamente na pelada correspondente
+  if (inviteToken) {
+    const payload = auth.verifyPeladaInviteToken(inviteToken);
+    if (payload && payload.pid) {
+      try {
+        if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
+        else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
+      } catch (e) {
+        console.warn('Aviso: Falha ao associar membro pós-registro com token de convite:', e.message);
+      }
+    }
+  }
+
   res.status(201).json(sessionResponse(user));
 }));
 
 app.post('/api/auth/login', route(async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, inviteToken } = req.body || {};
   const email = String(username || '').trim().toLowerCase();
   if (auth.isLoginBlocked(req.ip, email)) {
     throw httpError(429, 'Muitas tentativas de login. Aguarde 15 minutos e tente novamente.');
@@ -313,6 +335,17 @@ app.post('/api/auth/login', route(async (req, res) => {
   try {
     const user = await db.authenticateUser(email, password);
     auth.clearLoginFailures(req.ip, email);
+
+    if (inviteToken) {
+      const payload = auth.verifyPeladaInviteToken(inviteToken);
+      if (payload && payload.pid) {
+        try {
+          if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
+          else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
+        } catch (e) {}
+      }
+    }
+
     res.json(sessionResponse(user));
   } catch (err) {
     if (err.status || /^Sequelize/.test(err.name || '')) throw err;
@@ -322,14 +355,87 @@ app.post('/api/auth/login', route(async (req, res) => {
 }));
 
 app.post('/api/auth/google', route(async (req, res) => {
-  const profile = await auth.verifyGoogleCredential((req.body || {}).credential);
+  const { credential, inviteToken } = req.body || {};
+  const profile = await auth.verifyGoogleCredential(credential);
   const user = await db.findOrCreateGoogleUser(profile);
+
+  if (inviteToken) {
+    const payload = auth.verifyPeladaInviteToken(inviteToken);
+    if (payload && payload.pid) {
+      try {
+        if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
+        else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
+      } catch (e) {}
+    }
+  }
+
   res.json(sessionResponse(user));
 }));
 
 app.get('/api/auth/me', (req, res) => {
   res.json({ success: true, user: req.user });
 });
+
+// Solicitar link de recuperação de senha por e-mail
+app.post('/api/auth/forgot-password', route(async (req, res) => {
+  const { email } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) throw httpError(400, 'Informe o e-mail cadastrado na sua conta.');
+
+  const user = await db.getUserWithHashByEmail(cleanEmail);
+  if (!user) {
+    // Retorno neutro seguro para evitar enumeração de contas
+    return res.json({
+      success: true,
+      message: 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes.'
+    });
+  }
+
+  const token = auth.issuePasswordResetToken(user);
+  const resetUrl = `${getBaseUrl(req)}/?resetToken=${token}`;
+
+  const mailResult = await mailer.sendPasswordResetEmail({
+    to: cleanEmail,
+    userName: user.name || cleanEmail,
+    resetUrl
+  });
+
+  res.json({
+    success: true,
+    message: 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes.',
+    simulated: mailResult.simulated,
+    previewUrl: mailResult.simulated ? resetUrl : undefined
+  });
+}));
+
+// Redefinir senha usando token assinado recebido por e-mail
+app.post('/api/auth/reset-password', route(async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token) throw httpError(400, 'Token de recuperação não fornecido.');
+  if (!newPassword || String(newPassword).length < 6) {
+    throw httpError(400, 'A nova senha deve ter pelo menos 6 caracteres.');
+  }
+
+  const payload = auth.verifyPasswordResetToken(token);
+  if (!payload || !payload.uid) {
+    throw httpError(400, 'O link de recuperação expirou ou é inválido. Solicite um novo link.');
+  }
+
+  const user = await db.getUserWithHashById(payload.uid);
+  if (!user) throw httpError(404, 'Usuário não encontrado.');
+
+  const valid = auth.verifyPasswordResetToken(token, user);
+  if (!valid) {
+    throw httpError(400, 'Este link de recuperação já foi utilizado ou sua senha já foi alterada.');
+  }
+
+  const updatedUser = await db.resetUserPassword(user.id, newPassword);
+  res.json({
+    success: true,
+    message: 'Senha alterada com sucesso! Você já pode entrar com a nova senha.',
+    user: updatedUser
+  });
+}));
 
 // ==========================================
 // ROTAS DE PELADAS (SESSÕES / GRUPOS)
@@ -393,16 +499,117 @@ app.get('/api/peladas/:id/members', route(async (req, res) => {
   res.json({ success: true, ...membersData, can_edit: role.isAdmin || isSuper });
 }));
 
-// Convidar/adicionar membro à pelada com role de votante ou espectador
-app.post('/api/peladas/:id/members', route(async (req, res) => {
-  await requirePeladaAdmin(req, req.params.id);
-  const { email, role = 'votante' } = req.body || {};
-  const target = await db.getUserByEmail(email);
-  if (!target) {
-    throw httpError(404, 'Nenhum usuário cadastrado com este e-mail. Peça para a pessoa criar uma conta primeiro.');
+// Aceitar convite assinado por token de e-mail
+app.post('/api/peladas/accept-invite', route(async (req, res) => {
+  const user = requireUser(req);
+  const { inviteToken } = req.body || {};
+  if (!inviteToken) throw httpError(400, 'Token de convite não fornecido.');
+
+  const payload = auth.verifyPeladaInviteToken(inviteToken);
+  if (!payload || !payload.pid) {
+    throw httpError(400, 'Convite inválido ou expirado.');
   }
-  await db.addPeladaMember(req.params.id, target.id, role);
-  res.status(201).json({ success: true, member: { ...target, peladaRole: role } });
+
+  const pelada = await db.getPeladaById(payload.pid);
+  if (!pelada) throw httpError(404, 'Pelada não encontrada.');
+
+  if (payload.role === 'admin') {
+    await db.addPeladaAdmin(pelada.id, user.id);
+  } else {
+    await db.addPeladaMember(pelada.id, user.id, payload.role || 'votante');
+  }
+
+  const [withPerms] = await withPermissions(req, [pelada]);
+  res.json({
+    success: true,
+    pelada: withPerms,
+    message: `Você agora faz parte da sala "${pelada.name}" como ${payload.role || 'votante'}!`
+  });
+}));
+
+// Convidar/adicionar membro ou admin à pelada por e-mail com disparo automático de notificação
+app.post('/api/peladas/:id/members', route(async (req, res) => {
+  const adminRole = await requirePeladaAdmin(req, req.params.id);
+  const { email, role = 'votante' } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    throw httpError(400, 'Informe um endereço de e-mail válido.');
+  }
+
+  const pelada = await db.getPeladaById(req.params.id);
+  if (!pelada) throw httpError(404, 'Pelada não encontrada.');
+
+  if (role === 'admin' && !adminRole.isOwner && !adminRole.isSuper) {
+    throw httpError(403, 'Apenas o criador da pelada pode convidar administradores.');
+  }
+
+  const inviter = req.user;
+  const inviteCode = pelada.invite_code || String(pelada.id);
+  const target = await db.getUserByEmail(cleanEmail);
+
+  if (target) {
+    if (role === 'admin') {
+      await db.addPeladaAdmin(req.params.id, target.id);
+    } else {
+      await db.addPeladaMember(req.params.id, target.id, role);
+    }
+
+    const inviteUrl = `${getBaseUrl(req)}/?convite=${encodeURIComponent(inviteCode)}`;
+
+    const mailResult = await mailer.sendInviteEmail({
+      to: cleanEmail,
+      peladaName: pelada.name,
+      peladaId: pelada.id,
+      inviteCode,
+      inviterName: inviter.name || inviter.username,
+      role,
+      inviteUrl
+    });
+
+    res.status(201).json({
+      success: true,
+      member: { ...target, peladaRole: role },
+      emailSent: mailResult.sent,
+      simulated: mailResult.simulated,
+      inviteUrl,
+      message: mailResult.sent
+        ? `E-mail de convite enviado para ${cleanEmail}!`
+        : `Membro adicionado à sala! Convite gerado para envio.`
+    });
+  } else {
+    // Usuário ainda não cadastrado na plataforma: gera token assinado e envia convite
+    const inviteToken = auth.issuePeladaInviteToken({
+      peladaId: pelada.id,
+      email: cleanEmail,
+      role,
+      inviterId: inviter.id
+    });
+
+    const inviteUrl = `${getBaseUrl(req)}/?convite=${encodeURIComponent(inviteCode)}&inviteToken=${inviteToken}&email=${encodeURIComponent(cleanEmail)}`;
+
+    const mailResult = await mailer.sendInviteEmail({
+      to: cleanEmail,
+      peladaName: pelada.name,
+      peladaId: pelada.id,
+      inviteCode,
+      inviterName: inviter.name || inviter.username,
+      role,
+      inviteUrl
+    });
+
+    res.status(201).json({
+      success: true,
+      pending: true,
+      email: cleanEmail,
+      role,
+      emailSent: mailResult.sent,
+      simulated: mailResult.simulated,
+      inviteUrl,
+      message: mailResult.sent
+        ? `Convite enviado por e-mail para ${cleanEmail}! Assim que acessar o link, entrará na sala.`
+        : `Convite gerado para ${cleanEmail}!`
+    });
+  }
 }));
 
 // Alterar role do membro na pelada (votante vs espectador)
@@ -458,14 +665,78 @@ app.get('/api/peladas/:id/admins', route(async (req, res) => {
 
 app.post('/api/peladas/:id/admins', route(async (req, res) => {
   await requirePeladaAdmin(req, req.params.id, { ownerOnly: true });
-  const target = await db.getUserByEmail((req.body || {}).email);
-  if (!target) {
-    throw httpError(404, 'Nenhum usuário cadastrado com este e-mail. Peça para a pessoa criar uma conta primeiro.');
+  const { email } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    throw httpError(400, 'Informe um endereço de e-mail válido.');
   }
-  const role = await db.getPeladaRole(req.params.id, target.id);
-  if (role.isOwner) throw httpError(400, 'Este usuário já é o criador da pelada.');
-  await db.addPeladaAdmin(req.params.id, target.id);
-  res.status(201).json({ success: true, admin: target });
+
+  const pelada = await db.getPeladaById(req.params.id);
+  if (!pelada) throw httpError(404, 'Pelada não encontrada.');
+
+  const inviter = req.user;
+  const inviteCode = pelada.invite_code || String(pelada.id);
+  const target = await db.getUserByEmail(cleanEmail);
+
+  if (target) {
+    const role = await db.getPeladaRole(req.params.id, target.id);
+    if (role.isOwner) throw httpError(400, 'Este usuário já é o criador da pelada.');
+    await db.addPeladaAdmin(req.params.id, target.id);
+
+    const inviteUrl = `${getBaseUrl(req)}/?convite=${encodeURIComponent(inviteCode)}`;
+    const mailResult = await mailer.sendInviteEmail({
+      to: cleanEmail,
+      peladaName: pelada.name,
+      peladaId: pelada.id,
+      inviteCode,
+      inviterName: inviter.name || inviter.username,
+      role: 'admin',
+      inviteUrl
+    });
+
+    res.status(201).json({
+      success: true,
+      admin: target,
+      emailSent: mailResult.sent,
+      simulated: mailResult.simulated,
+      inviteUrl,
+      message: mailResult.sent
+        ? `Convite de administrador enviado para ${cleanEmail}!`
+        : `Administrador adicionado com sucesso!`
+    });
+  } else {
+    const inviteToken = auth.issuePeladaInviteToken({
+      peladaId: pelada.id,
+      email: cleanEmail,
+      role: 'admin',
+      inviterId: inviter.id
+    });
+
+    const inviteUrl = `${getBaseUrl(req)}/?convite=${encodeURIComponent(inviteCode)}&inviteToken=${inviteToken}&email=${encodeURIComponent(cleanEmail)}`;
+
+    const mailResult = await mailer.sendInviteEmail({
+      to: cleanEmail,
+      peladaName: pelada.name,
+      peladaId: pelada.id,
+      inviteCode,
+      inviterName: inviter.name || inviter.username,
+      role: 'admin',
+      inviteUrl
+    });
+
+    res.status(201).json({
+      success: true,
+      pending: true,
+      email: cleanEmail,
+      role: 'admin',
+      emailSent: mailResult.sent,
+      simulated: mailResult.simulated,
+      inviteUrl,
+      message: mailResult.sent
+        ? `Convite de administrador enviado por e-mail para ${cleanEmail}!`
+        : `Convite de administrador gerado para ${cleanEmail}!`
+    });
+  }
 }));
 
 app.delete('/api/peladas/:id/admins/:userId', route(async (req, res) => {

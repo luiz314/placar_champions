@@ -663,6 +663,61 @@ async function getUserByEmail(email) {
   return toPublicUser(data.users.find(u => u.username.toLowerCase() === cleanEmail));
 }
 
+// Retorna o usuário com hash de senha interno para fins de autenticação e recuperação
+async function getUserWithHashByEmail(email) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+
+  if (isPostgres) {
+    const user = await User.findOne({ where: { username: cleanEmail } });
+    return user ? user.toJSON() : null;
+  }
+
+  const data = getFallbackData();
+  const u = data.users.find(x => x.username.toLowerCase() === cleanEmail);
+  return u ? { ...u, passwordHash: u.password_hash } : null;
+}
+
+async function getUserWithHashById(id) {
+  const numId = parseInt(id, 10);
+  if (!numId) return null;
+
+  if (isPostgres) {
+    const user = await User.findByPk(numId);
+    return user ? user.toJSON() : null;
+  }
+
+  const data = getFallbackData();
+  const u = data.users.find(x => Number(x.id) === numId);
+  return u ? { ...u, passwordHash: u.password_hash } : null;
+}
+
+// Redefine a senha de um usuário no banco
+async function resetUserPassword(userId, newPassword) {
+  const numId = parseInt(userId, 10);
+  if (!numId) throw new Error('ID de usuário inválido.');
+  if (!newPassword || String(newPassword).length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`A nova senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
+
+  const passHash = hashPassword(newPassword);
+
+  if (isPostgres) {
+    const user = await User.findByPk(numId);
+    if (!user) throw new Error('Usuário não encontrado.');
+    user.passwordHash = passHash;
+    await user.save();
+    return toPublicUser(user.toJSON());
+  }
+
+  const data = getFallbackData();
+  const user = data.users.find(u => Number(u.id) === numId);
+  if (!user) throw new Error('Usuário não encontrado.');
+  user.password_hash = passHash;
+  saveFallbackData(data);
+  return toPublicUser(user);
+}
+
 // Retorna mapa { [playerId]: rating } dos votos ja dados por um usuario especifico
 async function getUserRatingsMap(userId) {
   const numUserId = parseInt(userId, 10);
@@ -2023,6 +2078,9 @@ module.exports = {
   getUserById,
   getUserByEmail,
   getUserRatingsMap,
+  getUserWithHashByEmail,
+  getUserWithHashById,
+  resetUserPassword,
   getPeladas,
   getPeladasForUser,
   getPeladaById,
