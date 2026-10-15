@@ -926,7 +926,7 @@ app.delete('/api/players/:id/rate', route(async (req, res) => {
 // Algoritmo de Equilíbrio de Times
 app.post('/api/pelada/balance', route(async (req, res) => {
   requireUser(req);
-  const { playerIds, numTeams = 2, maxPerTeam = null, peladaId = null } = req.body || {};
+  let { playerIds, numTeams = null, maxPerTeam = null, peladaId = null } = req.body || {};
   if (!Array.isArray(playerIds) || playerIds.length < 2) {
     throw httpError(400, 'Selecione pelo menos 2 jogadores para equilibrar os times.');
   }
@@ -935,8 +935,18 @@ app.post('/api/pelada/balance', route(async (req, res) => {
   const idSet = new Set(playerIds.map(id => Number(id)));
   const selectedPlayers = allPlayers.filter(p => idSet.has(Number(p.id)));
 
+  const total = selectedPlayers.length;
+  let teamsCount = parseInt(numTeams, 10);
+  if (!teamsCount || teamsCount < 2) {
+    if (maxPerTeam && maxPerTeam > 0) {
+      teamsCount = Math.max(2, Math.floor(total / maxPerTeam));
+    } else {
+      teamsCount = 2;
+    }
+  }
+
   const result = balancer.balanceTeams(selectedPlayers, {
-    numTeams: parseInt(numTeams, 10) || 2,
+    numTeams: teamsCount,
     maxPerTeam: maxPerTeam ? parseInt(maxPerTeam, 10) : null
   });
 

@@ -559,6 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasNickname = player.nickname && player.nickname.trim() !== '' && player.nickname.toLowerCase() !== fullName.toLowerCase();
       const initial = fullName.trim().charAt(0).toUpperCase();
       const hasRatings = player.overall && Number(player.overall) > 0;
+      const myVote = userRatingsMap[player.id];
 
       const avatarContent = player.photo_url 
         ? `<img src="${escapeHtml(player.photo_url)}" alt="${escapeHtml(fullName)}" class="player-avatar-img">`
@@ -566,20 +567,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       card.innerHTML = `
         <div class="check-indicator">✓</div>
-        <button type="button" class="btn-player-quick-share btn-quick-rate-card" data-id="${player.id}" title="Avaliar habilidades de ${escapeHtml(fullName)}">
-          ${userRatingsMap[player.id] ? `★ ${Number(userRatingsMap[player.id].overall).toFixed(1)} (Meu Voto)` : `⭐ Avaliar`}
-        </button>
         <div class="player-avatar">${avatarContent}</div>
         <div class="player-info">
-          <div class="player-name" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</div>
+          <div class="player-name-row">
+            <span class="player-name" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</span>
+            ${hasNickname ? `<span class="player-nickname-tag">"${escapeHtml(player.nickname)}"</span>` : ''}
+          </div>
           <div class="player-sub">
             <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
-            ${hasRatings ? `
-              <span class="player-stars-badge" title="Média de Habilidades">★ ${Number(player.overall).toFixed(1)}</span>
+            <span class="player-stars-badge ${hasRatings ? '' : 'empty'}" title="Média Geral de todos os votos">
+              ⭐ ${hasRatings ? Number(player.overall).toFixed(1) : '—'} <span style="font-size: 0.65rem; opacity: 0.85;">Geral</span>
+            </span>
+            ${myVote ? `
+              <span class="player-myvote-pill btn-quick-rate-card" data-id="${player.id}" title="Sua avaliação individual. Toque para alterar.">
+                👤 ${Number(myVote.overall).toFixed(1)} <span style="font-size: 0.65rem; opacity: 0.85;">Você</span>
+              </span>
             ` : `
-              <span class="player-stars-badge empty" title="Sem avaliações registradas">Sem estrelas</span>
+              <span class="player-myvote-pill unvoted btn-quick-rate-card" data-id="${player.id}" title="Você ainda não avaliou este jogador. Toque para avaliar.">
+                ⭐ Avaliar
+              </span>
             `}
-            ${hasNickname ? `<span class="player-nickname-tag">"${escapeHtml(player.nickname)}"</span>` : ''}
           </div>
         </div>
       `;
@@ -598,6 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       playerSelectGrid.appendChild(card);
     });
+
+    updateAutoTeamsPreview();
   }
 
   function togglePlayerSelection(playerId, cardEl) {
@@ -615,6 +624,64 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectedCountBadge) {
       selectedCountBadge.textContent = `${selectedPlayerIds.size} Selecionados`;
     }
+    updateAutoTeamsPreview();
+  }
+
+  function updateAutoTeamsPreview() {
+    const badgeText = document.getElementById('autoTeamsBadgeText');
+    if (!badgeText) return;
+
+    const count = selectedPlayerIds.size;
+    const format = selectTeamFormat ? selectTeamFormat.value : '4';
+
+    if (count === 0) {
+      badgeText.textContent = 'Nenhum jogador selecionado. Marque os presentes abaixo.';
+      return;
+    }
+
+    if (count < 2) {
+      badgeText.textContent = `${count} selecionado (mínimo de 2 para sortear).`;
+      return;
+    }
+
+    if (format === '4') {
+      const numTeams = Math.max(2, Math.floor(count / 4));
+      const playing = Math.min(count, numTeams * 4);
+      const bench = count - playing;
+      if (count < 8) {
+        badgeText.textContent = `${count} presentes → 2 equipes (${Math.floor(count / 2)} por time)`;
+      } else if (bench > 0) {
+        badgeText.textContent = `${count} presentes → ${numTeams} equipes de quarteto (${bench} ${bench === 1 ? 'reserva' : 'reservas'})`;
+      } else {
+        badgeText.textContent = `${count} presentes → ${numTeams} equipes de quarteto`;
+      }
+    } else if (format === '6') {
+      const numTeams = Math.max(2, Math.floor(count / 6));
+      const playing = Math.min(count, numTeams * 6);
+      const bench = count - playing;
+      if (count < 12) {
+        badgeText.textContent = `${count} presentes → 2 equipes (${Math.floor(count / 2)} por time)`;
+      } else if (bench > 0) {
+        badgeText.textContent = `${count} presentes → ${numTeams} equipes de sexteto (${bench} ${bench === 1 ? 'reserva' : 'reservas'})`;
+      } else {
+        badgeText.textContent = `${count} presentes → ${numTeams} equipes de sexteto`;
+      }
+    } else if (format === '2') {
+      const numTeams = Math.max(2, Math.floor(count / 2));
+      const playing = numTeams * 2;
+      const bench = count - playing;
+      if (bench > 0) {
+        badgeText.textContent = `${count} presentes → ${numTeams} duplas (${bench} no banco)`;
+      } else {
+        badgeText.textContent = `${count} presentes → ${numTeams} duplas`;
+      }
+    } else {
+      badgeText.textContent = `${count} presentes → 2 equipes equilibradas`;
+    }
+  }
+
+  if (selectTeamFormat) {
+    selectTeamFormat.addEventListener('change', updateAutoTeamsPreview);
   }
 
   if (btnSelectAll) {
@@ -1056,13 +1123,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const numTeams = parseInt(selectNumTeams ? selectNumTeams.value : 2, 10);
-      const format = selectTeamFormat ? selectTeamFormat.value : 'all';
+      const count = selectedPlayerIds.size;
+      const format = selectTeamFormat ? selectTeamFormat.value : '4';
       let maxPerTeam = null;
+      let numTeams = 2;
 
-      if (format === '6') maxPerTeam = 6;
-      else if (format === '4') maxPerTeam = 4;
-      else if (format === '2') maxPerTeam = 2;
+      if (format === '4') {
+        maxPerTeam = 4;
+        numTeams = Math.max(2, Math.floor(count / 4));
+      } else if (format === '6') {
+        maxPerTeam = 6;
+        numTeams = Math.max(2, Math.floor(count / 6));
+      } else if (format === '2') {
+        maxPerTeam = 2;
+        numTeams = Math.max(2, Math.floor(count / 2));
+      } else {
+        maxPerTeam = null;
+        numTeams = 2;
+      }
 
       try {
         btnRunBalance.disabled = true;

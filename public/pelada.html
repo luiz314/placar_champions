@@ -366,21 +366,23 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding-right: 16px;
+      gap: 4px;
+      padding-right: 28px;
+    }
+
+    .player-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     .player-name {
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 0.95rem;
       color: #ffffff;
-      margin-bottom: 4px;
       line-height: 1.25;
-      white-space: normal;
       word-break: break-word;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
     }
 
     .player-sub {
@@ -398,19 +400,20 @@
       border-radius: 6px;
       color: #cbd5e1;
       font-weight: 600;
+      font-size: 0.72rem;
     }
 
     .player-stars-badge {
       background: rgba(251, 191, 36, 0.15);
       color: var(--pelada-gold);
-      border: 1px solid rgba(251, 191, 36, 0.3);
+      border: 1px solid rgba(251, 191, 36, 0.35);
       padding: 1px 7px;
       border-radius: 6px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 800;
       display: inline-flex;
       align-items: center;
-      gap: 2px;
+      gap: 3px;
     }
 
     .player-stars-badge.empty {
@@ -422,9 +425,45 @@
     }
 
     .player-nickname-tag {
-      color: #64748b;
+      color: #94a3b8;
       font-style: italic;
       font-size: 0.72rem;
+    }
+
+    /* BADGE DISTINTO PARA O MEU VOTO - NÃO SOBREPÕE O VOTO GERAL */
+    .player-myvote-pill {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 1px 7px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .player-myvote-pill:hover {
+      background: rgba(56, 189, 248, 0.3);
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .player-myvote-pill.unvoted {
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+      border: 1px dashed rgba(255, 255, 255, 0.2);
+      font-weight: 600;
+    }
+
+    .player-myvote-pill.unvoted:hover {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: rgba(251, 191, 36, 0.4);
+      color: #fbbf24;
+      transform: scale(1.05);
     }
 
     .player-overall-pill {
@@ -963,32 +1002,6 @@
     .btn-action-share:hover {
       background: rgba(16, 185, 129, 0.3);
       color: #6ee7b7;
-    }
-
-    .btn-player-quick-share {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(0, 242, 254, 0.3);
-      color: #38bdf8;
-      border-radius: 6px;
-      padding: 2px 7px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      transition: all 0.15s ease;
-      z-index: 2;
-    }
-
-    .btn-player-quick-share:hover {
-      background: rgba(0, 242, 254, 0.25);
-      border-color: rgba(0, 242, 254, 0.6);
-      color: #ffffff;
-      transform: scale(1.05);
     }
 
 
@@ -1765,10 +1778,6 @@
           <span>📖</span>
           <span>Tutorial</span>
         </a>
-        <a href="/avaliar" target="_blank" class="btn-pelada btn-pelada-share" id="btnOpenPublicVote" title="Abrir página pública de votação">
-          <span>⭐</span>
-          <span>Votar em Jogadores</span>
-        </a>
         <!-- WIDGET DO USUÁRIO LOGADO (a página exige login) -->
         <div class="user-auth-widget" id="userAuthWidget">
           <div class="user-logged-info" id="userLoggedInfo">
@@ -1906,22 +1915,20 @@
         <!-- BARRA DE CONFIGURAÇÃO DO SORTEIO -->
         <div class="balance-config-bar">
           <div class="config-group">
-            <label for="selectNumTeams">Número de Equipes:</label>
-            <select id="selectNumTeams" class="config-select">
-              <option value="2" selected>2 Times (A x B)</option>
-              <option value="3">3 Times (Rei da Quadra)</option>
-              <option value="4">4 Times (Torneio)</option>
+            <label for="selectTeamFormat">Formato da Partida:</label>
+            <select id="selectTeamFormat" class="config-select">
+              <option value="4" selected>4x4 (Quarteto - Padrão)</option>
+              <option value="6">6x6 (Sexteto Oficial)</option>
+              <option value="2">2x2 (Dupla de Praia)</option>
+              <option value="all">Dividir todos igualmente (2 Equipes)</option>
             </select>
           </div>
 
-          <div class="config-group">
-            <label for="selectTeamFormat">Formato da Partida:</label>
-            <select id="selectTeamFormat" class="config-select">
-              <option value="all" selected>Todos os presentes divididos igualmente</option>
-              <option value="6">6x6 (Sexteto Oficial)</option>
-              <option value="4">4x4 (Quarteto)</option>
-              <option value="2">2x2 (Dupla de Praia)</option>
-            </select>
+          <div class="config-group" style="flex: 1; min-width: 200px;">
+            <div id="autoTeamsBadge" style="background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.28); color: #38bdf8; font-size: 0.82rem; font-weight: 700; padding: 7px 12px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px;">
+              <span>⚡</span>
+              <span id="autoTeamsBadgeText">Equipes calculadas automaticamente pelos presentes</span>
+            </div>
           </div>
 
           <div style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
