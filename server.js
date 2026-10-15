@@ -846,9 +846,15 @@ app.get('/api/players/my-ratings', route(async (req, res) => {
 }));
 
 app.post('/api/players', route(async (req, res) => {
-  const { name, nickname, position, photoUrl, peladaId } = req.body || {};
+  const { name, nickname, position, photoUrl, isMonthly, is_monthly, peladaId } = req.body || {};
   await requirePeladaAdmin(req, peladaId);
-  const player = await db.addPlayer({ name, nickname, position, photoUrl }, peladaId);
+  const player = await db.addPlayer({
+    name,
+    nickname,
+    position,
+    photoUrl,
+    isMonthly: isMonthly !== undefined ? isMonthly : is_monthly
+  }, peladaId);
   res.status(201).json({ success: true, player });
 }));
 
@@ -861,8 +867,15 @@ async function requirePlayerAdmin(req, playerId) {
 
 app.put('/api/players/:id', route(async (req, res) => {
   await requirePlayerAdmin(req, req.params.id);
-  const { name, nickname, position, photoUrl, photo_url } = req.body || {};
-  const player = await db.updatePlayer(req.params.id, { name, nickname, position, photoUrl, photo_url });
+  const { name, nickname, position, photoUrl, photo_url, isMonthly, is_monthly } = req.body || {};
+  const player = await db.updatePlayer(req.params.id, {
+    name,
+    nickname,
+    position,
+    photoUrl,
+    photo_url,
+    isMonthly: isMonthly !== undefined ? isMonthly : is_monthly
+  });
   res.json({ success: true, player });
 }));
 

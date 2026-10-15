@@ -234,6 +234,7 @@ if (dbUrl) {
       nickname: { type: DataTypes.STRING(50) },
       position: { type: DataTypes.STRING(50), defaultValue: 'Geral' },
       photoUrl: { type: DataTypes.TEXT },
+      isMonthly: { type: DataTypes.BOOLEAN, defaultValue: true },
       active: { type: DataTypes.BOOLEAN, defaultValue: true }
     }, {
       tableName: 'players',
@@ -465,6 +466,7 @@ async function initDb() {
     }
 
     await migratePeladaOwners();
+    await sequelize.query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_monthly BOOLEAN DEFAULT TRUE;').catch(() => {});
   } catch (err) {
     dbConnectionError = err.message;
     console.error('ERRO na sincronizacao do esquema PostgreSQL (o app segue usando o PostgreSQL):', err.message);
@@ -1406,6 +1408,7 @@ async function getPlayersWithRatings(peladaId = null) {
           name: raw.name,
           nickname: raw.nickname,
           position: raw.position,
+          is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : (raw.is_monthly !== undefined ? Boolean(raw.is_monthly) : true),
           photo_url: raw.photoUrl,
           active: raw.active,
           created_at: raw.createdAt,
@@ -1440,6 +1443,7 @@ async function getPlayersWithRatings(peladaId = null) {
 
     return {
       ...p,
+      is_monthly: p.is_monthly !== undefined ? Boolean(p.is_monthly) : (p.isMonthly !== undefined ? Boolean(p.isMonthly) : true),
       pelada_id: p.pelada_id || 1,
       ...computed
     };
@@ -1468,6 +1472,10 @@ function cleanPlayerFields(fields) {
   if (fields.position !== undefined) result.position = String(fields.position).trim().slice(0, 50) || 'Geral';
   const photo = fields.photoUrl !== undefined ? fields.photoUrl : fields.photo_url;
   if (photo !== undefined) result.photoUrl = sanitizePhotoUrl(photo);
+  const monthly = fields.isMonthly !== undefined ? fields.isMonthly : fields.is_monthly;
+  if (monthly !== undefined) {
+    result.isMonthly = (monthly === true || monthly === 'true' || monthly === 1 || monthly === '1');
+  }
   if (fields.active !== undefined) result.active = Boolean(fields.active);
   return result;
 }
@@ -1480,11 +1488,21 @@ async function getPlayerById(id) {
     const player = await Player.findByPk(numId);
     if (!player) return null;
     const raw = player.toJSON();
-    return { ...raw, pelada_id: raw.peladaId, photo_url: raw.photoUrl };
+    return {
+      ...raw,
+      pelada_id: raw.peladaId,
+      photo_url: raw.photoUrl,
+      is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
+    };
   }
 
   const data = getFallbackData();
-  return data.players.find(p => Number(p.id) === numId) || null;
+  const player = data.players.find(p => Number(p.id) === numId);
+  if (!player) return null;
+  return {
+    ...player,
+    is_monthly: player.is_monthly !== undefined ? Boolean(player.is_monthly) : true
+  };
 }
 
 async function addPlayer(fields, peladaId) {
@@ -1493,6 +1511,7 @@ async function addPlayer(fields, peladaId) {
   const clean = cleanPlayerFields({ name: '', ...fields });
   const nickname = clean.nickname || clean.name;
   const position = clean.position || 'Geral';
+  const isMonthly = clean.isMonthly !== undefined ? clean.isMonthly : true;
 
   if (isPostgres) {
     const p = await Player.create({
@@ -1501,10 +1520,16 @@ async function addPlayer(fields, peladaId) {
       nickname,
       position,
       photoUrl: clean.photoUrl || null,
+      isMonthly,
       active: true
     });
     const raw = p.toJSON();
-    return { ...raw, pelada_id: raw.peladaId, photo_url: raw.photoUrl };
+    return {
+      ...raw,
+      pelada_id: raw.peladaId,
+      photo_url: raw.photoUrl,
+      is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
+    };
   }
 
   const data = getFallbackData();
@@ -1515,6 +1540,7 @@ async function addPlayer(fields, peladaId) {
     nickname,
     position,
     photo_url: clean.photoUrl || '',
+    is_monthly: isMonthly,
     active: true,
     created_at: new Date().toISOString()
   };
@@ -1532,11 +1558,18 @@ async function updatePlayer(id, updates = {}) {
     const player = await Player.findByPk(numId);
     if (!player) throw new Error('Jogador nao encontrado.');
     Object.entries(clean).forEach(([key, value]) => {
-      player[key] = key === 'photoUrl' ? (value || null) : value;
+      if (key === 'photoUrl') player.photoUrl = value || null;
+      else if (key === 'isMonthly') player.isMonthly = value;
+      else player[key] = value;
     });
     await player.save();
     const raw = player.toJSON();
-    return { ...raw, photo_url: raw.photoUrl, pelada_id: raw.peladaId };
+    return {
+      ...raw,
+      photo_url: raw.photoUrl,
+      pelada_id: raw.peladaId,
+      is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
+    };
   }
 
   const data = getFallbackData();
@@ -1544,6 +1577,7 @@ async function updatePlayer(id, updates = {}) {
   if (!player) throw new Error('Jogador nao encontrado.');
   Object.entries(clean).forEach(([key, value]) => {
     if (key === 'photoUrl') player.photo_url = value;
+    else if (key === 'isMonthly') player.is_monthly = value;
     else player[key] = value;
   });
   saveFallbackData(data);

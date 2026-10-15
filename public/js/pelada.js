@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Renderiza Grid de Seleção para o Sorteador
+  // Renderiza Grid de Seleção para o Sorteador (dividido em Mensalistas e Diaristas)
   function renderPlayerSelectionGrid() {
     if (!playerSelectGrid) return;
     playerSelectGrid.innerHTML = '';
@@ -545,16 +545,70 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    playersList.forEach(player => {
+    // Separa mensalistas e diaristas
+    const mensalistas = playersList.filter(p => p.is_monthly !== false);
+    const diaristas = playersList.filter(p => p.is_monthly === false);
+
+    // Bloco 1: MENSALISTAS
+    const mensalistaSection = document.createElement('div');
+    mensalistaSection.className = 'player-category-section mensalista-section';
+    mensalistaSection.innerHTML = `
+      <div class="category-section-header">
+        <div class="category-header-title">
+          <span style="font-size: 1.25rem;">⭐</span>
+          <h3 class="category-title">Mensalistas (Atletas Fixos)</h3>
+          <span class="category-count-badge">${mensalistas.length} ${mensalistas.length === 1 ? 'Atleta' : 'Atletas'}</span>
+        </div>
+        <div class="category-header-actions">
+          <button type="button" class="btn-category-action" id="btnSelectAllMensalistas">
+            ✓ Marcar Todos os Mensalistas
+          </button>
+          <button type="button" class="btn-category-action btn-subtle" id="btnDeselectMensalistas">
+            Desmarcar
+          </button>
+        </div>
+      </div>
+      <div class="player-select-grid-inner" id="gridMensalistas"></div>
+    `;
+
+    // Bloco 2: DIARISTAS
+    const diaristaSection = document.createElement('div');
+    diaristaSection.className = 'player-category-section diarista-section';
+    diaristaSection.innerHTML = `
+      <div class="category-section-header">
+        <div class="category-header-title">
+          <span style="font-size: 1.25rem;">🏷️</span>
+          <h3 class="category-title">Diaristas & Convidados (Avulsos)</h3>
+          <span class="category-count-badge">${diaristas.length} ${diaristas.length === 1 ? 'Atleta' : 'Atletas'}</span>
+        </div>
+        <div class="category-header-actions">
+          ${diaristas.length > 0 ? `
+            <button type="button" class="btn-category-action" id="btnSelectAllDiaristas">
+              ✓ Marcar Diaristas
+            </button>
+            <button type="button" class="btn-category-action btn-subtle" id="btnDeselectDiaristas">
+              Desmarcar
+            </button>
+          ` : ''}
+        </div>
+      </div>
+      <div class="player-select-grid-inner" id="gridDiaristas"></div>
+    `;
+
+    playerSelectGrid.appendChild(mensalistaSection);
+    playerSelectGrid.appendChild(diaristaSection);
+
+    const gridMensalistas = mensalistaSection.querySelector('#gridMensalistas');
+    const gridDiaristas = diaristaSection.querySelector('#gridDiaristas');
+
+    function createPlayerCard(player) {
       const card = document.createElement('div');
       card.className = 'player-card-pick';
       card.dataset.id = player.id;
-
       if (selectedPlayerIds.has(player.id)) {
         card.classList.add('selected');
       }
 
-      // Nome completo do jogador (sem abreviação)
       const fullName = player.name || player.nickname || 'Jogador';
       const hasNickname = player.nickname && player.nickname.trim() !== '' && player.nickname.toLowerCase() !== fullName.toLowerCase();
       const initial = fullName.trim().charAt(0).toUpperCase();
@@ -603,8 +657,56 @@ document.addEventListener('DOMContentLoaded', () => {
         togglePlayerSelection(player.id, card);
       });
 
-      playerSelectGrid.appendChild(card);
-    });
+      return card;
+    }
+
+    if (mensalistas.length === 0) {
+      gridMensalistas.innerHTML = `<div class="empty-category-msg" style="grid-column: 1/-1;">Nenhum mensalista cadastrado.</div>`;
+    } else {
+      mensalistas.forEach(p => gridMensalistas.appendChild(createPlayerCard(p)));
+    }
+
+    if (diaristas.length === 0) {
+      gridDiaristas.innerHTML = `<div class="empty-category-msg" style="grid-column: 1/-1;">Nenhum diarista cadastrado no momento. Você pode classificar convidados e avulsos como <strong>Diarista</strong> na aba "Jogadores & Habilidades".</div>`;
+    } else {
+      diaristas.forEach(p => gridDiaristas.appendChild(createPlayerCard(p)));
+    }
+
+    const btnSelectAllMensalistas = mensalistaSection.querySelector('#btnSelectAllMensalistas');
+    if (btnSelectAllMensalistas) {
+      btnSelectAllMensalistas.addEventListener('click', () => {
+        mensalistas.forEach(p => selectedPlayerIds.add(p.id));
+        gridMensalistas.querySelectorAll('.player-card-pick').forEach(c => c.classList.add('selected'));
+        updateSelectedCount();
+      });
+    }
+
+    const btnDeselectMensalistas = mensalistaSection.querySelector('#btnDeselectMensalistas');
+    if (btnDeselectMensalistas) {
+      btnDeselectMensalistas.addEventListener('click', () => {
+        mensalistas.forEach(p => selectedPlayerIds.delete(p.id));
+        gridMensalistas.querySelectorAll('.player-card-pick').forEach(c => c.classList.remove('selected'));
+        updateSelectedCount();
+      });
+    }
+
+    const btnSelectAllDiaristas = diaristaSection.querySelector('#btnSelectAllDiaristas');
+    if (btnSelectAllDiaristas) {
+      btnSelectAllDiaristas.addEventListener('click', () => {
+        diaristas.forEach(p => selectedPlayerIds.add(p.id));
+        gridDiaristas.querySelectorAll('.player-card-pick').forEach(c => c.classList.add('selected'));
+        updateSelectedCount();
+      });
+    }
+
+    const btnDeselectDiaristas = diaristaSection.querySelector('#btnDeselectDiaristas');
+    if (btnDeselectDiaristas) {
+      btnDeselectDiaristas.addEventListener('click', () => {
+        diaristas.forEach(p => selectedPlayerIds.delete(p.id));
+        gridDiaristas.querySelectorAll('.player-card-pick').forEach(c => c.classList.remove('selected'));
+        updateSelectedCount();
+      });
+    }
 
     updateAutoTeamsPreview();
   }
@@ -766,6 +868,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td>
+          <span class="badge-category ${p.is_monthly !== false ? 'badge-monthly' : 'badge-diarista'} ${isAdmin ? 'badge-toggleable btn-toggle-category' : ''}" data-id="${p.id}" title="${isAdmin ? 'Clique para alternar entre Mensalista e Diarista' : ''}">
+            ${p.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
+          </span>
+        </td>
+        <td>
           <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; font-size: 0.8rem;">
             ${escapeHtml(p.position || 'Geral')}
           </span>
@@ -807,6 +914,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     attachPhotoEventListeners();
     attachInlineStarEvents();
+
+    if (isAdmin) {
+      playersTableBody.querySelectorAll('.btn-toggle-category').forEach(badge => {
+        badge.addEventListener('click', async () => {
+          const id = badge.getAttribute('data-id');
+          const player = playersList.find(pl => String(pl.id) === id);
+          if (!player) return;
+          const nextIsMonthly = player.is_monthly === false;
+          try {
+            const res = await fetch(`/api/players/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ isMonthly: nextIsMonthly })
+            });
+            const data = await res.json();
+            if (data.success) {
+              player.is_monthly = nextIsMonthly;
+              showToast(`${player.name} agora é ${nextIsMonthly ? '⭐ Mensalista' : '🏷️ Diarista'}!`);
+              renderPlayersTable();
+              renderPlayerSelectionGrid();
+            } else {
+              alert(data.error || 'Erro ao alterar categoria.');
+            }
+          } catch (err) {
+            console.error('Erro ao alternar categoria:', err);
+            showToast('Erro de conexão ao alterar categoria.');
+          }
+        });
+      });
+    }
 
     playersTableBody.querySelectorAll('.btn-quick-rate-mobile').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1053,6 +1190,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       selectPlayerPosition.value = position;
     }
+    const selectPlayerCategory = document.getElementById('selectPlayerCategory');
+    if (selectPlayerCategory) {
+      selectPlayerCategory.value = (player && player.is_monthly === false) ? 'false' : 'true';
+    }
     modalAddPlayer.classList.add('show');
     setTimeout(() => inputPlayerName.focus(), 100);
   }
@@ -1073,9 +1214,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = inputPlayerName.value.trim();
       const nickname = inputPlayerNickname.value.trim();
       const position = selectPlayerPosition.value;
+      const selectPlayerCategory = document.getElementById('selectPlayerCategory');
+      const isMonthly = selectPlayerCategory ? (selectPlayerCategory.value === 'true') : true;
       if (!name) return;
 
-      const body = { name, nickname: nickname || name, position };
+      const body = { name, nickname: nickname || name, position, isMonthly };
       btnSubmitPlayer.disabled = true;
 
       try {
