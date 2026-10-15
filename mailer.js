@@ -265,11 +265,11 @@ async function sendViaResend({ to, subject, html, text }) {
 }
 
 async function sendViaBrevo({ to, subject, html, text }) {
-  const apiKey = (process.env.BREVO_API_KEY || '').replace(/['"\s]/g, '');
+  const apiKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || process.env.BREVO_KEY || '').replace(/['"\s]/g, '');
   if (!apiKey) return null;
 
   const senderName = process.env.BREVO_SENDER_NAME || 'Placar Champions';
-  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'contato@placarchampions.com').replace(/['"]/g, '').trim();
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'placarchampions@gmail.com').replace(/['"]/g, '').trim();
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -281,6 +281,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
     body: JSON.stringify({
       sender: { name: senderName, email: senderEmail },
       to: [{ email: to }],
+      replyTo: { email: senderEmail, name: senderName },
       subject,
       htmlContent: html,
       textContent: text
@@ -289,7 +290,9 @@ async function sendViaBrevo({ to, subject, html, text }) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || `Erro HTTP ${res.status} no Brevo`);
+    const errorMsg = data.message || data.error || (data.errors ? JSON.stringify(data.errors) : `Erro HTTP ${res.status} no Brevo`);
+    console.error('❌ [BREVO API ERROR]:', errorMsg);
+    throw new Error(errorMsg);
   }
   return { id: data.messageId };
 }
@@ -298,7 +301,33 @@ async function sendViaBrevo({ to, subject, html, text }) {
 // DISPATCH GENÉRICO (ENVIA OU SIMULA SE SEM SMTP)
 // ==========================================
 async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
-  // 1. Prioridade Máxima: API HTTP do Resend (porta 443 HTTPS - imune a bloqueios de portas SMTP do Railway)
+  // 1. Prioridade #1: API HTTP do Brevo (porta 443 HTTPS - envia para qualquer destinatário usando placarchampions@gmail.com)
+  const brevoKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || process.env.BREVO_KEY || '').replace(/['"\s]/g, '');
+  if (brevoKey) {
+    try {
+      const result = await sendViaBrevo({ to, subject, html, text });
+      console.log(`✅ [MAILER - BREVO] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
+      return { sent: true, simulated: false, messageId: result.id, provider: 'brevo' };
+    } catch (err) {
+      console.error(`❌ [MAILER - BREVO] Erro ao enviar para ${to}:`, err.message);
+      if (linkUrl) {
+        console.log(`\n==================================================`);
+        console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
+        console.log(`Para: ${to}`);
+        console.log(`Link de acesso: ${linkUrl}`);
+        console.log(`Causa: ${err.message}`);
+        console.log(`==================================================\n`);
+      }
+      return {
+        sent: false,
+        simulated: true,
+        error: `Falha no Brevo: ${err.message}`,
+        previewUrl: linkUrl
+      };
+    }
+  }
+
+  // 2. Opção HTTP alternativa: Resend (porta 443 HTTPS)
   const resendKey = (process.env.RESEND_API_KEY || '').replace(/['"\s]/g, '');
   if (resendKey) {
     try {
@@ -326,24 +355,6 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
         sent: false,
         simulated: true,
         error: `Falha no Resend: ${userFriendlyMessage}`,
-        previewUrl: linkUrl
-      };
-    }
-  }
-
-  // 2. Segunda opção HTTP: API do Brevo (porta 443 HTTPS)
-  const brevoKey = (process.env.BREVO_API_KEY || '').replace(/['"\s]/g, '');
-  if (brevoKey) {
-    try {
-      const result = await sendViaBrevo({ to, subject, html, text });
-      console.log(`✅ [MAILER - BREVO] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
-      return { sent: true, simulated: false, messageId: result.id, provider: 'brevo' };
-    } catch (err) {
-      console.error(`❌ [MAILER - BREVO] Erro ao enviar para ${to}:`, err.message);
-      return {
-        sent: false,
-        simulated: true,
-        error: `Falha no Brevo: ${err.message}`,
         previewUrl: linkUrl
       };
     }
