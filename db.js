@@ -55,7 +55,9 @@ function getDatabaseUrl() {
     'DB_URI',
     'DATABASE_URI',
     'POSTGRES_URI',
-    'POSTGRES_DATABASE_URL'
+    'POSTGRES_DATABASE_URL',
+    'postgres',
+    'POSTGRES'
   ];
 
   for (const k of directKeys) {

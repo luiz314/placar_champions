@@ -5,9 +5,12 @@ const nodemailer = require('nodemailer');
 // ==========================================
 
 function getSmtpConfig() {
-  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || '').trim();
-  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_PASS || '').replace(/\s+/g, '');
-  const host = (process.env.SMTP_HOST || (user.toLowerCase().includes('@gmail.com') ? 'smtp.gmail.com' : '')).trim();
+  const rawUser = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || '';
+  const user = rawUser.replace(/['"]/g, '').trim();
+  const rawPass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_PASS || '';
+  const pass = rawPass.replace(/['"\s]/g, '');
+  const rawHost = process.env.SMTP_HOST || (user.toLowerCase().includes('@gmail.com') ? 'smtp.gmail.com' : '');
+  const host = rawHost.replace(/['"]/g, '').trim();
   const port = parseInt(process.env.SMTP_PORT || (process.env.SMTP_SECURE === 'true' ? '465' : '587'), 10);
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
