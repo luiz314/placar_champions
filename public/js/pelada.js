@@ -504,13 +504,34 @@ document.addEventListener('DOMContentLoaded', () => {
   // GESTÃO DE JOGADORES (VINCULADOS À PELADA ATIVA)
   // ==========================================
 
+  let currentCardsSortOrder = localStorage.getItem('cardsSortOrder') || 'name_asc';
+
+  function sortPlayers(list, sortOrder = currentCardsSortOrder) {
+    const sorted = [...list];
+    switch (sortOrder) {
+      case 'name_desc':
+        return sorted.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'pt-BR', { sensitivity: 'base' }));
+      case 'overall_desc':
+        return sorted.sort((a, b) => (Number(b.overall) || 0) - (Number(a.overall) || 0) || (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+      case 'overall_asc':
+        return sorted.sort((a, b) => (Number(a.overall) || 0) - (Number(b.overall) || 0) || (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+      case 'votes_desc':
+        return sorted.sort((a, b) => (Number(b.vote_count) || 0) - (Number(a.vote_count) || 0) || (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+      case 'position':
+        return sorted.sort((a, b) => (a.position || 'Geral').localeCompare(b.position || 'Geral', 'pt-BR') || (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+      case 'name_asc':
+      default:
+        return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+    }
+  }
+
   async function loadPlayers(peladaId = activePeladaId) {
     try {
       const url = peladaId ? `/api/players?peladaId=${peladaId}` : '/api/players';
       const res = await fetch(url);
       const data = await res.json();
       if (data.success && Array.isArray(data.players)) {
-        playersList = data.players;
+        playersList = data.players.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
         renderPlayerSelectionGrid();
         renderPlayersTable();
         updateSelectedCount();
@@ -545,9 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Separa mensalistas e diaristas
-    const mensalistas = playersList.filter(p => p.is_monthly !== false);
-    const diaristas = playersList.filter(p => p.is_monthly === false);
+    // Separa mensalistas e diaristas ordenados pela escolha do usuário (padrão: ordem alfabética)
+    const mensalistas = sortPlayers(playersList.filter(p => p.is_monthly !== false), currentCardsSortOrder);
+    const diaristas = sortPlayers(playersList.filter(p => p.is_monthly === false), currentCardsSortOrder);
 
     // Bloco 1: MENSALISTAS
     const mensalistaSection = document.createElement('div');
@@ -802,6 +823,16 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedPlayerIds.clear();
       document.querySelectorAll('.player-card-pick').forEach(c => c.classList.remove('selected'));
       updateSelectedCount();
+    });
+  }
+
+  const selectPlayerCardsSort = document.getElementById('selectPlayerCardsSort');
+  if (selectPlayerCardsSort) {
+    selectPlayerCardsSort.value = currentCardsSortOrder;
+    selectPlayerCardsSort.addEventListener('change', (e) => {
+      currentCardsSortOrder = e.target.value;
+      localStorage.setItem('cardsSortOrder', currentCardsSortOrder);
+      renderPlayerSelectionGrid();
     });
   }
 
