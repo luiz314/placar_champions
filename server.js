@@ -1124,36 +1124,76 @@ io.on('connection', (socket) => {
   });
 
   // Encerrar partida e salvar no histórico da sala
-  on('match:finish', () => {
-    const room = getRoom();
-    if (!room) return;
+  on('match:finish', (payload) => {
+    let room = getRoom();
+    if (!room && payload && payload.roomId) {
+      const cleanRoomId = String(payload.roomId).replace(/\D/g, '');
+      if (cleanRoomId.length === 6) {
+        room = rooms.get(cleanRoomId);
+        if (room) {
+          joinSocketRoom(cleanRoomId);
+        }
+      }
+    }
+
+    if (!room) {
+      // Caso de segurança: se a sala não estiver mapeada, mas vieram dados de pontuação, salva diretamente no banco
+      if (payload && (payload.scoreA > 0 || payload.scoreB > 0)) {
+        let fallbackWinner = 'Empate';
+        if (payload.scoreA > payload.scoreB) fallbackWinner = payload.nameA || 'LADO A';
+        else if (payload.scoreB > payload.scoreA) fallbackWinner = payload.nameB || 'LADO B';
+        db.saveMatch({
+          roomId: (payload && payload.roomId) || 'DEFAULT',
+          teamA: (payload && payload.nameA) || 'LADO A',
+          scoreA: (payload && payload.scoreA) || 0,
+          teamB: (payload && payload.nameB) || 'LADO B',
+          scoreB: (payload && payload.scoreB) || 0,
+          winner: fallbackWinner,
+          durationSeconds: (payload && payload.durationSeconds) || 0,
+          matchNumber: 1
+        }).catch(err => {
+          console.warn('Aviso: Falha ao salvar partida no banco de dados:', err.message);
+        });
+      }
+      return;
+    }
+
+    if (!Array.isArray(room.matchHistory)) room.matchHistory = [];
+    if (!room.timer || typeof room.timer !== 'object') room.timer = { seconds: 0, running: false };
+
+    // Usa dados enviados pelo cliente caso disponíveis, senão usa os da memória do servidor
+    const scoreA = (payload && typeof payload.scoreA === 'number') ? payload.scoreA : (room.scoreA || 0);
+    const scoreB = (payload && typeof payload.scoreB === 'number') ? payload.scoreB : (room.scoreB || 0);
+    const nameA = (payload && payload.nameA) ? cleanTeamName(payload.nameA, room.nameA) : (room.nameA || 'LADO A');
+    const nameB = (payload && payload.nameB) ? cleanTeamName(payload.nameB, room.nameB) : (room.nameB || 'LADO B');
+    const durationSeconds = (payload && typeof payload.durationSeconds === 'number') ? payload.durationSeconds : (room.timer.seconds || 0);
 
     let winner = 'Empate';
-    if (room.scoreA > room.scoreB) winner = room.nameA;
-    else if (room.scoreB > room.scoreA) winner = room.nameB;
+    if (scoreA > scoreB) winner = nameA;
+    else if (scoreB > scoreA) winner = nameB;
 
     const matchRecord = {
       id: Date.now(),
       matchNumber: room.matchHistory.length + 1,
-      nameA: room.nameA,
-      scoreA: room.scoreA,
-      nameB: room.nameB,
-      scoreB: room.scoreB,
+      nameA,
+      scoreA,
+      nameB,
+      scoreB,
       winner,
-      durationSeconds: room.timer.seconds,
+      durationSeconds,
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
     };
     room.matchHistory.unshift(matchRecord);
     room.matchHistory = room.matchHistory.slice(0, 200);
 
     db.saveMatch({
-      roomId: currentRoomId,
-      teamA: room.nameA,
-      scoreA: room.scoreA,
-      teamB: room.nameB,
-      scoreB: room.scoreB,
+      roomId: currentRoomId || room.roomId,
+      teamA: nameA,
+      scoreA,
+      teamB: nameB,
+      scoreB,
       winner,
-      durationSeconds: room.timer.seconds,
+      durationSeconds,
       matchNumber: matchRecord.matchNumber
     }).catch(err => {
       console.warn('Aviso: Falha ao salvar partida no banco de dados:', err.message);
@@ -1164,9 +1204,9 @@ io.on('connection', (socket) => {
     room.timer.running = false;
     room.timer.seconds = 0;
 
-    socket.to(currentRoomId).emit('sound:play', { type: 'whistle_final' });
-    io.to(currentRoomId).emit('timer:tick', { seconds: 0, running: false });
-    broadcastRoomState(currentRoomId);
+    socket.to(room.roomId).emit('sound:play', { type: 'whistle_final' });
+    io.to(room.roomId).emit('timer:tick', { seconds: 0, running: false });
+    broadcastRoomState(room.roomId);
   });
 
   on('history:clear', () => {

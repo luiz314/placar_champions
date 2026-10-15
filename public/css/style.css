@@ -971,13 +971,14 @@ body.body-tv-mode .score-digit {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
+  z-index: 99999;
+  padding: 16px;
   animation: fadeIn 0.2s ease-out;
+  pointer-events: auto;
 }
 
 .modal-backdrop.show {
-  display: flex;
+  display: flex !important;
 }
 
 @keyframes fadeIn {
@@ -1137,6 +1138,39 @@ body.body-tv-mode .score-digit {
 .btn-cancel-end:hover {
   background: rgba(51, 65, 85, 0.9);
   color: #ffffff;
+}
+
+@media (orientation: landscape) and (max-height: 600px), (max-height: 550px) {
+  #endMatchModalBackdrop .modal-card {
+    max-height: 94vh;
+  }
+  #endMatchModalBackdrop .modal-header {
+    padding: 8px 16px;
+  }
+  #endMatchModalBackdrop .modal-body {
+    padding: 10px 16px;
+  }
+  #endMatchModalBackdrop .modal-desc {
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+  }
+  #endMatchModalBackdrop .end-match-summary-card {
+    padding: 8px 12px;
+    margin: 6px 0;
+  }
+  #endMatchModalBackdrop .end-match-score-preview {
+    font-size: 1.5rem;
+    margin: 2px 0;
+  }
+  #endMatchModalBackdrop .end-match-actions {
+    margin-top: 8px;
+    gap: 8px;
+  }
+  #endMatchModalBackdrop .btn-confirm-end,
+  #endMatchModalBackdrop .btn-cancel-end {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+  }
 }
 
 /* BOTÃO NOVA SESSÃO NO CABEÇALHO */

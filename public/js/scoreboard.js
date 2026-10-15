@@ -778,22 +778,40 @@ if (btnTimerRestart) {
 // ENCERRAMENTO DE PARTIDA (MODAL HTML - NÃO SAI DA TELA CHEIA)
 // ============================================================
 function openEndMatchModal() {
-  if (!endMatchModalBackdrop) return;
   const ptsA = currentState.scoreA || 0;
   const ptsB = currentState.scoreB || 0;
   const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
 
-  if (endMatchScoreA) endMatchScoreA.textContent = ptsA;
-  if (endMatchScoreB) endMatchScoreB.textContent = ptsB;
-  if (endMatchNameA) endMatchNameA.textContent = currentState.nameA || 'LADO A';
-  if (endMatchNameB) endMatchNameB.textContent = currentState.nameB || 'LADO B';
-  if (endMatchDurationText) endMatchDurationText.textContent = formatTime(timerSeconds);
+  if (endMatchModalBackdrop) {
+    if (endMatchScoreA) endMatchScoreA.textContent = ptsA;
+    if (endMatchScoreB) endMatchScoreB.textContent = ptsB;
+    if (endMatchNameA) endMatchNameA.textContent = currentState.nameA || 'LADO A';
+    if (endMatchNameB) endMatchNameB.textContent = currentState.nameB || 'LADO B';
+    if (endMatchDurationText) endMatchDurationText.textContent = formatTime(timerSeconds);
 
-  endMatchModalBackdrop.classList.add('show');
+    endMatchModalBackdrop.style.display = 'flex';
+    endMatchModalBackdrop.classList.add('show');
+
+    // Foca no botão de confirmação para ser imediatamente acionável (Enter ou clique)
+    if (btnConfirmEndMatch) {
+      setTimeout(() => {
+        try { btnConfirmEndMatch.focus(); } catch (_) {}
+      }, 60);
+    }
+  } else {
+    // Fallback nativo ultra-resiliente
+    const confirmMsg = `Deseja realmente encerrar esta partida?\n\n${currentState.nameA || 'LADO A'} ${ptsA} x ${ptsB} ${currentState.nameB || 'LADO B'}\n\nO resultado será salvo no histórico e o placar será reiniciado.`;
+    if (confirm(confirmMsg)) {
+      confirmFinishMatch();
+    }
+  }
 }
 
 function closeEndMatchModal() {
-  if (endMatchModalBackdrop) endMatchModalBackdrop.classList.remove('show');
+  if (endMatchModalBackdrop) {
+    endMatchModalBackdrop.classList.remove('show');
+    endMatchModalBackdrop.style.display = 'none';
+  }
 }
 
 function confirmFinishMatch() {
@@ -802,16 +820,16 @@ function confirmFinishMatch() {
   if (window.sound) window.sound.playFinalWhistle();
 
   let winner = 'Empate';
-  if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA;
-  else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB;
+  if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA || 'LADO A';
+  else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB || 'LADO B';
 
   const matchRecord = {
     id: Date.now(),
     matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
-    nameA: currentState.nameA,
-    scoreA: currentState.scoreA,
-    nameB: currentState.nameB,
-    scoreB: currentState.scoreB,
+    nameA: currentState.nameA || 'LADO A',
+    scoreA: currentState.scoreA || 0,
+    nameB: currentState.nameB || 'LADO B',
+    scoreB: currentState.scoreB || 0,
     winner: winner,
     durationSeconds: (currentState.timer && currentState.timer.seconds) || 0,
     time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -819,6 +837,17 @@ function confirmFinishMatch() {
 
   if (!currentState.matchHistory) currentState.matchHistory = [];
   currentState.matchHistory.unshift(matchRecord);
+
+  // Payload completo para sincronização imediata
+  const finishPayload = {
+    roomId: currentRoomId,
+    nameA: matchRecord.nameA,
+    scoreA: matchRecord.scoreA,
+    nameB: matchRecord.nameB,
+    scoreB: matchRecord.scoreB,
+    winner: matchRecord.winner,
+    durationSeconds: matchRecord.durationSeconds
+  };
 
   currentState.scoreA = 0;
   currentState.scoreB = 0;
@@ -833,7 +862,7 @@ function confirmFinishMatch() {
   persistCurrentState();
 
   if (socket && socket.connected) {
-    socket.emit('match:finish');
+    socket.emit('match:finish', finishPayload);
   } else {
     markOfflineChange();
   }
@@ -850,16 +879,26 @@ function confirmFinishMatch() {
 }
 
 if (btnFinishMatch) {
-  btnFinishMatch.addEventListener('click', openEndMatchModal);
+  btnFinishMatch.addEventListener('click', (e) => {
+    e.preventDefault();
+    openEndMatchModal();
+  });
+  btnFinishMatch.onclick = openEndMatchModal;
 }
 if (btnCloseEndMatchModal) {
   btnCloseEndMatchModal.addEventListener('click', closeEndMatchModal);
+  btnCloseEndMatchModal.onclick = closeEndMatchModal;
 }
 if (btnCancelEndMatch) {
   btnCancelEndMatch.addEventListener('click', closeEndMatchModal);
+  btnCancelEndMatch.onclick = closeEndMatchModal;
 }
 if (btnConfirmEndMatch) {
-  btnConfirmEndMatch.addEventListener('click', confirmFinishMatch);
+  btnConfirmEndMatch.addEventListener('click', (e) => {
+    e.preventDefault();
+    confirmFinishMatch();
+  });
+  btnConfirmEndMatch.onclick = confirmFinishMatch;
 }
 if (endMatchModalBackdrop) {
   endMatchModalBackdrop.addEventListener('click', (e) => {
@@ -1052,11 +1091,10 @@ function initRoomConnection() {
   if (!socket) return;
 
   const params = new URLSearchParams(window.location.search);
-  const paramRoom = (params.get('sala') || params.get('room') || '').trim();
-  const savedRoom = (localStorage.getItem('volei_current_room') || localStorage.getItem('placar_current_room') || '').trim();
+  const paramRoom = (params.get('sala') || params.get('room') || '').replace(/\D/g, '');
+  const savedRoom = (localStorage.getItem('volei_current_room') || localStorage.getItem('placar_current_room') || '').replace(/\D/g, '');
 
-  let targetRoom = paramRoom || savedRoom || '733849';
-  targetRoom = targetRoom.replace(/\s+/g, '').toUpperCase();
+  let targetRoom = (paramRoom.length === 6 ? paramRoom : null) || (savedRoom.length === 6 ? savedRoom : null) || '733849';
 
   if (targetRoom) {
     localStorage.setItem('volei_current_room', targetRoom);
