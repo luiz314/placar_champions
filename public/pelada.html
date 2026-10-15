@@ -1398,7 +1398,345 @@
       border-radius: 8px;
     }
 
-</style>
+    .btn-quick-rate-mobile {
+      display: none;
+    }
+
+    /* ============================================================
+       RESPONSIVIDADE MOBILE COMPLETA PARA O CONTROLE DA PELADA
+       ============================================================ */
+    @media (max-width: 900px) {
+      .pelada-container {
+        padding: 16px 14px;
+      }
+      .pelada-title {
+        font-size: 1.45rem;
+      }
+      .player-select-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .pelada-container {
+        padding: 12px 10px 40px 10px;
+      }
+
+      .pelada-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+
+      .pelada-brand {
+        gap: 10px;
+      }
+
+      .pelada-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.6rem;
+        border-radius: 12px;
+      }
+
+      .pelada-title {
+        font-size: 1.35rem;
+      }
+
+      .pelada-subtitle {
+        font-size: 0.8rem;
+      }
+
+      .pelada-nav-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .btn-pelada {
+        padding: 9px 12px;
+        font-size: 0.84rem;
+        justify-content: center;
+        border-radius: 10px;
+      }
+
+      .user-auth-widget {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+
+      .user-logged-info {
+        width: 100%;
+        justify-content: space-between;
+        box-sizing: border-box;
+        padding: 8px 12px;
+      }
+
+      .pelada-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 4px;
+        margin-bottom: 16px;
+      }
+
+      .pelada-tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab-btn {
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        border-radius: 8px;
+      }
+
+      .pelada-card {
+        padding: 16px 12px;
+        border-radius: 16px;
+        margin-bottom: 16px;
+      }
+
+      .card-title {
+        font-size: 1.15rem;
+      }
+
+      .card-header-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .balance-config-bar {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        border-radius: 12px;
+      }
+
+      .config-group {
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .config-select {
+        flex: 1;
+        max-width: 60%;
+      }
+
+      .player-select-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .player-card-pick {
+        padding: 8px 10px;
+        min-height: 60px;
+        gap: 8px;
+        border-radius: 10px;
+      }
+
+      .player-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+
+      .player-name {
+        font-size: 0.84rem;
+      }
+
+      .player-role {
+        font-size: 0.68rem;
+      }
+
+      .teams-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .team-card {
+        padding: 16px 14px;
+      }
+
+      .team-attributes-summary {
+        gap: 4px;
+        padding: 8px 6px;
+      }
+
+      .attr-stat-label {
+        font-size: 0.6rem;
+      }
+
+      .attr-stat-val {
+        font-size: 0.82rem;
+      }
+
+      /* TABELA E AVALIAÇÃO DE JOGADORES NO CELULAR */
+      .players-table-card {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+
+      .players-table th,
+      .players-table td {
+        padding: 8px 8px;
+        font-size: 0.82rem;
+      }
+
+      /* BOTÃO DE AVALIAÇÃO DIRETA DESTACADO NO MOBILE */
+      .btn-quick-rate-mobile {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .btn-quick-rate-mobile:active {
+        transform: scale(0.96);
+        background: rgba(251, 191, 36, 0.3);
+      }
+
+      /* ESTRELAS INLINE MAIORES E FÁCEIS DE TOCAR COM O POLEGAR */
+      .inline-star-picker {
+        padding: 4px 6px;
+        gap: 2px;
+        border-radius: 8px;
+      }
+
+      .inline-star-picker .star-btn {
+        font-size: 1.45rem;
+        padding: 6px 3px;
+        min-width: 28px;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .inline-star-picker .star-btn:active {
+        transform: scale(1.3);
+      }
+
+      /* MODAL DE AVALIAÇÃO DIRETA NO MOBILE */
+      .modal-overlay {
+        padding: 10px;
+      }
+
+      #modalRatePlayerDirect .modal-card {
+        padding: 16px 14px;
+        max-height: 94vh;
+        overflow-y: auto;
+        width: 100%;
+        max-width: 440px;
+        border-radius: 18px;
+      }
+
+      #modalRatePlayerDirect .modal-title {
+        font-size: 1.15rem;
+        margin-bottom: 12px;
+      }
+
+      .direct-rating-card {
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        border-radius: 14px;
+      }
+
+      .direct-rating-head strong {
+        font-size: 0.88rem;
+      }
+
+      .direct-rating-stars {
+        gap: 6px;
+        justify-content: space-between;
+        padding: 4px 0;
+      }
+
+      .direct-star-btn {
+        font-size: 2.3rem;
+        min-height: 52px;
+        min-width: 46px;
+        padding: 6px 2px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .direct-star-btn:active {
+        transform: scale(1.3);
+      }
+
+      #modalRatePlayerDirect .modal-actions {
+        flex-direction: column-reverse;
+        width: 100%;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      #modalRatePlayerDirect .btn-pelada {
+        width: 100%;
+        justify-content: center;
+        padding: 14px;
+        font-size: 1rem;
+        border-radius: 12px;
+      }
+
+      /* OUTROS MODAIS RESPONSIVOS */
+      #modalAddPlayer .modal-card,
+      #modalEditPhoto .modal-card,
+      #modalPeladaAdmins .modal-card,
+      #modalCreatePelada .modal-card {
+        padding: 16px 14px;
+        max-height: 92vh;
+        overflow-y: auto;
+        width: 96%;
+      }
+    }
+
+    /* SMARTPHONES ULTRA-PEQUENOS (<= 400px) */
+    @media (max-width: 400px) {
+      .pelada-nav-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .player-select-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .direct-star-btn {
+        font-size: 2rem;
+        min-height: 46px;
+        min-width: 38px;
+      }
+
+      .inline-star-picker .star-btn {
+        font-size: 1.35rem;
+        min-width: 24px;
+      }
+    }
+  </style>
 </head>
 <body>
 

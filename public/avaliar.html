@@ -395,6 +395,145 @@
       margin-left: auto;
     }
 
+    /* RESPONSIVIDADE MOBILE COMPLETA PARA AVALIAÇÃO */
+    @media (max-width: 640px) {
+      body {
+        padding: 12px 10px;
+      }
+
+      .vote-container {
+        margin: 6px auto 30px auto;
+      }
+
+      .vote-header {
+        margin-bottom: 18px;
+      }
+
+      .vote-title {
+        font-size: 1.5rem;
+        letter-spacing: -0.3px;
+      }
+
+      .vote-subtitle {
+        font-size: 0.82rem;
+        line-height: 1.4;
+      }
+
+      .vote-card {
+        padding: 18px 14px;
+        border-radius: 18px;
+      }
+
+      .field-group {
+        margin-bottom: 16px;
+      }
+
+      .voter-player-card {
+        padding: 12px 14px;
+        gap: 12px;
+        border-radius: 14px;
+      }
+
+      .voter-avatar-container {
+        width: 52px;
+        height: 52px;
+      }
+
+      .voter-player-name {
+        font-size: 1.05rem;
+      }
+
+      .attributes-section {
+        gap: 12px;
+        margin-top: 6px;
+        margin-bottom: 18px;
+      }
+
+      .attribute-box {
+        padding: 12px 14px;
+        border-radius: 14px;
+      }
+
+      .attribute-head {
+        margin-bottom: 6px;
+      }
+
+      .attribute-name {
+        font-size: 0.95rem;
+      }
+
+      .attribute-score {
+        font-size: 0.95rem;
+      }
+
+      .attribute-desc {
+        font-size: 0.72rem;
+        margin-bottom: 8px;
+        line-height: 1.35;
+      }
+
+      .stars-picker {
+        gap: 4px;
+        padding: 2px 0;
+      }
+
+      .star-btn {
+        font-size: 2.3rem;
+        min-height: 48px;
+        min-width: 44px;
+        padding: 6px 2px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .star-btn:active {
+        transform: scale(1.25);
+      }
+
+      .overall-preview-card {
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 18px;
+      }
+
+      .overall-preview-val {
+        font-size: 1.55rem;
+      }
+
+      .btn-submit-vote {
+        padding: 15px;
+        font-size: 1.05rem;
+        min-height: 52px;
+        border-radius: 14px;
+      }
+    }
+
+    /* SMARTPHONES PEQUENOS (<= 380px) */
+    @media (max-width: 380px) {
+      body {
+        padding: 8px 6px;
+      }
+
+      .vote-card {
+        padding: 14px 10px;
+        border-radius: 14px;
+      }
+
+      .vote-title {
+        font-size: 1.3rem;
+      }
+
+      .star-btn {
+        font-size: 1.95rem;
+        min-height: 44px;
+        min-width: 38px;
+        padding: 4px 1px;
+      }
+
+      .overall-preview-val {
+        font-size: 1.45rem;
+      }
+    }
   </style>
 </head>
 <body>

@@ -694,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <strong style="color: #ffffff; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
               ${p.nickname && p.nickname !== p.name ? `<div style="font-size: 0.75rem; color: #94a3b8;">"${escapeHtml(p.nickname)}"</div>` : ''}
               ${myVote ? `<div style="font-size: 0.7rem; color: #fbbf24; font-weight: 700; margin-top: 1px;">✓ Seu Voto Gravado</div>` : ''}
+              <button type="button" class="btn-action-small btn-quick-rate-mobile" data-id="${p.id}" title="Avaliar Habilidades">⭐ Avaliar</button>
             </div>
           </div>
         </td>
@@ -739,6 +740,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     attachPhotoEventListeners();
     attachInlineStarEvents();
+
+    playersTableBody.querySelectorAll('.btn-quick-rate-mobile').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const player = playersList.find(pl => String(pl.id) === btn.getAttribute('data-id'));
+        if (player) openDirectRateModal(player);
+      });
+    });
 
     playersTableBody.querySelectorAll('.btn-edit-player').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -928,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return s;
   }
 
-    async function deletePlayer(id) {
+  async function deletePlayer(id) {
     try {
       const res = await fetch(`/api/players/${id}`, { method: 'DELETE' });
       const data = await res.json();
