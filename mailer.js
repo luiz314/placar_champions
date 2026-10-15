@@ -5,30 +5,47 @@ const nodemailer = require('nodemailer');
 // ==========================================
 
 function getSmtpConfig() {
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || '';
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || '').trim();
   const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_PASS || '').replace(/\s+/g, '');
-  const host = process.env.SMTP_HOST || (user.includes('@gmail.com') ? 'smtp.gmail.com' : '');
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const host = (process.env.SMTP_HOST || (user.toLowerCase().includes('@gmail.com') ? 'smtp.gmail.com' : '')).trim();
+  const port = parseInt(process.env.SMTP_PORT || (process.env.SMTP_SECURE === 'true' ? '465' : '587'), 10);
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
   return { user, pass, host, port, secure };
 }
 
 function isConfigured() {
-  const { user, pass, host } = getSmtpConfig();
-  return Boolean(user && pass && host);
+  const { user, pass } = getSmtpConfig();
+  return Boolean(user && pass);
 }
 
-function createTransporter() {
+function createTransporter(opts = {}) {
   const { user, pass, host, port, secure } = getSmtpConfig();
-  if (!user || !pass || !host) return null;
+  if (!user || !pass) return null;
 
+  const isGmail = user.toLowerCase().includes('@gmail.com') || host === 'smtp.gmail.com';
+
+  // Preset 1: Serviço nativo Gmail do Nodemailer (porta 465 SSL por padrão)
+  if (isGmail && !opts.forceDirect && (!process.env.SMTP_HOST || process.env.SMTP_HOST === 'smtp.gmail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000
+    });
+  }
+
+  // Preset 2: Conexão direta SMTP com timeouts estritos para nunca travar requisições
   return nodemailer.createTransport({
-    host,
-    port,
-    secure,
+    host: host || 'smtp.gmail.com',
+    port: opts.port || port || 465,
+    secure: opts.secure !== undefined ? opts.secure : (secure || port === 465),
     auth: { user, pass },
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000
   });
 }
 
@@ -141,7 +158,7 @@ async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterNa
     contentHtml
   });
 
-  return dispatchEmail({ to, subject, text, html, logType: 'CONVITE PELADA' });
+  return dispatchEmail({ to, subject, text, html, logType: 'CONVITE PELADA', linkUrl: inviteUrl });
 }
 
 // ==========================================
@@ -188,13 +205,13 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
     contentHtml
   });
 
-  return dispatchEmail({ to, subject, text, html, logType: 'RECUPERAÇÃO DE SENHA' });
+  return dispatchEmail({ to, subject, text, html, logType: 'RECUPERAÇÃO DE SENHA', linkUrl: resetUrl });
 }
 
 // ==========================================
 // DISPATCH GENÉRICO (ENVIA OU SIMULA SE SEM SMTP)
 // ==========================================
-async function dispatchEmail({ to, subject, text, html, logType }) {
+async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
   const configured = isConfigured();
 
   if (!configured) {
@@ -204,31 +221,63 @@ async function dispatchEmail({ to, subject, text, html, logType }) {
     console.log(`Assunto: ${subject}`);
     console.log(`Status: SMTP não configurado (adicione SMTP_USER e SMTP_PASS no .env/Railway)`);
     console.log(`Texto:\n${text}`);
+    if (linkUrl) console.log(`Link Direto: ${linkUrl}`);
     console.log(`==================================================\n`);
 
     return {
       sent: false,
       simulated: true,
+      previewUrl: linkUrl,
       message: 'SMTP não configurado. Mensagem simulada no console do servidor.'
     };
   }
 
-  const transporter = createTransporter();
-  try {
-    const info = await transporter.sendMail({
-      from: getFromAddress(),
-      to,
-      subject,
-      text,
-      html
-    });
+  // Tentativas: 1) Preset oficial Gmail ou configuração padrão; 2) Fallback para porta 465 direta
+  const attempts = [
+    { name: 'Preset Oficial Gmail / SMTP', forceDirect: false },
+    { name: 'Conexão Direta Porta 465 (SMTPS)', forceDirect: true, port: 465, secure: true }
+  ];
 
-    console.log(`✅ [MAILER] E-mail enviado com sucesso para ${to}. ID: ${info.messageId}`);
-    return { sent: true, simulated: false, messageId: info.messageId };
-  } catch (error) {
-    console.error(`❌ [MAILER] Erro ao enviar e-mail para ${to}:`, error.message);
-    throw new Error(`Falha no envio de e-mail: ${error.message}`);
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const transporter = createTransporter(attempt);
+      if (!transporter) continue;
+
+      const info = await transporter.sendMail({
+        from: getFromAddress(),
+        to,
+        subject,
+        text,
+        html
+      });
+
+      console.log(`✅ [MAILER] E-mail enviado com sucesso para ${to}. ID: ${info.messageId} (via ${attempt.name})`);
+      return { sent: true, simulated: false, messageId: info.messageId };
+    } catch (err) {
+      lastError = err;
+      console.warn(`⚠️ [MAILER] Tentativa via ${attempt.name} falhou:`, err.message);
+    }
   }
+
+  console.error(`❌ [MAILER] Todas as tentativas de envio para ${to} falharam:`, lastError ? lastError.message : 'Timeout');
+
+  if (linkUrl) {
+    console.log(`\n==================================================`);
+    console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
+    console.log(`Para: ${to}`);
+    console.log(`Link de acesso: ${linkUrl}`);
+    console.log(`Causa da falha SMTP: ${lastError ? lastError.message : 'Timeout de conexão'}`);
+    console.log(`Dica: Verifique se sua conta Google gerou uma 'Senha de App' de 16 letras.`);
+    console.log(`==================================================\n`);
+  }
+
+  return {
+    sent: false,
+    simulated: true,
+    error: lastError ? lastError.message : 'Tempo limite de conexão com o servidor de e-mail.',
+    previewUrl: linkUrl
+  };
 }
 
 function escapeHtml(str) {

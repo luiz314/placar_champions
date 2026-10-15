@@ -400,9 +400,19 @@ app.post('/api/auth/forgot-password', route(async (req, res) => {
     resetUrl
   });
 
+  if (mailResult.error) {
+    return res.status(500).json({
+      success: false,
+      error: `Não foi possível enviar o e-mail: ${mailResult.error}. Verifique se gerou uma Senha de App no Google para a variável SMTP_PASS no Railway.`,
+      previewUrl: resetUrl
+    });
+  }
+
   res.json({
     success: true,
-    message: 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes.',
+    message: mailResult.simulated
+      ? 'Link de redefinição gerado com sucesso (modo contingência / log ativo).'
+      : 'E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada e spam.',
     simulated: mailResult.simulated,
     previewUrl: mailResult.simulated ? resetUrl : undefined
   });

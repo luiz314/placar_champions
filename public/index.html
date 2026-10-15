@@ -1793,8 +1793,6 @@
       <span style="opacity: 0.35;">•</span>
       <a href="/privacidade" style="color: #93c5fd; font-weight: 600; text-decoration: underline; transition: color 0.2s;">Política de Privacidade</a>
       <span style="opacity: 0.35;">•</span>
-      <a href="/placar" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Placar Ao Vivo</a>
-      <span style="opacity: 0.35;">•</span>
       <a href="/pelada" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Gestão da Pelada</a>
       <span style="opacity: 0.35;">•</span>
       <a href="/avaliar" style="color: #94a3b8; text-decoration: none; transition: color 0.2s;">Votação & Craques</a>
@@ -2271,7 +2269,9 @@
             showFeedback('forgotFeedback', '', '');
             const email = document.getElementById('forgotUsername').value.trim().toLowerCase();
             const btnSubmit = document.getElementById('btnForgotSubmit');
+            const originalBtnHtml = btnSubmit.innerHTML;
             btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span>Enviando link... ⏳</span>';
             try {
               const res = await fetch('/api/auth/forgot-password', {
                 method: 'POST',
@@ -2281,13 +2281,22 @@
               const data = await res.json();
               if (data.success) {
                 showFeedback('forgotFeedback', 'success', data.message);
+                if (data.previewUrl) {
+                  const box = document.getElementById('forgotFeedback');
+                  box.innerHTML += `<div style="margin-top: 10px;"><a href="${data.previewUrl}" class="btn-card-action btn-gold" style="display: inline-block; padding: 6px 14px; font-size: 0.8rem; text-decoration: none; color: #000; font-weight: 700;">Acessar Link de Redefinição Agora ➔</a></div>`;
+                }
               } else {
                 showFeedback('forgotFeedback', 'error', data.error || 'Erro ao processar solicitação.');
+                if (data.previewUrl) {
+                  const box = document.getElementById('forgotFeedback');
+                  box.innerHTML += `<div style="margin-top: 8px; font-size: 0.78rem; color: #cbd5e1;">Link de emergência: <a href="${data.previewUrl}" style="color: #38bdf8; text-decoration: underline; font-weight: 700;">Clique aqui para redefinir</a></div>`;
+                }
               }
             } catch (err) {
-              showFeedback('forgotFeedback', 'error', 'Erro ao conectar ao servidor. Verifique sua conexão.');
+              showFeedback('forgotFeedback', 'error', 'Erro ao conectar ao servidor ou tempo limite excedido. Tente novamente.');
             } finally {
               btnSubmit.disabled = false;
+              btnSubmit.innerHTML = originalBtnHtml;
             }
           });
         }
