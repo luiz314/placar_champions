@@ -234,11 +234,11 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
 // PROVEDORES HTTP REST (PORTA 443 - NUNCA BLOQUEADA PELO RAILWAY)
 // ==========================================
 async function sendViaResend({ to, subject, html, text }) {
-  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  const apiKey = (process.env.RESEND_API_KEY || '').replace(/['"\s]/g, '');
   if (!apiKey) return null;
 
-  const from = process.env.RESEND_FROM || process.env.SMTP_FROM || 'Placar Champions <onboarding@resend.dev>';
-  const replyTo = process.env.SMTP_USER || process.env.RESEND_REPLY_TO || 'placarchampions@gmail.com';
+  const from = (process.env.RESEND_FROM || process.env.SMTP_FROM || 'Placar Champions <onboarding@resend.dev>').replace(/['"]/g, '').trim();
+  const replyTo = (process.env.SMTP_USER || process.env.RESEND_REPLY_TO || 'placarchampions@gmail.com').replace(/['"]/g, '').trim();
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -255,19 +255,21 @@ async function sendViaResend({ to, subject, html, text }) {
     })
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || data.error || `Erro HTTP ${res.status} no Resend`);
+    const errorMsg = data.message || data.error || `Erro HTTP ${res.status} no Resend`;
+    console.error('❌ [RESEND API ERROR]:', errorMsg);
+    throw new Error(errorMsg);
   }
   return { id: data.id };
 }
 
 async function sendViaBrevo({ to, subject, html, text }) {
-  const apiKey = (process.env.BREVO_API_KEY || '').trim();
+  const apiKey = (process.env.BREVO_API_KEY || '').replace(/['"\s]/g, '');
   if (!apiKey) return null;
 
   const senderName = process.env.BREVO_SENDER_NAME || 'Placar Champions';
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'contato@placarchampions.com';
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'contato@placarchampions.com').replace(/['"]/g, '').trim();
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -285,7 +287,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
     })
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.message || `Erro HTTP ${res.status} no Brevo`);
   }
@@ -297,24 +299,53 @@ async function sendViaBrevo({ to, subject, html, text }) {
 // ==========================================
 async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
   // 1. Prioridade Máxima: API HTTP do Resend (porta 443 HTTPS - imune a bloqueios de portas SMTP do Railway)
-  if (process.env.RESEND_API_KEY) {
+  const resendKey = (process.env.RESEND_API_KEY || '').replace(/['"\s]/g, '');
+  if (resendKey) {
     try {
       const result = await sendViaResend({ to, subject, html, text });
       console.log(`✅ [MAILER - RESEND] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
       return { sent: true, simulated: false, messageId: result.id, provider: 'resend' };
     } catch (err) {
       console.error(`❌ [MAILER - RESEND] Erro ao enviar para ${to}:`, err.message);
+      
+      let userFriendlyMessage = err.message;
+      if (err.message.includes('only send testing emails to your own email address')) {
+        userFriendlyMessage = `No modo de teste do Resend, e-mails só podem ser enviados para o e-mail que você cadastrou no Resend. Para enviar para qualquer endereço, verifique um domínio no painel do Resend. (${err.message})`;
+      }
+
+      if (linkUrl) {
+        console.log(`\n==================================================`);
+        console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
+        console.log(`Para: ${to}`);
+        console.log(`Link de acesso: ${linkUrl}`);
+        console.log(`Causa: ${userFriendlyMessage}`);
+        console.log(`==================================================\n`);
+      }
+
+      return {
+        sent: false,
+        simulated: true,
+        error: `Falha no Resend: ${userFriendlyMessage}`,
+        previewUrl: linkUrl
+      };
     }
   }
 
   // 2. Segunda opção HTTP: API do Brevo (porta 443 HTTPS)
-  if (process.env.BREVO_API_KEY) {
+  const brevoKey = (process.env.BREVO_API_KEY || '').replace(/['"\s]/g, '');
+  if (brevoKey) {
     try {
       const result = await sendViaBrevo({ to, subject, html, text });
       console.log(`✅ [MAILER - BREVO] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
       return { sent: true, simulated: false, messageId: result.id, provider: 'brevo' };
     } catch (err) {
       console.error(`❌ [MAILER - BREVO] Erro ao enviar para ${to}:`, err.message);
+      return {
+        sent: false,
+        simulated: true,
+        error: `Falha no Brevo: ${err.message}`,
+        previewUrl: linkUrl
+      };
     }
   }
 
