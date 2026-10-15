@@ -918,7 +918,9 @@ app.post('/api/players/:id/rate', route(async (req, res) => {
     movement,
     user.id
   );
-  res.status(201).json({ success: true, rating });
+  const allWithRatings = await db.getPlayersWithRatings(player.pelada_id);
+  const updatedPlayer = allWithRatings.find(p => Number(p.id) === Number(player.id));
+  res.status(201).json({ success: true, rating, player: updatedPlayer });
 }));
 
 // Remover voto/avaliação do atleta

@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const voterPlayerPos = document.getElementById('voterPlayerPos');
   const voterPlayerNick = document.getElementById('voterPlayerNick');
   const voterPlayerOverall = document.getElementById('voterPlayerOverall');
+  const voterPlayerVoteCount = document.getElementById('voterPlayerVoteCount');
 
   // Recupera parâmetros da URL (prioriza sala ativa salva no localStorage)
   const urlParams = new URLSearchParams(window.location.search);
@@ -142,11 +143,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const hasOverall = player.overall && Number(player.overall) > 0;
-    const voteCount = player.vote_count || 0;
+    const voteCount = Number(player.vote_count) || 0;
     if (voterPlayerOverall) {
       voterPlayerOverall.textContent = hasOverall
-        ? `Média Ponderada: ★ ${Number(player.overall).toFixed(1)} (${voteCount} voto${voteCount === 1 ? '' : 's'})`
-        : 'Sem estrelas ainda';
+        ? `Média: ★ ${Number(player.overall).toFixed(1)}`
+        : 'Sem estrelas';
+    }
+
+    if (voterPlayerVoteCount) {
+      if (voteCount === 0) {
+        voterPlayerVoteCount.textContent = '👥 Nenhum voto ainda';
+        voterPlayerVoteCount.style.background = 'rgba(148, 163, 184, 0.12)';
+        voterPlayerVoteCount.style.color = '#94a3b8';
+        voterPlayerVoteCount.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+      } else if (voteCount === 1) {
+        voterPlayerVoteCount.textContent = '👥 1 pessoa já avaliou';
+        voterPlayerVoteCount.style.background = 'rgba(56, 189, 248, 0.15)';
+        voterPlayerVoteCount.style.color = '#38bdf8';
+        voterPlayerVoteCount.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+      } else {
+        voterPlayerVoteCount.textContent = `👥 ${voteCount} pessoas já avaliaram`;
+        voterPlayerVoteCount.style.background = 'rgba(56, 189, 248, 0.15)';
+        voterPlayerVoteCount.style.color = '#38bdf8';
+        voterPlayerVoteCount.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+      }
     }
 
     // Foto do jogador
@@ -180,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateStars('movement', Number(previousVote.movement) || 3);
 
       if (personalVoteStatusText) {
-        personalVoteStatusText.innerHTML = `✓ Você já avaliou <strong>${Auth.escapeHtml(player.name)}</strong> anteriormente (${Number(previousVote.overall).toFixed(1)}★). Você pode editar as estrelas abaixo quando quiser.`;
+        personalVoteStatusText.innerHTML = `🔒 <strong>Sua avaliação individual:</strong> Você avaliou <strong>${Auth.escapeHtml(player.name)}</strong> com ${Number(previousVote.overall).toFixed(1)}★. Cada usuário possui 1 voto próprio contabilizado na média e inviolável por outros usuários. Altere as estrelas abaixo para atualizar a sua nota quando desejar.`;
         personalVoteStatusText.style.display = 'block';
       }
       if (btnSubmitVote && userCanVote) {
@@ -300,11 +320,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let selectedIndex = 1;
         playersList.forEach((p, idx) => {
-          const starStatus = p.overall && p.overall > 0 ? `Média: ★${Number(p.overall).toFixed(1)}` : 'Sem estrelas';
-          const myVoteTag = userRatingsMap[p.id] ? ` (Seu voto: ${Number(userRatingsMap[p.id].overall).toFixed(1)}★)` : '';
+          const starStatus = p.overall && p.overall > 0 ? `★${Number(p.overall).toFixed(1)}` : 'Sem estrelas';
+          const voteCount = Number(p.vote_count) || 0;
+          const voteCountText = voteCount === 0 ? '0 votos' : (voteCount === 1 ? '1 voto' : `${voteCount} votos`);
+          const myVoteTag = userRatingsMap[p.id] ? ` | Seu voto: ★${Number(userRatingsMap[p.id].overall).toFixed(1)}` : '';
           const opt = document.createElement('option');
           opt.value = p.id;
-          opt.textContent = `${p.name} (${p.position || 'Geral'}) - ${starStatus}${myVoteTag}`;
+          opt.textContent = `${p.name} (${p.position || 'Geral'}) — Média: ${starStatus} (${voteCountText})${myVoteTag}`;
           
           if (targetPlayerId && String(p.id) === String(targetPlayerId)) {
             opt.selected = true;
@@ -366,10 +388,23 @@ document.addEventListener('DOMContentLoaded', () => {
           const selectedText = selectPlayer.options[selectPlayer.selectedIndex]?.textContent || 'O atleta';
           const playerName = selectedText.split('(')[0].trim();
 
+          if (data.player) {
+            const pIndex = playersList.findIndex(p => String(p.id) === String(playerId));
+            if (pIndex !== -1) {
+              playersList[pIndex].overall = data.player.overall;
+              playersList[pIndex].vote_count = data.player.vote_count;
+              playersList[pIndex].avg_attack = data.player.avg_attack;
+              playersList[pIndex].avg_defense = data.player.avg_defense;
+              playersList[pIndex].avg_set_pass = data.player.avg_set_pass;
+              playersList[pIndex].avg_movement = data.player.avg_movement;
+            }
+          }
+
           if (isRemoval) {
             delete userRatingsMap[playerId];
+            const remainingCount = data.player ? (data.player.vote_count || 0) : 0;
             if (successPlayerText) {
-              successPlayerText.textContent = `Seu voto em ${playerName} foi removido com sucesso! O atleta não possui mais sua nota computada.`;
+              successPlayerText.textContent = `Seu voto em ${playerName} foi removido com sucesso! O atleta possui agora ${remainingCount} ${remainingCount === 1 ? 'voto registrado' : 'votos registrados'}.`;
             }
           } else {
             userRatingsMap[playerId] = {
@@ -379,8 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
               movement: currentRatings.movement,
               overall: computeWeightedOverall()
             };
+            const totalVoters = data.player ? (data.player.vote_count || 1) : 1;
+            const newOverall = data.player ? Number(data.player.overall).toFixed(1) : computeWeightedOverall();
             if (successPlayerText) {
-              successPlayerText.textContent = `Sua avaliação individual de ${computeWeightedOverall()}★ para ${playerName} foi registrada com sucesso! O sistema computou a nova média ponderada geral.`;
+              successPlayerText.textContent = `Sua avaliação individual de ${computeWeightedOverall()}★ para ${playerName} foi registrada com sucesso! Agora ${playerName} conta com ${totalVoters} ${totalVoters === 1 ? 'pessoa votante' : 'pessoas votantes'} (Média Geral: ★${newOverall}).`;
             }
           }
 

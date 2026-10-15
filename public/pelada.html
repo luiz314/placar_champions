@@ -2201,7 +2201,7 @@
                 <th>🛡️ Defesa</th>
                 <th>🎯 Passe</th>
                 <th>⚡ Movimentação</th>
-                <th>Votos</th>
+                <th>👥 Avaliações</th>
                 <th style="text-align: right;">Ações</th>
               </tr>
             </thead>
@@ -2482,13 +2482,18 @@
             <span id="directRatePlayerNick"></span>
           </div>
         </div>
-        <div id="directRateOverallBadge" class="player-overall-pill" style="font-size: 0.9rem; padding: 4px 10px;">
-          ★ 3.0
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+          <div id="directRateOverallBadge" class="player-overall-pill" style="font-size: 0.9rem; padding: 4px 10px;">
+            ★ 3.0
+          </div>
+          <span id="directRateVoteCountBadge" style="font-size: 0.72rem; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.12); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
+            👥 0 votos
+          </span>
         </div>
       </div>
 
       <div id="directRateUserVoteStatus" style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 16px; background: rgba(56, 189, 248, 0.08); padding: 8px 12px; border-radius: 8px;">
-        💡 Cada usuário possui 1 voto por jogador. Você pode editar suas estrelas a qualquer momento!
+        🔒 Votação individual e auditável: cada usuário tem 1 voto por jogador. Seu voto é computado na média ponderada e não pode ser alterado por terceiros.
       </div>
 
       <form id="formDirectRatePlayer">

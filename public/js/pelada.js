@@ -629,11 +629,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="player-sub">
             <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
-            <span class="player-stars-badge ${hasRatings ? '' : 'empty'}" title="Média Geral de todos os votos">
-              ⭐ ${hasRatings ? Number(player.overall).toFixed(1) : '—'} <span style="font-size: 0.65rem; opacity: 0.85;">Geral</span>
+            <span class="player-stars-badge ${hasRatings ? '' : 'empty'}" title="Média Geral (${player.vote_count || 0} ${player.vote_count === 1 ? 'pessoa votou' : 'pessoas votaram'})">
+              ⭐ ${hasRatings ? Number(player.overall).toFixed(1) : '—'} <span style="font-size: 0.65rem; opacity: 0.85;">(${player.vote_count || 0} ${player.vote_count === 1 ? 'voto' : 'votos'})</span>
             </span>
             ${myVote ? `
-              <span class="player-myvote-pill btn-quick-rate-card" data-id="${player.id}" title="Sua avaliação individual. Toque para alterar.">
+              <span class="player-myvote-pill btn-quick-rate-card" data-id="${player.id}" title="Sua avaliação individual (${Number(myVote.overall).toFixed(1)}★). Toque para alterar seu voto.">
                 👤 ${Number(myVote.overall).toFixed(1)} <span style="font-size: 0.65rem; opacity: 0.85;">Você</span>
               </span>
             ` : `
@@ -888,8 +888,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${buildInlineStarPickerHtml(p.id, 'set_pass', curSetPass, !!myVote)}</td>
         <td>${buildInlineStarPickerHtml(p.id, 'movement', curMovement, !!myVote)}</td>
         <td>
-          <span style="color: #94a3b8; font-size: 0.85rem;" id="vote-count-${p.id}">
-            ${p.vote_count || 0} voto${p.vote_count === 1 ? '' : 's'}
+          <span style="color: #38bdf8; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" id="vote-count-${p.id}" title="Total exato de pessoas que avaliaram este jogador">
+            👥 ${p.vote_count || 0} ${p.vote_count === 1 ? 'voto' : 'votos'}
           </span>
         </td>
         <td style="text-align: right;">
@@ -1081,11 +1081,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success && data.rating) {
         showToast(`⭐ ${player.name}: ${skillToLabel(skill)} alterado para ${chosenVal}★!`);
         if (data.rating.overall) player.overall = data.rating.overall;
+        if (data.player && data.player.vote_count !== undefined) {
+          player.vote_count = data.player.vote_count;
+        }
         userRatingsMap[playerId].overall = data.rating.overall;
         // Atualiza contagem de votos
         const voteCountSpan = document.getElementById(`vote-count-${playerId}`);
         if (voteCountSpan && player.vote_count !== undefined) {
-          voteCountSpan.textContent = `${player.vote_count} votos`;
+          voteCountSpan.textContent = `👥 ${player.vote_count} ${player.vote_count === 1 ? 'voto' : 'votos'}`;
         }
       } else {
         alert(data.error || 'Erro ao registrar voto.');
@@ -2134,6 +2137,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    const hasRatings = player.overall && Number(player.overall) > 0;
+    const count = Number(player.vote_count) || 0;
+    const directRateOverallBadge = document.getElementById('directRateOverallBadge');
+    if (directRateOverallBadge) {
+      directRateOverallBadge.textContent = hasRatings ? `★ ${Number(player.overall).toFixed(1)}` : 'Sem estrelas';
+    }
+    const directRateVoteCountBadge = document.getElementById('directRateVoteCountBadge');
+    if (directRateVoteCountBadge) {
+      if (count === 0) {
+        directRateVoteCountBadge.textContent = '👥 Nenhum voto ainda';
+        directRateVoteCountBadge.style.color = '#94a3b8';
+        directRateVoteCountBadge.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+      } else if (count === 1) {
+        directRateVoteCountBadge.textContent = '👥 1 pessoa avaliou';
+        directRateVoteCountBadge.style.color = '#38bdf8';
+        directRateVoteCountBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      } else {
+        directRateVoteCountBadge.textContent = `👥 ${count} pessoas avaliaram`;
+        directRateVoteCountBadge.style.color = '#38bdf8';
+        directRateVoteCountBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      }
+    }
+
     // Se o usuário já votou neste jogador, recupera suas notas anteriores
     const myVote = userRatingsMap[playerId];
     if (myVote) {
@@ -2142,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateDirectStarUI('set_pass', Math.round(myVote.set_pass || 3));
       updateDirectStarUI('movement', Math.round(myVote.movement || 3));
       if (directRateUserVoteStatus) {
-        directRateUserVoteStatus.innerHTML = `✏️ <strong>Você já avaliou este atleta (Overall anterior: ★${myVote.overall}).</strong> Ajuste as notas abaixo para editar seu voto!`;
+        directRateUserVoteStatus.innerHTML = `🔒 <strong>Seu voto individual (${myVote.overall}★):</strong> Você já avaliou este atleta. Sua avaliação é 100% individual e intransferível — ninguém mais pode alterar a sua nota. Ajuste as estrelas abaixo para atualizar o seu voto quando desejar.`;
       }
       if (btnSubmitDirectRate) btnSubmitDirectRate.textContent = 'Atualizar Meu Voto';
     } else {
@@ -2151,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateDirectStarUI('set_pass', 3);
       updateDirectStarUI('movement', 3);
       if (directRateUserVoteStatus) {
-        directRateUserVoteStatus.innerHTML = `💡 Você está votando como <strong>${escapeHtml(currentUser.name)}</strong>. Cada pessoa tem 1 voto por jogador e pode editar a qualquer momento!`;
+        directRateUserVoteStatus.innerHTML = `🔒 Você está votando como <strong>${escapeHtml(currentUser ? currentUser.name : 'Você')}</strong>. Cada usuário tem direito a 1 voto individual por jogador, compondo a média justa de forma transparente e inviolável!`;
       }
       if (btnSubmitDirectRate) btnSubmitDirectRate.textContent = 'Salvar Avaliação';
     }

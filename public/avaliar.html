@@ -392,6 +392,19 @@
       border-radius: 999px;
       font-size: 0.75rem;
       font-weight: 800;
+    }
+
+    .voter-badge-votecount {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       margin-left: auto;
     }
 
@@ -547,7 +560,7 @@
         <span>Avaliação dos Jogadores</span>
       </div>
       <h1 class="vote-title">Distribua as Estrelas</h1>
-      <p class="vote-subtitle">Avalie cada fundamento de 1 a 5 estrelas. O sistema calculará a média ponderada final.</p>
+      <p class="vote-subtitle">Avalie cada fundamento de 1 a 5 estrelas. Cada usuário possui 1 voto individual por jogador — sua avaliação fica registrada de forma inviolável e compõe a média justa de toda a pelada.</p>
     </header>
 
     <!-- FORMULÁRIO DE VOTAÇÃO -->
@@ -568,10 +581,11 @@
           </div>
           <div class="voter-player-info">
             <h3 id="voterPlayerName" class="voter-player-name">Selecione um atleta</h3>
-            <div class="voter-player-sub">
+            <div class="voter-player-sub" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span id="voterPlayerPos" class="voter-badge-pos">Geral</span>
               <span id="voterPlayerNick" class="voter-badge-nick" style="display: none;"></span>
               <span id="voterPlayerOverall" class="voter-badge-overall">★ 0.0</span>
+              <span id="voterPlayerVoteCount" class="voter-badge-votecount" title="Total de pessoas que já avaliaram este jogador">👥 0 votos</span>
             </div>
           </div>
         </div>
@@ -601,8 +615,8 @@
         </div>
 
         <!-- STATUS DE VOTO PESSOAL -->
-        <div id="personalVoteStatusText" style="display: none; font-size: 0.8rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 6px 12px; margin-bottom: 14px;">
-          ✓ Você já avaliou este atleta anteriormente. Altere as estrelas abaixo para atualizar seu voto.
+        <div id="personalVoteStatusText" style="display: none; font-size: 0.82rem; color: #38bdf8; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; line-height: 1.45;">
+          ✓ Seu voto individual está registrado. Modifique as estrelas abaixo caso deseje atualizar sua avaliação.
         </div>
 
         <!-- OS 4 ATRIBUTOS EXIGIDOS: ATAQUE, DEFESA, PASSE, MOVIMENTAÇÃO -->

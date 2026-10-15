@@ -266,7 +266,8 @@ if (dbUrl) {
     }, {
       tableName: 'player_ratings',
       timestamps: true,
-      underscored: true
+      underscored: true,
+      indexes: [{ unique: true, fields: ['player_id', 'user_id'] }]
     });
 
     // Modelo de Lista de Presenca (Attendance)
@@ -467,6 +468,11 @@ async function initDb() {
 
     await migratePeladaOwners();
     await sequelize.query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_monthly BOOLEAN DEFAULT TRUE;').catch(() => {});
+    await sequelize.query(`
+      DELETE FROM player_ratings a USING player_ratings b
+      WHERE a.id < b.id AND a.player_id = b.player_id AND a.user_id = b.user_id AND a.user_id IS NOT NULL;
+    `).catch(() => {});
+    await sequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS player_ratings_player_user_unique ON player_ratings (player_id, user_id) WHERE user_id IS NOT NULL;').catch(() => {});
   } catch (err) {
     dbConnectionError = err.message;
     console.error('ERRO na sincronizacao do esquema PostgreSQL (o app segue usando o PostgreSQL):', err.message);
