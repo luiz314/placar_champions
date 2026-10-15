@@ -6,38 +6,61 @@
 function calculateTeamStats(players) {
   if (!players || players.length === 0) {
     return {
-      avgOverall: 0,
-      avgAttack: 0,
-      avgDefense: 0,
-      avgPass: 0,
-      avgMovement: 0,
-      totalPlayers: 0
+      avgOverall: '0.0',
+      avgAttack: '0.0',
+      avgDefense: '0.0',
+      avgSetPass: '0.0',
+      avgPass: '0.0',
+      avgMovement: '0.0',
+      totalPlayers: 0,
+      ratedPlayers: 0
     };
   }
 
-  const n = players.length;
-  const sumOverall = players.reduce((acc, p) => acc + (Number(p.overall) || 3.0), 0);
-  const sumAttack = players.reduce((acc, p) => acc + (Number(p.avg_attack) || 3.0), 0);
-  const sumDefense = players.reduce((acc, p) => acc + (Number(p.avg_defense) || 3.0), 0);
-  const sumPass = players.reduce((acc, p) => acc + (Number(p.avg_set_pass) || 3.0), 0);
-  const sumMovement = players.reduce((acc, p) => acc + (Number(p.avg_movement) || 3.0), 0);
+  // "Calcule apenas com o que tem": calcula média considerando estritamente jogadores que possuem nota (> 0)
+  const ratedOverall = players.filter(p => Number(p.overall) > 0);
+  const avgOverall = ratedOverall.length > 0
+    ? (ratedOverall.reduce((acc, p) => acc + Number(p.overall), 0) / ratedOverall.length).toFixed(1)
+    : '0.0';
+
+  const ratedAttack = players.filter(p => Number(p.avg_attack) > 0);
+  const avgAttack = ratedAttack.length > 0
+    ? (ratedAttack.reduce((acc, p) => acc + Number(p.avg_attack), 0) / ratedAttack.length).toFixed(1)
+    : '0.0';
+
+  const ratedDefense = players.filter(p => Number(p.avg_defense) > 0);
+  const avgDefense = ratedDefense.length > 0
+    ? (ratedDefense.reduce((acc, p) => acc + Number(p.avg_defense), 0) / ratedDefense.length).toFixed(1)
+    : '0.0';
+
+  const ratedPass = players.filter(p => (Number(p.avg_set_pass) > 0 || Number(p.avg_pass) > 0));
+  const avgSetPass = ratedPass.length > 0
+    ? (ratedPass.reduce((acc, p) => acc + Number(p.avg_set_pass !== undefined ? p.avg_set_pass : p.avg_pass), 0) / ratedPass.length).toFixed(1)
+    : '0.0';
+
+  const ratedMovement = players.filter(p => Number(p.avg_movement) > 0);
+  const avgMovement = ratedMovement.length > 0
+    ? (ratedMovement.reduce((acc, p) => acc + Number(p.avg_movement), 0) / ratedMovement.length).toFixed(1)
+    : '0.0';
 
   return {
-    avgOverall: Number((sumOverall / n).toFixed(2)),
-    avgAttack: Number((sumAttack / n).toFixed(2)),
-    avgDefense: Number((sumDefense / n).toFixed(2)),
-    avgPass: Number((sumPass / n).toFixed(2)),
-    avgMovement: Number((sumMovement / n).toFixed(2)),
-    totalPlayers: n
+    avgOverall,
+    avgAttack,
+    avgDefense,
+    avgSetPass,
+    avgPass: avgSetPass,
+    avgMovement,
+    totalPlayers: players.length,
+    ratedPlayers: ratedOverall.length
   };
 }
 
 function evaluateFairness(teams) {
   if (teams.length < 2) return { cost: 0, overallDelta: 0 };
 
-  const overalls = teams.map(t => calculateTeamStats(t.players).avgOverall);
-  const attacks = teams.map(t => calculateTeamStats(t.players).avgAttack);
-  const passes = teams.map(t => calculateTeamStats(t.players).avgPass);
+  const overalls = teams.map(t => Number(calculateTeamStats(t.players).avgOverall) || 0);
+  const attacks = teams.map(t => Number(calculateTeamStats(t.players).avgAttack) || 0);
+  const passes = teams.map(t => Number(calculateTeamStats(t.players).avgSetPass) || 0);
 
   const maxOverall = Math.max(...overalls);
   const minOverall = Math.min(...overalls);
@@ -73,13 +96,17 @@ function balanceTeams(playersList, options = {}) {
   } = options;
 
   if (!playersList || playersList.length === 0) {
-    return { teams: [], bench: [], fairnessScore: 100, delta: 0 };
+    return { teams: [], bench: [], fairnessScore: 100, delta: 0, maxOverallDelta: 0 };
   }
 
   const k = Math.max(2, Math.min(6, parseInt(numTeams, 10) || 2));
   
-  // Ordena jogadores por overall decrescente
-  const sorted = [...playersList].sort((a, b) => (Number(b.overall) || 3.0) - (Number(a.overall) || 3.0));
+  // Ordena jogadores por overall decrescente (jogadores sem nota assumem mediana 3.0 para sorteio justo)
+  const sorted = [...playersList].sort((a, b) => {
+    const scoreB = Number(b.overall) > 0 ? Number(b.overall) : 3.0;
+    const scoreA = Number(a.overall) > 0 ? Number(a.overall) : 3.0;
+    return scoreB - scoreA;
+  });
 
   // Determina quantos jogadores por time
   const total = sorted.length;
@@ -164,6 +191,12 @@ function balanceTeams(playersList, options = {}) {
       id: t.id,
       name: t.name,
       players: t.players,
+      avgOverall: stats.avgOverall,
+      avgAttack: stats.avgAttack,
+      avgDefense: stats.avgDefense,
+      avgSetPass: stats.avgSetPass,
+      avgPass: stats.avgPass,
+      avgMovement: stats.avgMovement,
       stats: stats
     };
   });
@@ -176,6 +209,7 @@ function balanceTeams(playersList, options = {}) {
     teams: teamsWithStats,
     bench: bench,
     delta: Number(overallDelta.toFixed(2)),
+    maxOverallDelta: Number(overallDelta.toFixed(2)),
     fairnessScore: fairnessScore
   };
 }

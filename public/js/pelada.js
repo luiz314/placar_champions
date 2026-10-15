@@ -1052,7 +1052,8 @@ document.addEventListener('DOMContentLoaded', () => {
       fairnessScoreDisplay.textContent = `${result.fairnessScore || 95}%`;
     }
     if (fairnessDeltaDisplay) {
-      fairnessDeltaDisplay.textContent = `Diferença máxima de apenas ${(result.maxOverallDelta || 0).toFixed(2)} estrelas de Overall entre as equipes. Jogo justo garantido!`;
+      const deltaVal = Number(result.maxOverallDelta !== undefined ? result.maxOverallDelta : (result.delta || 0));
+      fairnessDeltaDisplay.textContent = `Diferença máxima de apenas ${deltaVal.toFixed(2)} estrelas de Overall entre as equipes. Jogo justo garantido!`;
     }
 
     teamsResultGrid.innerHTML = '';
@@ -1061,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const card = document.createElement('div');
       card.className = `team-card team-${(idx % 4) + 1}`;
 
-      const rosterHtml = team.players.map(p => {
+      const rosterHtml = (team.players || []).map(p => {
         const fullName = p.name || p.nickname || 'Jogador';
         const hasNick = p.nickname && p.nickname.trim() !== '' && p.nickname.toLowerCase() !== fullName.toLowerCase();
         return `
@@ -1079,27 +1080,62 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       }).join('');
 
+      // Calcula com segurança considerando apenas atletas que possuem nota (> 0)
+      const tStats = team.stats || {};
+      const teamPlayers = team.players || [];
+      const ratedOverall = teamPlayers.filter(p => Number(p.overall) > 0);
+      const computedOverall = ratedOverall.length > 0
+        ? (ratedOverall.reduce((sum, p) => sum + Number(p.overall), 0) / ratedOverall.length).toFixed(1)
+        : '0.0';
+
+      const ratedAttack = teamPlayers.filter(p => Number(p.avg_attack) > 0);
+      const computedAttack = ratedAttack.length > 0
+        ? (ratedAttack.reduce((sum, p) => sum + Number(p.avg_attack), 0) / ratedAttack.length).toFixed(1)
+        : '0.0';
+
+      const ratedDefense = teamPlayers.filter(p => Number(p.avg_defense) > 0);
+      const computedDefense = ratedDefense.length > 0
+        ? (ratedDefense.reduce((sum, p) => sum + Number(p.avg_defense), 0) / ratedDefense.length).toFixed(1)
+        : '0.0';
+
+      const ratedPass = teamPlayers.filter(p => (Number(p.avg_set_pass) > 0 || Number(p.avg_pass) > 0));
+      const computedPass = ratedPass.length > 0
+        ? (ratedPass.reduce((sum, p) => sum + Number(p.avg_set_pass !== undefined ? p.avg_set_pass : p.avg_pass), 0) / ratedPass.length).toFixed(1)
+        : '0.0';
+
+      const ratedMov = teamPlayers.filter(p => Number(p.avg_movement) > 0);
+      const computedMov = ratedMov.length > 0
+        ? (ratedMov.reduce((sum, p) => sum + Number(p.avg_movement), 0) / ratedMov.length).toFixed(1)
+        : '0.0';
+
+      const isValidStat = (v) => v !== undefined && v !== null && v !== 'undefined';
+      const displayOverall = isValidStat(team.avgOverall) ? team.avgOverall : (isValidStat(tStats.avgOverall) ? tStats.avgOverall : computedOverall);
+      const displayAttack = isValidStat(team.avgAttack) ? team.avgAttack : (isValidStat(tStats.avgAttack) ? tStats.avgAttack : computedAttack);
+      const displayDefense = isValidStat(team.avgDefense) ? team.avgDefense : (isValidStat(tStats.avgDefense) ? tStats.avgDefense : computedDefense);
+      const displaySetPass = isValidStat(team.avgSetPass) ? team.avgSetPass : (isValidStat(tStats.avgSetPass) ? tStats.avgSetPass : (isValidStat(tStats.avgPass) ? tStats.avgPass : computedPass));
+      const displayMovement = isValidStat(team.avgMovement) ? team.avgMovement : (isValidStat(tStats.avgMovement) ? tStats.avgMovement : computedMov);
+
       card.innerHTML = `
         <div class="team-header">
           <h3 class="team-title">${escapeHtml(team.name)}</h3>
-          <span class="team-overall-badge">★ ${team.avgOverall} Média</span>
+          <span class="team-overall-badge">★ ${displayOverall} Média</span>
         </div>
         <div class="team-attributes-summary">
           <div>
             <div class="attr-stat-label">Ataque</div>
-            <div class="attr-stat-val">★ ${team.avgAttack}</div>
+            <div class="attr-stat-val">★ ${displayAttack}</div>
           </div>
           <div>
             <div class="attr-stat-label">Defesa</div>
-            <div class="attr-stat-val">★ ${team.avgDefense}</div>
+            <div class="attr-stat-val">★ ${displayDefense}</div>
           </div>
           <div>
             <div class="attr-stat-label">Passe</div>
-            <div class="attr-stat-val">★ ${team.avgSetPass}</div>
+            <div class="attr-stat-val">★ ${displaySetPass}</div>
           </div>
           <div>
             <div class="attr-stat-label">Mov.</div>
-            <div class="attr-stat-val">★ ${team.avgMovement}</div>
+            <div class="attr-stat-val">★ ${displayMovement}</div>
           </div>
         </div>
         <div class="team-roster">
@@ -1139,7 +1175,8 @@ document.addEventListener('DOMContentLoaded', () => {
       text += `📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}\n\n`;
 
       lastBalancedResult.teams.forEach(t => {
-        text += `*${t.name.toUpperCase()}* (★ Overall: ${t.avgOverall})\n`;
+        const overallStr = t.avgOverall || (t.stats && t.stats.avgOverall) || '0.0';
+        text += `*${t.name.toUpperCase()}* (★ Overall: ${overallStr})\n`;
         t.players.forEach((p, idx) => {
           text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'}) - ★ ${Number(p.overall || 0).toFixed(1)}\n`;
         });
