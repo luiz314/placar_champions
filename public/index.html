@@ -404,6 +404,13 @@
       border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
+    .auth-feedback-box.info {
+      display: block;
+      background: rgba(0, 242, 254, 0.12);
+      color: #7dd3fc;
+      border: 1px solid rgba(0, 242, 254, 0.35);
+    }
+
     /* LOGIN COM GOOGLE */
     .google-auth-block {
       display: flex;
@@ -1896,7 +1903,7 @@
         const box = document.getElementById(id);
         if (!box) return;
         box.className = 'auth-feedback-box' + (type ? ' ' + type : '');
-        box.textContent = message || '';
+        box.innerHTML = message || '';
       }
 
       // Carregar todas as sessões (com as permissões do usuário logado)
@@ -2678,6 +2685,36 @@
           const resetTokenParam = urlParams.get('resetToken');
           if (resetTokenParam) {
             openResetPasswordModal(resetTokenParam);
+          }
+
+          // Se o usuário não estiver logado e chegou por um link de convite:
+          if (!Auth.getUser()) {
+            const emailParam = (urlParams.get('email') || '').trim();
+            const inviteTokenParam = urlParams.get('inviteToken');
+            const inviteUrlCode = urlParams.get('convite') || urlParams.get('invite') || urlParams.get('codigo');
+
+            if (emailParam) {
+              const regUsername = document.getElementById('regUsername');
+              const loginUsername = document.getElementById('loginUsername');
+              if (regUsername) regUsername.value = emailParam;
+              if (loginUsername) loginUsername.value = emailParam;
+            }
+
+            if (inviteTokenParam || inviteUrlCode) {
+              const tabBtnRegister = document.getElementById('tabBtnRegister');
+              if (tabBtnRegister) {
+                tabBtnRegister.click();
+                showFeedback(
+                  'regFeedback',
+                  'info',
+                  '🎉 Você foi convidado para a pelada! Preencha seu nome e crie sua senha abaixo para entrar diretamente na sala.'
+                );
+                const regName = document.getElementById('regName');
+                if (regName) {
+                  setTimeout(() => regName.focus(), 250);
+                }
+              }
+            }
           }
 
           // Se foi redirecionado com authRequired, exibe alerta explicativo

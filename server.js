@@ -573,7 +573,8 @@ app.post('/api/peladas/:id/members', route(async (req, res) => {
       inviteCode,
       inviterName: inviter.name || inviter.username,
       role,
-      inviteUrl
+      inviteUrl,
+      isRegistered: true
     });
 
     res.status(201).json({
@@ -604,7 +605,8 @@ app.post('/api/peladas/:id/members', route(async (req, res) => {
       inviteCode,
       inviterName: inviter.name || inviter.username,
       role,
-      inviteUrl
+      inviteUrl,
+      isRegistered: false
     });
 
     res.status(201).json({
@@ -701,7 +703,8 @@ app.post('/api/peladas/:id/admins', route(async (req, res) => {
       inviteCode,
       inviterName: inviter.name || inviter.username,
       role: 'admin',
-      inviteUrl
+      inviteUrl,
+      isRegistered: true
     });
 
     res.status(201).json({
@@ -731,7 +734,8 @@ app.post('/api/peladas/:id/admins', route(async (req, res) => {
       inviteCode,
       inviterName: inviter.name || inviter.username,
       role: 'admin',
-      inviteUrl
+      inviteUrl,
+      isRegistered: false
     });
 
     res.status(201).json({

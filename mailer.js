@@ -136,12 +136,33 @@ function wrapEmailHtml({ title, preheader, contentHtml }) {
 // ==========================================
 // 1. E-MAIL DE CONVITE PARA A PELADA
 // ==========================================
-async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterName, role, inviteUrl }) {
+async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterName, role, inviteUrl, isRegistered = false }) {
   const roleName = role === 'admin' ? 'Administrador' : (role === 'espectador' ? 'Espectador' : 'Votante');
   const roleEmoji = role === 'admin' ? '⭐' : (role === 'espectador' ? '👁️' : '🏐');
 
+  const registrationCallout = !isRegistered ? `
+    <div style="background: rgba(0, 242, 254, 0.08); border-left: 3px solid #00f2fe; border-radius: 8px; padding: 14px 18px; margin: 20px 0; text-align: left;">
+      <div style="font-size: 13px; font-weight: 700; color: #00f2fe; margin-bottom: 4px;">
+        📝 Primeiro acesso ao Placar Champions?
+      </div>
+      <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+        Identificamos que você ainda não possui um cadastro com este e-mail. Ao clicar no botão abaixo, <strong>a página de cadastro abrirá automaticamente com seu e-mail preenchido</strong>. É só escolher seu nome e senha para entrar na sala da pelada!
+      </div>
+    </div>
+  ` : `
+    <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; border-radius: 8px; padding: 12px 16px; margin: 20px 0; text-align: left;">
+      <div style="font-size: 13px; color: #a7f3d0; line-height: 1.5;">
+        ✓ Você já possui conta no Placar Champions. Basta clicar abaixo e fazer login para entrar na sala.
+      </div>
+    </div>
+  `;
+
+  const ctaText = !isRegistered
+    ? '⚡ Criar Minha Conta e Entrar na Sala'
+    : '⚡ Acessar Sala da Pelada';
+
   const contentHtml = `
-    <h2 class="email-title">Você foi convidado para a pelada! 🎉</h2>
+    <h2 class="email-title">${!isRegistered ? 'Você foi convidado para a pelada! Crie sua conta 🎉' : 'Você foi convidado para a pelada! 🎉'}</h2>
     <p class="email-text">
       Olá! <strong>${escapeHtml(inviterName || 'Um organizador')}</strong> convidou você para fazer parte da sala <strong>"${escapeHtml(peladaName)}"</strong> no Placar Champions.
     </p>
@@ -155,13 +176,15 @@ async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterNa
       <div class="highlight-value">${escapeHtml(inviteCode || String(peladaId))}</div>
     </div>
 
+    ${registrationCallout}
+
     <p class="email-text" style="text-align: center;">
-      Clique no botão abaixo para aceitar o convite e acessar a escalação, placar e votações:
+      ${!isRegistered ? 'Clique no botão abaixo para concluir seu cadastro gratuito e entrar na pelada:' : 'Clique no botão abaixo para aceitar o convite e acessar a escalação, placar e votações:'}
     </p>
 
     <div style="text-align: center;">
       <a href="${inviteUrl}" class="cta-button" target="_blank">
-        ⚡ Aceitar Convite e Acessar Sala
+        ${ctaText}
       </a>
     </div>
 
@@ -171,12 +194,18 @@ async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterNa
     </p>
   `;
 
-  const subject = `🏐 Convite para a pelada "${peladaName}" no Placar Champions`;
-  const text = `Olá!\n\n${inviterName || 'Um organizador'} convidou você para a pelada "${peladaName}".\n\nPapel: ${roleName}\nCódigo da sala: ${inviteCode}\n\nAcesse pelo link: ${inviteUrl}\n\nPlacar Champions`;
+  const subject = !isRegistered
+    ? `🏐 Convite: Venha jogar na pelada "${peladaName}" no Placar Champions (Crie sua conta)`
+    : `🏐 Convite para a pelada "${peladaName}" no Placar Champions`;
+  const text = !isRegistered
+    ? `Olá!\n\n${inviterName || 'Um organizador'} convidou você para a pelada "${peladaName}".\n\nComo você ainda não tem conta no Placar Champions, crie seu cadastro rápido no link abaixo para ter acesso imediato à sala:\n${inviteUrl}\n\nPapel: ${roleName}\nCódigo da sala: ${inviteCode}\n\nPlacar Champions`
+    : `Olá!\n\n${inviterName || 'Um organizador'} convidou você para a pelada "${peladaName}".\n\nPapel: ${roleName}\nCódigo da sala: ${inviteCode}\n\nAcesse pelo link: ${inviteUrl}\n\nPlacar Champions`;
 
   const html = wrapEmailHtml({
     title: subject,
-    preheader: `${inviterName} convidou você para ${peladaName} no Placar Champions!`,
+    preheader: !isRegistered
+      ? `${inviterName} convidou você para ${peladaName}! Crie sua conta em segundos e participe.`
+      : `${inviterName} convidou você para ${peladaName} no Placar Champions!`,
     contentHtml
   });
 
