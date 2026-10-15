@@ -35,11 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   function computeWeightedOverall() {
-    const totalWeight = weights.attack + weights.defense + weights.set_pass + weights.movement;
-    const sum = (currentRatings.attack * weights.attack) +
-                (currentRatings.defense * weights.defense) +
-                (currentRatings.set_pass * weights.set_pass) +
-                (currentRatings.movement * weights.movement);
+    const activeAttrs = ['attack', 'defense', 'set_pass', 'movement'].filter(k => currentRatings[k] > 0);
+    if (activeAttrs.length === 0) return 0.0;
+    const totalWeight = activeAttrs.reduce((sum, k) => sum + weights[k], 0);
+    const sum = activeAttrs.reduce((acc, k) => acc + (currentRatings[k] * weights[k]), 0);
     return Number((sum / totalWeight).toFixed(1));
   }
 
@@ -47,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectPlayer = document.getElementById('selectPlayer');
   const formRatePlayer = document.getElementById('formRatePlayer');
   const btnSubmitVote = document.getElementById('btnSubmitVote');
+  const btnRemoveVote = document.getElementById('btnRemoveVote');
   const overallNumeric = document.getElementById('overallNumeric');
   const successScreen = document.getElementById('successScreen');
   const successPlayerText = document.getElementById('successPlayerText');
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const buttons = picker.querySelectorAll('.star-btn');
       buttons.forEach(btn => {
         const val = parseInt(btn.dataset.val, 10);
-        if (val <= value) {
+        if (value > 0 && val <= value) {
           btn.classList.add('active');
         } else {
           btn.classList.remove('active');
@@ -92,16 +92,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const elId = displayMap[attr];
     if (elId) {
       const el = document.getElementById(elId);
-      if (el) el.textContent = `${value}★`;
+      if (el) el.textContent = value > 0 ? `${value}★` : '-';
     }
 
     // Atualiza Overall Pré-visualizado
     if (overallNumeric) {
-      overallNumeric.textContent = computeWeightedOverall().toFixed(1);
+      const ov = computeWeightedOverall();
+      overallNumeric.textContent = ov > 0 ? ov.toFixed(1) : '0.0';
     }
   }
 
-  // Configura cliques nos botões de estrela
+  // Configura cliques nos botões de estrela (clicar na mesma estrela remove)
   document.querySelectorAll('.stars-picker').forEach(picker => {
     const attr = picker.dataset.attr;
     const buttons = picker.querySelectorAll('.star-btn');
@@ -110,7 +111,12 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', () => {
         if (!userCanVote) return;
         const val = parseInt(btn.dataset.val, 10);
-        updateStars(attr, val);
+        if (currentRatings[attr] === val) {
+          // Desmarca
+          updateStars(attr, 0);
+        } else {
+          updateStars(attr, val);
+        }
       });
     });
   });
@@ -163,6 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Carrega o voto específico deste usuário para o atleta selecionado
     const previousVote = userRatingsMap[player.id];
+    if (btnRemoveVote) {
+      btnRemoveVote.style.display = previousVote ? 'inline-flex' : 'none';
+    }
+
     if (previousVote) {
       updateStars('attack', Number(previousVote.attack) || 3);
       updateStars('defense', Number(previousVote.defense) || 3);
@@ -333,14 +343,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Se todas as notas forem 0, remove o voto
+      const isRemoval = (currentRatings.attack === 0 && currentRatings.defense === 0 && currentRatings.set_pass === 0 && currentRatings.movement === 0);
+
       btnSubmitVote.disabled = true;
-      btnSubmitVote.innerHTML = `<span>⏳</span><span>Gravando no Banco...</span>`;
+      btnSubmitVote.innerHTML = `<span>⏳</span><span>${isRemoval ? 'Removendo voto...' : 'Gravando no Banco...'}</span>`;
 
       try {
         const res = await fetch(`/api/players/${playerId}/rate`, {
-          method: 'POST',
+          method: isRemoval ? 'DELETE' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body: isRemoval ? undefined : JSON.stringify({
             attack: currentRatings.attack,
             defense: currentRatings.defense,
             setPass: currentRatings.set_pass,
@@ -350,19 +363,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await res.json();
         if (data.success) {
-          // Atualiza mapa local
-          userRatingsMap[playerId] = {
-            attack: currentRatings.attack,
-            defense: currentRatings.defense,
-            set_pass: currentRatings.set_pass,
-            movement: currentRatings.movement,
-            overall: computeWeightedOverall()
-          };
-
           const selectedText = selectPlayer.options[selectPlayer.selectedIndex]?.textContent || 'O atleta';
-          if (successPlayerText) {
-            successPlayerText.textContent = `Sua avaliação individual de ${computeWeightedOverall()}★ para ${selectedText.split('(')[0].trim()} foi registrada com sucesso! O sistema computou a nova média ponderada geral.`;
+          const playerName = selectedText.split('(')[0].trim();
+
+          if (isRemoval) {
+            delete userRatingsMap[playerId];
+            if (successPlayerText) {
+              successPlayerText.textContent = `Seu voto em ${playerName} foi removido com sucesso! O atleta não possui mais sua nota computada.`;
+            }
+          } else {
+            userRatingsMap[playerId] = {
+              attack: currentRatings.attack,
+              defense: currentRatings.defense,
+              set_pass: currentRatings.set_pass,
+              movement: currentRatings.movement,
+              overall: computeWeightedOverall()
+            };
+            if (successPlayerText) {
+              successPlayerText.textContent = `Sua avaliação individual de ${computeWeightedOverall()}★ para ${playerName} foi registrada com sucesso! O sistema computou a nova média ponderada geral.`;
+            }
           }
+
           formRatePlayer.style.display = 'none';
           successScreen.classList.add('active');
         } else {
@@ -373,6 +394,40 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnSubmitVote.disabled = false;
         btnSubmitVote.innerHTML = `<span>⭐</span><span>Gravar Avaliação</span>`;
+      }
+    });
+  }
+
+  // Botão explícito de remoção de voto
+  if (btnRemoveVote) {
+    btnRemoveVote.addEventListener('click', async () => {
+      const playerId = selectPlayer.value;
+      if (!playerId) return;
+
+      if (!confirm('Deseja realmente remover seu voto neste atleta?')) return;
+
+      btnRemoveVote.disabled = true;
+      try {
+        const res = await fetch(`/api/players/${playerId}/rate`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          delete userRatingsMap[playerId];
+          const selectedText = selectPlayer.options[selectPlayer.selectedIndex]?.textContent || 'O atleta';
+          const playerName = selectedText.split('(')[0].trim();
+          if (successPlayerText) {
+            successPlayerText.textContent = `Seu voto em ${playerName} foi removido com sucesso!`;
+          }
+          formRatePlayer.style.display = 'none';
+          successScreen.classList.add('active');
+        } else {
+          alert('Erro ao remover voto: ' + (data.error || 'Erro no banco'));
+        }
+      } catch (err) {
+        alert('Falha na comunicação: ' + err.message);
+      } finally {
+        btnRemoveVote.disabled = false;
       }
     });
   }

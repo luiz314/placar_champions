@@ -872,20 +872,28 @@ app.delete('/api/players/:id', route(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Enviar ou editar avaliação (1 voto por usuário, sempre editável, protegido por role de votante)
+// Enviar, editar ou remover avaliação (1 voto por usuário, sempre editável, protegido por role de votante)
 app.post('/api/players/:id/rate', route(async (req, res) => {
   const user = requireUser(req);
-  const { attack, defense, setPass, set_pass, movement } = req.body || {};
-  const effectiveSetPass = setPass !== undefined ? setPass : set_pass;
-  if (attack === undefined || defense === undefined || effectiveSetPass === undefined || movement === undefined) {
-    throw httpError(400, 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.');
-  }
   const player = await db.getPlayerById(req.params.id);
   if (!player) throw httpError(404, 'Jogador não encontrado.');
 
   const canVote = await db.canUserVote(user.id, player.pelada_id);
   if (!canVote) {
     throw httpError(403, 'Você não possui permissão para votar nesta pelada (seu papel atual é Espectador ou você não foi convidado para esta sala). Solicite permissão de Votante ao administrador.');
+  }
+
+  const { attack, defense, setPass, set_pass, movement, remove } = req.body || {};
+
+  // Se solicitado remoção de voto (ex: desmarcou as estrelas)
+  if (remove || (attack === 0 && defense === 0 && (setPass === 0 || set_pass === 0) && movement === 0)) {
+    const result = await db.removePlayerRating(player.id, user.id);
+    return res.json({ success: true, removed: true, ...result });
+  }
+
+  const effectiveSetPass = setPass !== undefined ? setPass : set_pass;
+  if (attack === undefined || defense === undefined || effectiveSetPass === undefined || movement === undefined) {
+    throw httpError(400, 'Todos os 4 atributos (Ataque, Defesa, Passe e Movimentação) devem ser avaliados.');
   }
 
   const rating = await db.addPlayerRating(
@@ -898,6 +906,21 @@ app.post('/api/players/:id/rate', route(async (req, res) => {
     user.id
   );
   res.status(201).json({ success: true, rating });
+}));
+
+// Remover voto/avaliação do atleta
+app.delete('/api/players/:id/rate', route(async (req, res) => {
+  const user = requireUser(req);
+  const player = await db.getPlayerById(req.params.id);
+  if (!player) throw httpError(404, 'Jogador não encontrado.');
+
+  const canVote = await db.canUserVote(user.id, player.pelada_id);
+  if (!canVote) {
+    throw httpError(403, 'Você não possui permissão para gerenciar votos nesta pelada.');
+  }
+
+  const result = await db.removePlayerRating(player.id, user.id);
+  res.json({ success: true, removed: true, ...result });
 }));
 
 // Algoritmo de Equilíbrio de Times

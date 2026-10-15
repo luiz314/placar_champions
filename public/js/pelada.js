@@ -779,11 +779,18 @@ document.addEventListener('DOMContentLoaded', () => {
           if (numericSpan) numericSpan.textContent = hoverVal;
         });
 
-        // Clique para salvar a nota
+        // Clique para salvar a nota ou remover voto caso clique na mesma estrela ativa
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const chosenVal = parseInt(btn.getAttribute('data-val'), 10);
-          await submitInlineStarRating(pId, skill, chosenVal, picker);
+          const currentVal = parseInt(picker.getAttribute('data-current'), 10) || 0;
+
+          if (currentVal === chosenVal) {
+            // Clicou na mesma estrela novamente: REMOVE o voto no atleta!
+            await removeInlineStarRating(pId, picker);
+          } else {
+            await submitInlineStarRating(pId, skill, chosenVal, picker);
+          }
         });
       });
 
@@ -873,6 +880,43 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('Erro ao enviar voto inline:', err);
       showToast('Erro de conexão ao salvar voto.');
+    }
+  }
+
+  // Remover Avaliação ao Clicar Novamente na Estrela Ativa
+  async function removeInlineStarRating(playerId, picker) {
+    const player = playersList.find(p => Number(p.id) === Number(playerId));
+    if (!player) return;
+
+    try {
+      const res = await fetch(`/api/players/${playerId}/rate`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`🗑️ Voto em ${player.name} removido!`);
+        delete userRatingsMap[playerId];
+
+        if (data.player) {
+          player.overall = data.player.overall;
+          player.vote_count = data.player.vote_count;
+          player.avg_attack = data.player.avg_attack;
+          player.avg_defense = data.player.avg_defense;
+          player.avg_set_pass = data.player.avg_set_pass;
+          player.avg_movement = data.player.avg_movement;
+        } else {
+          player.overall = 0;
+          player.vote_count = Math.max(0, (player.vote_count || 1) - 1);
+        }
+
+        renderPlayersTable();
+        attachInlineStarEvents();
+      } else {
+        alert(data.error || 'Erro ao remover voto.');
+      }
+    } catch (err) {
+      console.error('Erro ao remover voto:', err);
+      showToast('Erro de conexão ao remover voto.');
     }
   }
 
@@ -1770,7 +1814,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (picker) {
       picker.querySelectorAll('.direct-star-btn').forEach(btn => {
         const v = parseInt(btn.dataset.val, 10);
-        if (v <= val) btn.classList.add('active');
+        if (val > 0 && v <= val) btn.classList.add('active');
         else btn.classList.remove('active');
       });
     }
@@ -1782,12 +1826,16 @@ document.addEventListener('DOMContentLoaded', () => {
       movement: 'scoreDisplayMovementDirect'
     };
     const el = document.getElementById(displayMap[attr]);
-    if (el) el.textContent = `${val}★`;
+    if (el) el.textContent = val > 0 ? `${val}★` : '-';
 
-    // Atualiza Overall estimado do voto
-    const avg = Number(((directRatings.attack + directRatings.defense + directRatings.set_pass + directRatings.movement) / 4).toFixed(1));
+    // Atualiza Overall estimado do voto (ou sem voto se zerado)
+    const nonZero = [directRatings.attack, directRatings.defense, directRatings.set_pass, directRatings.movement].filter(v => v > 0);
+    const avg = nonZero.length > 0
+      ? (nonZero.reduce((a, b) => a + b, 0) / nonZero.length).toFixed(1)
+      : '0.0';
+
     if (directRateOverallBadge) {
-      directRateOverallBadge.textContent = `★ ${avg} Nota`;
+      directRateOverallBadge.textContent = nonZero.length > 0 ? `★ ${avg} Nota` : '★ Sem Voto';
     }
   }
 
@@ -1797,10 +1845,25 @@ document.addEventListener('DOMContentLoaded', () => {
     picker.querySelectorAll('.direct-star-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const val = parseInt(btn.dataset.val, 10);
-        updateDirectStarUI(attr, val);
+        if (directRatings[attr] === val) {
+          // Desmarca ao clicar novamente na mesma estrela
+          updateDirectStarUI(attr, 0);
+        } else {
+          updateDirectStarUI(attr, val);
+        }
       });
     });
   });
+
+  const btnDeleteDirectRate = document.getElementById('btnDeleteDirectRate');
+  if (btnDeleteDirectRate) {
+    btnDeleteDirectRate.addEventListener('click', async () => {
+      const pId = directRatePlayerId.value;
+      if (!pId) return;
+      await removeInlineStarRating(pId);
+      if (modalRatePlayerDirect) modalRatePlayerDirect.classList.remove('show');
+    });
+  }
 
   if (btnCancelDirectRate && modalRatePlayerDirect) {
     btnCancelDirectRate.addEventListener('click', () => {
@@ -1814,6 +1877,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (directRatePlayerName) directRatePlayerName.textContent = player.name;
     if (directRatePlayerPos) directRatePlayerPos.textContent = player.position || 'Geral';
     
+    if (btnDeleteDirectRate) {
+      btnDeleteDirectRate.style.display = userRatingsMap[playerId] ? 'inline-block' : 'none';
+    }
+
     if (directRatePlayerNick) {
       if (player.nickname && player.nickname !== player.name) {
         directRatePlayerNick.textContent = `("${player.nickname}")`;
@@ -1868,6 +1935,13 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const pId = directRatePlayerId.value;
       if (!pId || !currentUser) return;
+
+      // Se todas as estrelas foram desmarcadas, remove o voto
+      if (directRatings.attack === 0 && directRatings.defense === 0 && directRatings.set_pass === 0 && directRatings.movement === 0) {
+        await removeInlineStarRating(pId);
+        if (modalRatePlayerDirect) modalRatePlayerDirect.classList.remove('show');
+        return;
+      }
 
       try {
         if (btnSubmitDirectRate) {

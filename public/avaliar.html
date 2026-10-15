@@ -555,11 +555,17 @@
           </div>
         </div>
 
-        <!-- BOTÃO ENVIAR -->
-        <button type="submit" class="btn-submit-vote" id="btnSubmitVote">
-          <span>⭐</span>
-          <span>Gravar Avaliação no Banco</span>
-        </button>
+        <!-- BOTÕES ENVIAR / REMOVER -->
+        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+          <button type="submit" class="btn-submit-vote" id="btnSubmitVote" style="flex: 1;">
+            <span>⭐</span>
+            <span>Gravar Avaliação no Banco</span>
+          </button>
+          <button type="button" class="btn-submit-vote" id="btnRemoveVote" style="display: none; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); width: auto; padding: 12px 20px;">
+            <span>🗑️</span>
+            <span>Remover Voto</span>
+          </button>
+        </div>
 
       </form>
 

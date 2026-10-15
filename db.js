@@ -1651,6 +1651,50 @@ async function addPlayerRating(playerId, voterName, attack, defense, setPass, mo
   return newRating;
 }
 
+async function removePlayerRating(playerId, userId) {
+  const pId = parseInt(playerId, 10);
+  const numUserId = parseInt(userId, 10);
+  if (!pId || !numUserId) return { success: false, error: 'Parâmetros inválidos.' };
+
+  if (isPostgres && PlayerRating) {
+    try {
+      await PlayerRating.destroy({
+        where: { playerId: pId, userId: numUserId }
+      });
+    } catch (err) {
+      console.error('Erro ao remover avaliação no Sequelize:', err.message);
+      throw err;
+    }
+  } else {
+    const data = getFallbackData();
+    if (data.player_ratings) {
+      data.player_ratings = data.player_ratings.filter(
+        r => !(Number(r.player_id) === pId && Number(r.user_id) === numUserId)
+      );
+      saveFallbackData(data);
+    }
+  }
+
+  // Recalcula o status atualizado do jogador após a exclusão do voto
+  const player = await getPlayerById(pId);
+  const allWithRatings = await getPlayersWithRatings(player ? player.pelada_id : null);
+  const updatedPlayer = allWithRatings.find(p => Number(p.id) === pId);
+
+  return {
+    success: true,
+    removed: true,
+    player: updatedPlayer || {
+      id: pId,
+      overall: 0,
+      vote_count: 0,
+      avg_attack: 0,
+      avg_defense: 0,
+      avg_set_pass: 0,
+      avg_movement: 0
+    }
+  };
+}
+
 // ==========================================
 // FUNCAO 1: LISTA DE PRESENCA & CHECK-IN
 // ==========================================
@@ -2109,6 +2153,7 @@ module.exports = {
   updatePlayer,
   deletePlayer,
   addPlayerRating,
+  removePlayerRating,
   getAttendance,
   getAttendanceById,
   toggleAttendance,
