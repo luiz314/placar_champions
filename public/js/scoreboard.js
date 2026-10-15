@@ -822,11 +822,13 @@ function confirmFinishMatch() {
 
   currentState.scoreA = 0;
   currentState.scoreB = 0;
+  if (!currentState.timer) currentState.timer = { seconds: 0, running: false };
   currentState.timer.running = false;
   currentState.timer.seconds = 0;
 
   renderScoreUI();
   updateTimerUI(currentState.timer);
+  if (timerDisplay) timerDisplay.textContent = '00:00';
   renderHistory(currentState.matchHistory);
   persistCurrentState();
 

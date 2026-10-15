@@ -132,22 +132,12 @@
   <!-- CORPO PRINCIPAL DO PLACAR -->
   <main class="scoreboard-main">
 
-    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA (ACIMA DOS PLACARES) -->
-    <div class="timer-container" id="timerContainer">
-      <div class="timer-box">
-        <span class="timer-dot" id="timerDot"></span>
-        <div class="timer-display" id="timerDisplay">00:00</div>
-      </div>
-
-      <div class="timer-controls" id="timerControls">
-        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar cronômetro">
-          <span id="timerToggleIcon">▶</span>
-          <span id="timerToggleText">Iniciar</span>
-        </button>
-        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Reiniciar cronômetro para 00:00">
-          <span>↺ Reiniciar</span>
-        </button>
-      </div>
+    <!-- AÇÕES DA PARTIDA (ACIMA DOS PLACARES) -->
+    <div class="match-actions-bar" id="matchActionsBar">
+      <button type="button" class="btn btn-match-action btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
+        <span class="match-btn-icon">🏁</span>
+        <span class="match-btn-text">Encerrar Partida</span>
+      </button>
     </div>
 
     <div class="scoreboard-grid">
@@ -197,19 +187,22 @@
 
     </div>
     
-    <!-- AÇÕES DA PARTIDA (PERFEITAMENTE ALINHADAS LADO A LADO EMBAIXO DOS PLACARES) -->
-    <div class="match-actions-bar" id="matchActionsBar">
-      <button type="button" class="btn btn-match-action btn-finish-match" id="btnFinishMatch" title="Salvar resultado e iniciar nova partida">
-        <span class="match-btn-icon">🏁</span>
-        <span class="match-btn-text">Encerrar Partida</span>
-      </button>
+    <!-- CRONÔMETRO CENTRAL E CONTROLES DE PARTIDA (ABAIXO DOS PLACARES) -->
+    <div class="timer-container" id="timerContainer">
+      <div class="timer-box">
+        <span class="timer-dot" id="timerDot"></span>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+      </div>
 
-      <span class="match-actions-divider"></span>
-
-      <button type="button" class="btn btn-match-action btn-reset-match" id="btnScoreReset" title="Zerar os pontos das duas equipes">
-        <span class="match-btn-icon">⚠️</span>
-        <span class="match-btn-text">Zerar Placar</span>
-      </button>
+      <div class="timer-controls" id="timerControls">
+        <button type="button" class="btn btn-timer-toggle" id="btnTimerToggle" title="Iniciar/Pausar cronômetro">
+          <span id="timerToggleIcon">▶</span>
+          <span id="timerToggleText">Iniciar</span>
+        </button>
+        <button type="button" class="btn btn-timer-restart" id="btnTimerRestart" title="Reiniciar cronômetro para 00:00">
+          <span>↺ Reiniciar</span>
+        </button>
+      </div>
     </div>
   </main>
 

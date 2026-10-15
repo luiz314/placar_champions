@@ -1128,6 +1128,7 @@ io.on('connection', (socket) => {
     room.timer.seconds = 0;
 
     socket.to(currentRoomId).emit('sound:play', { type: 'whistle_final' });
+    io.to(currentRoomId).emit('timer:tick', { seconds: 0, running: false });
     broadcastRoomState(currentRoomId);
   });
 
