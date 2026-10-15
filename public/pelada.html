@@ -1321,6 +1321,246 @@
       color: #6ee7b7;
     }
 
+    /* BOTÃO INTERATIVO DO JOGADOR NA TABELA (ABRE MODAL ADMINISTRATIVO) */
+    .btn-player-table-name {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 6px 10px;
+      margin: -6px -10px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .btn-player-table-name:hover {
+      background: rgba(56, 189, 248, 0.08);
+      border-color: rgba(56, 189, 248, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-player-table-name:hover .player-name-text {
+      color: #38bdf8;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .player-admin-gear-indicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: #94a3b8;
+      transition: all 0.2s ease;
+    }
+
+    .btn-player-table-name:hover .player-admin-gear-indicator {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      transform: rotate(45deg);
+    }
+
+    /* MODAL ADMINISTRATIVO DO JOGADOR */
+    .admin-player-hero {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .admin-player-hero-avatar {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .admin-player-hero-avatar img {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      object-fit: cover;
+      border: 2px solid #00f2fe;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+    }
+
+    .admin-player-hero-avatar .avatar-placeholder {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .admin-player-hero-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .admin-player-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 2px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .admin-player-nick {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .admin-player-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .admin-player-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .admin-badge-pos {
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+    }
+
+    .admin-badge-monthly {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .admin-badge-overall {
+      background: rgba(0, 242, 254, 0.15);
+      color: #00f2fe;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .admin-actions-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .admin-action-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: left;
+      width: 100%;
+      color: inherit;
+      box-sizing: border-box;
+    }
+
+    .admin-action-item:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .admin-action-item:active {
+      transform: translateY(0);
+    }
+
+    .admin-action-item.danger-action {
+      border-color: rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.06);
+    }
+
+    .admin-action-item.danger-action:hover {
+      border-color: rgba(239, 68, 68, 0.6);
+      background: rgba(239, 68, 68, 0.15);
+      box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2);
+    }
+
+    .admin-action-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      background: rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .admin-action-item:hover .admin-action-icon {
+      transform: scale(1.1);
+    }
+
+    .admin-action-texts {
+      flex: 1;
+    }
+
+    .admin-action-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .admin-action-desc {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    .admin-action-arrow {
+      color: #64748b;
+      font-size: 1.1rem;
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .admin-action-item:hover .admin-action-arrow {
+      color: #38bdf8;
+      transform: translateX(3px);
+    }
+
+    .admin-action-item.danger-action:hover .admin-action-arrow {
+      color: #f87171;
+    }
+
+
 
     /* ESTILOS DE AUTENTICAÇÃO E VOTAÇÃO DIRETA */
     .user-auth-widget {
@@ -2363,12 +2603,11 @@
                 <th>🎯 Passe</th>
                 <th>⚡ Movimentação</th>
                 <th>👥 Avaliações</th>
-                <th style="text-align: right;">Ações</th>
               </tr>
             </thead>
             <tbody id="playersTableBody">
               <tr>
-                <td colspan="10" style="text-align: center; color: #94a3b8; padding: 20px;">
+                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">
                   Carregando jogadores...
                 </td>
               </tr>
@@ -2577,6 +2816,111 @@
     </div>
   </div>
 
+  <!-- MODAL ADMINISTRATIVO DE OPÇÕES DO JOGADOR (ABERTO AO CLICAR NO NOME) -->
+  <div class="modal-overlay" id="modalPlayerAdminActions">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+          <span>⚙️</span> Painel do Atleta
+        </h3>
+        <button type="button" class="btn-modal-close" id="btnClosePlayerAdminActions" title="Fechar">&times;</button>
+      </div>
+
+      <!-- HERO CARD DO ATLETA -->
+      <div class="admin-player-hero">
+        <div class="admin-player-hero-avatar">
+          <img id="adminPlayerHeroImg" src="" alt="Foto" style="display: none;">
+          <div id="adminPlayerHeroPlaceholder" class="avatar-placeholder">J</div>
+        </div>
+        <div class="admin-player-hero-details">
+          <div class="admin-player-name" id="adminPlayerHeroName">-</div>
+          <div class="admin-player-nick" id="adminPlayerHeroNick"></div>
+          <div class="admin-player-badges">
+            <span class="admin-player-badge admin-badge-pos" id="adminPlayerHeroPos">Geral</span>
+            <span class="admin-player-badge admin-badge-monthly" id="adminPlayerHeroCategory">⭐ Mensalista</span>
+            <span class="admin-player-badge admin-badge-overall" id="adminPlayerHeroOverall">⭐ 0.0</span>
+            <span class="admin-player-badge" id="adminPlayerHeroVotes" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">👥 0 votos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPÇÕES DE AÇÃO -->
+      <div style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 700; margin-bottom: 10px;">
+        Opções Disponíveis
+      </div>
+
+      <div class="admin-actions-grid" id="adminActionsContainer">
+        <!-- EDITAR CADASTRO (ADMIN) -->
+        <button type="button" class="admin-action-item admin-only-action" id="btnAdminActionEdit">
+          <div class="admin-action-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+            ✏️
+          </div>
+          <div class="admin-action-texts">
+            <div class="admin-action-title">Editar Dados do Jogador</div>
+            <div class="admin-action-desc">Alterar nome completo, apelido e posição preferida</div>
+          </div>
+          <span class="admin-action-arrow">›</span>
+        </button>
+
+        <!-- FOTO DO JOGADOR (ADMIN) -->
+        <button type="button" class="admin-action-item admin-only-action" id="btnAdminActionPhoto">
+          <div class="admin-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+            📷
+          </div>
+          <div class="admin-action-texts">
+            <div class="admin-action-title">Adicionar / Alterar Foto</div>
+            <div class="admin-action-desc">Upload de foto do rosto do atleta ou câmera</div>
+          </div>
+          <span class="admin-action-arrow">›</span>
+        </button>
+
+        <!-- AVALIAR HABILIDADES (TODOS) -->
+        <button type="button" class="admin-action-item" id="btnAdminActionRate">
+          <div class="admin-action-icon" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">
+            ⭐
+          </div>
+          <div class="admin-action-texts">
+            <div class="admin-action-title">Avaliar Habilidades Técnicas</div>
+            <div class="admin-action-desc">Defina suas notas de ataque, defesa, passe e fôlego</div>
+          </div>
+          <span class="admin-action-arrow">›</span>
+        </button>
+
+        <!-- ALTERNAR FLAG MENSALISTA/DIARISTA (ADMIN) -->
+        <button type="button" class="admin-action-item admin-only-action" id="btnAdminActionToggleFlag">
+          <div class="admin-action-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+            🚩
+          </div>
+          <div class="admin-action-texts">
+            <div class="admin-action-title" id="btnAdminActionToggleFlagTitle">Alternar Categoria</div>
+            <div class="admin-action-desc" id="btnAdminActionToggleFlagDesc">Mudar entre Mensalista e Diarista</div>
+          </div>
+          <span class="admin-action-arrow">›</span>
+        </button>
+
+        <!-- EXCLUIR JOGADOR (ADMIN - PERIGO) -->
+        <button type="button" class="admin-action-item danger-action admin-only-action" id="btnAdminActionDelete">
+          <div class="admin-action-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">
+            🗑️
+          </div>
+          <div class="admin-action-texts">
+            <div class="admin-action-title" style="color: #f87171;">Excluir Jogador da Pelada</div>
+            <div class="admin-action-desc">Remover permanentemente este atleta do elenco</div>
+          </div>
+          <span class="admin-action-arrow">›</span>
+        </button>
+
+        <!-- AVISO QUANDO NÃO FOR ADMIN -->
+        <div id="adminModalNonAdminNotice" style="display: none; padding: 10px 14px; background: rgba(255, 255, 255, 0.04); border-radius: 10px; font-size: 0.78rem; color: #94a3b8; text-align: center;">
+          ℹ️ Apenas administradores desta pelada podem editar dados cadastrais, alterar fotos ou excluir jogadores.
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 18px; justify-content: flex-end;">
+        <button type="button" class="btn-pelada" id="btnCancelPlayerAdminActions">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL DE ADMINISTRADORES E MEMBROS DA PELADA -->
   <div class="modal-overlay" id="modalPeladaAdmins">

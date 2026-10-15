@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.innerHTML = `
         <td>
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn-player-table-name btn-open-player-admin" data-id="${p.id}" title="Gerenciar atleta ${escapeHtml(p.name)}">
             ${p.photo_url ? `
               <img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="player-table-avatar">
             ` : `
@@ -893,13 +893,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${escapeHtml(initial)}
               </div>
             `}
-            <div>
-              <strong style="color: #ffffff; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
+            <div style="min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <strong class="player-name-text" style="color: #ffffff; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
+                <span class="player-admin-gear-indicator" title="Opções e Ações Administrativas">⚙️</span>
+              </div>
               ${p.nickname && p.nickname !== p.name ? `<div style="font-size: 0.75rem; color: #94a3b8;">"${escapeHtml(p.nickname)}"</div>` : ''}
               ${myVote ? `<div style="font-size: 0.7rem; color: #fbbf24; font-weight: 700; margin-top: 1px;">✓ Seu Voto Gravado</div>` : ''}
-              <button type="button" class="btn-action-small btn-quick-rate-mobile" data-id="${p.id}" title="Avaliar Habilidades">⭐ Avaliar</button>
             </div>
-          </div>
+          </button>
         </td>
         <td>
           <label class="flag-mensalista-toggle ${isAdmin ? '' : 'disabled'}" title="${isAdmin ? 'Clique para alternar a Flag entre Mensalista e Diarista' : 'Status do atleta (Apenas administradores podem alternar a flag)'}">
@@ -930,27 +932,21 @@ document.addEventListener('DOMContentLoaded', () => {
             👥 ${p.vote_count || 0} ${p.vote_count === 1 ? 'voto' : 'votos'}
           </span>
         </td>
-        <td style="text-align: right;">
-          ${isAdmin ? `
-            <div class="table-actions-cell">
-              <button type="button" class="btn-action-small btn-edit-player" data-id="${p.id}" title="Editar nome, apelido e posição">
-                ✏️ Editar
-              </button>
-              <button type="button" class="btn-action-small btn-edit-photo" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-photo="${escapeHtml(p.photo_url || '')}" title="Adicionar / Alterar Foto">
-                📷 Foto
-              </button>
-              <button type="button" class="btn-action-small btn-action-delete btn-delete-player" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Excluir Jogador">
-                🗑️
-              </button>
-            </div>
-          ` : '<span style="color: #475569; font-size: 0.8rem;">—</span>'}
-        </td>
       `;
       playersTableBody.appendChild(tr);
     });
 
     attachPhotoEventListeners();
     attachInlineStarEvents();
+
+    // Evento de clique no nome/card do jogador para abrir o Modal Administrativo
+    playersTableBody.querySelectorAll('.btn-open-player-admin').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const player = playersList.find(pl => String(pl.id) === btn.getAttribute('data-id'));
+        if (player) openPlayerAdminActionsModal(player);
+      });
+    });
 
     if (isAdmin) {
       playersTableBody.querySelectorAll('.chk-toggle-mensalista').forEach(chk => {
@@ -1007,6 +1003,178 @@ document.addEventListener('DOMContentLoaded', () => {
           await deletePlayer(id);
         }
       });
+    });
+  }
+
+  // ==========================================
+  // MODAL ADMINISTRATIVO DO JOGADOR
+  // ==========================================
+  const modalPlayerAdminActions = document.getElementById('modalPlayerAdminActions');
+  const btnClosePlayerAdminActions = document.getElementById('btnClosePlayerAdminActions');
+  const btnCancelPlayerAdminActions = document.getElementById('btnCancelPlayerAdminActions');
+  const adminPlayerHeroImg = document.getElementById('adminPlayerHeroImg');
+  const adminPlayerHeroPlaceholder = document.getElementById('adminPlayerHeroPlaceholder');
+  const adminPlayerHeroName = document.getElementById('adminPlayerHeroName');
+  const adminPlayerHeroNick = document.getElementById('adminPlayerHeroNick');
+  const adminPlayerHeroPos = document.getElementById('adminPlayerHeroPos');
+  const adminPlayerHeroCategory = document.getElementById('adminPlayerHeroCategory');
+  const adminPlayerHeroOverall = document.getElementById('adminPlayerHeroOverall');
+  const adminPlayerHeroVotes = document.getElementById('adminPlayerHeroVotes');
+
+  const btnAdminActionEdit = document.getElementById('btnAdminActionEdit');
+  const btnAdminActionPhoto = document.getElementById('btnAdminActionPhoto');
+  const btnAdminActionRate = document.getElementById('btnAdminActionRate');
+  const btnAdminActionToggleFlag = document.getElementById('btnAdminActionToggleFlag');
+  const btnAdminActionToggleFlagTitle = document.getElementById('btnAdminActionToggleFlagTitle');
+  const btnAdminActionToggleFlagDesc = document.getElementById('btnAdminActionToggleFlagDesc');
+  const btnAdminActionDelete = document.getElementById('btnAdminActionDelete');
+  const adminModalNonAdminNotice = document.getElementById('adminModalNonAdminNotice');
+
+  let selectedAdminPlayer = null;
+
+  function updateAdminModalHero(p) {
+    if (!p) return;
+    const initial = (p.nickname || p.name).trim().charAt(0).toUpperCase();
+    if (adminPlayerHeroName) adminPlayerHeroName.textContent = p.name || 'Jogador';
+    if (adminPlayerHeroNick) {
+      if (p.nickname && p.nickname !== p.name) {
+        adminPlayerHeroNick.textContent = `"${p.nickname}"`;
+        adminPlayerHeroNick.style.display = 'block';
+      } else {
+        adminPlayerHeroNick.style.display = 'none';
+      }
+    }
+    if (adminPlayerHeroPos) adminPlayerHeroPos.textContent = `🏐 ${p.position || 'Geral'}`;
+    const isMonthly = p.is_monthly !== false;
+    if (adminPlayerHeroCategory) {
+      adminPlayerHeroCategory.textContent = isMonthly ? '⭐ Mensalista' : '🏷️ Diarista';
+      adminPlayerHeroCategory.className = `admin-player-badge ${isMonthly ? 'admin-badge-monthly' : 'admin-badge-pos'}`;
+    }
+    if (adminPlayerHeroOverall) {
+      adminPlayerHeroOverall.textContent = `⭐ ${Number(p.overall || 0).toFixed(1)} Overall`;
+    }
+    if (adminPlayerHeroVotes) {
+      const vCount = p.vote_count || 0;
+      adminPlayerHeroVotes.textContent = `👥 ${vCount} ${vCount === 1 ? 'avaliação' : 'avaliações'}`;
+    }
+
+    if (p.photo_url) {
+      if (adminPlayerHeroImg) {
+        adminPlayerHeroImg.src = p.photo_url;
+        adminPlayerHeroImg.style.display = 'block';
+      }
+      if (adminPlayerHeroPlaceholder) adminPlayerHeroPlaceholder.style.display = 'none';
+    } else {
+      if (adminPlayerHeroImg) {
+        adminPlayerHeroImg.src = '';
+        adminPlayerHeroImg.style.display = 'none';
+      }
+      if (adminPlayerHeroPlaceholder) {
+        adminPlayerHeroPlaceholder.textContent = initial;
+        adminPlayerHeroPlaceholder.style.display = 'flex';
+      }
+    }
+
+    if (btnAdminActionToggleFlagTitle && btnAdminActionToggleFlagDesc) {
+      btnAdminActionToggleFlagTitle.textContent = isMonthly ? 'Mudar para Diarista' : 'Mudar para Mensalista';
+      btnAdminActionToggleFlagDesc.textContent = isMonthly ? 'Atualmente é Mensalista. Clique para definir como Diarista' : 'Atualmente é Diarista. Clique para definir como Mensalista';
+    }
+  }
+
+  function openPlayerAdminActionsModal(player) {
+    if (!player) return;
+    selectedAdminPlayer = player;
+    updateAdminModalHero(player);
+
+    const isAdmin = canManageActive();
+    if (modalPlayerAdminActions) {
+      modalPlayerAdminActions.querySelectorAll('.admin-only-action').forEach(el => {
+        el.style.display = isAdmin ? 'flex' : 'none';
+      });
+      if (adminModalNonAdminNotice) {
+        adminModalNonAdminNotice.style.display = isAdmin ? 'none' : 'block';
+      }
+      modalPlayerAdminActions.classList.add('show');
+    }
+  }
+
+  function closePlayerAdminActionsModal() {
+    if (modalPlayerAdminActions) {
+      modalPlayerAdminActions.classList.remove('show');
+    }
+  }
+
+  if (btnClosePlayerAdminActions) btnClosePlayerAdminActions.addEventListener('click', closePlayerAdminActionsModal);
+  if (btnCancelPlayerAdminActions) btnCancelPlayerAdminActions.addEventListener('click', closePlayerAdminActionsModal);
+  if (modalPlayerAdminActions) {
+    modalPlayerAdminActions.addEventListener('click', (e) => {
+      if (e.target === modalPlayerAdminActions) closePlayerAdminActionsModal();
+    });
+  }
+
+  if (btnAdminActionEdit) {
+    btnAdminActionEdit.addEventListener('click', () => {
+      const p = selectedAdminPlayer;
+      closePlayerAdminActionsModal();
+      if (p) openPlayerModal(p);
+    });
+  }
+
+  if (btnAdminActionPhoto) {
+    btnAdminActionPhoto.addEventListener('click', () => {
+      const p = selectedAdminPlayer;
+      closePlayerAdminActionsModal();
+      if (p) openPhotoModal(p);
+    });
+  }
+
+  if (btnAdminActionRate) {
+    btnAdminActionRate.addEventListener('click', () => {
+      const p = selectedAdminPlayer;
+      closePlayerAdminActionsModal();
+      if (p) openDirectRateModal(p);
+    });
+  }
+
+  if (btnAdminActionToggleFlag) {
+    btnAdminActionToggleFlag.addEventListener('click', async () => {
+      if (!selectedAdminPlayer) return;
+      const p = selectedAdminPlayer;
+      const nextIsMonthly = p.is_monthly === false ? true : false;
+      try {
+        btnAdminActionToggleFlag.disabled = true;
+        const res = await fetch(`/api/players/${p.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isMonthly: nextIsMonthly })
+        });
+        const data = await res.json();
+        if (data.success) {
+          p.is_monthly = nextIsMonthly;
+          updateAdminModalHero(p);
+          showToast(`🚩 ${p.name} agora é ${nextIsMonthly ? '⭐ Mensalista' : '🏷️ Diarista'}!`);
+          renderPlayersTable();
+          renderPlayerSelectionGrid();
+        } else {
+          alert(data.error || 'Erro ao alterar categoria.');
+        }
+      } catch (err) {
+        console.error('Erro ao alternar flag:', err);
+        showToast('Erro de conexão ao alternar categoria.');
+      } finally {
+        btnAdminActionToggleFlag.disabled = false;
+      }
+    });
+  }
+
+  if (btnAdminActionDelete) {
+    btnAdminActionDelete.addEventListener('click', async () => {
+      if (!selectedAdminPlayer) return;
+      const p = selectedAdminPlayer;
+      if (confirm(`Deseja realmente remover o jogador "${p.name}" desta pelada?`)) {
+        closePlayerAdminActionsModal();
+        await deletePlayer(p.id);
+      }
     });
   }
 
@@ -1660,21 +1828,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function openPhotoModal(player) {
+    if (!player) return;
+    if (!canManageActive()) {
+      showToast('Apenas administradores desta pelada podem alterar fotos.');
+      return;
+    }
+    const id = player.id;
+    const name = player.name;
+    const photo = player.photo_url || '';
+
+    if (editPhotoPlayerId) editPhotoPlayerId.value = id;
+    if (editPhotoPlayerNameDisplay) editPhotoPlayerNameDisplay.textContent = name;
+    if (inputPlayerPhotoUrl) inputPlayerPhotoUrl.value = photo.startsWith('data:') ? '' : photo;
+    if (inputPlayerPhotoFile) inputPlayerPhotoFile.value = '';
+
+    updatePhotoPreview(photo, name);
+    if (modalEditPlayerPhoto) modalEditPlayerPhoto.classList.add('show');
+  }
+
   // Abrir Modal de Foto ao clicar no botão na tabela
   function attachPhotoEventListeners() {
     document.querySelectorAll('.btn-edit-photo').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-id');
-        const name = btn.getAttribute('data-name');
-        const photo = btn.getAttribute('data-photo') || '';
-
-        if (editPhotoPlayerId) editPhotoPlayerId.value = id;
-        if (editPhotoPlayerNameDisplay) editPhotoPlayerNameDisplay.textContent = name;
-        if (inputPlayerPhotoUrl) inputPlayerPhotoUrl.value = photo.startsWith('data:') ? '' : photo;
-        if (inputPlayerPhotoFile) inputPlayerPhotoFile.value = '';
-
-        updatePhotoPreview(photo, name);
-        if (modalEditPlayerPhoto) modalEditPlayerPhoto.classList.add('show');
+        const player = playersList.find(pl => String(pl.id) === id);
+        if (player) {
+          openPhotoModal(player);
+        } else {
+          const name = btn.getAttribute('data-name');
+          const photo = btn.getAttribute('data-photo') || '';
+          if (editPhotoPlayerId) editPhotoPlayerId.value = id;
+          if (editPhotoPlayerNameDisplay) editPhotoPlayerNameDisplay.textContent = name;
+          if (inputPlayerPhotoUrl) inputPlayerPhotoUrl.value = photo.startsWith('data:') ? '' : photo;
+          if (inputPlayerPhotoFile) inputPlayerPhotoFile.value = '';
+          updatePhotoPreview(photo, name);
+          if (modalEditPlayerPhoto) modalEditPlayerPhoto.classList.add('show');
+        }
       });
     });
   }
