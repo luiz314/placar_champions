@@ -18,6 +18,7 @@ function getSmtpConfig() {
 }
 
 function isConfigured() {
+  if (process.env.RESEND_API_KEY || process.env.BREVO_API_KEY) return true;
   const { user, pass } = getSmtpConfig();
   return Boolean(user && pass);
 }
@@ -212,9 +213,91 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
 }
 
 // ==========================================
+// PROVEDORES HTTP REST (PORTA 443 - NUNCA BLOQUEADA PELO RAILWAY)
+// ==========================================
+async function sendViaResend({ to, subject, html, text }) {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const from = process.env.RESEND_FROM || process.env.SMTP_FROM || 'Placar Champions <onboarding@resend.dev>';
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+      text
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.error || `Erro HTTP ${res.status} no Resend`);
+  }
+  return { id: data.id };
+}
+
+async function sendViaBrevo({ to, subject, html, text }) {
+  const apiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const senderName = process.env.BREVO_SENDER_NAME || 'Placar Champions';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'contato@placarchampions.com';
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || `Erro HTTP ${res.status} no Brevo`);
+  }
+  return { id: data.messageId };
+}
+
+// ==========================================
 // DISPATCH GENÉRICO (ENVIA OU SIMULA SE SEM SMTP)
 // ==========================================
 async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
+  // 1. Prioridade Máxima: API HTTP do Resend (porta 443 HTTPS - imune a bloqueios de portas SMTP do Railway)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const result = await sendViaResend({ to, subject, html, text });
+      console.log(`✅ [MAILER - RESEND] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
+      return { sent: true, simulated: false, messageId: result.id, provider: 'resend' };
+    } catch (err) {
+      console.error(`❌ [MAILER - RESEND] Erro ao enviar para ${to}:`, err.message);
+    }
+  }
+
+  // 2. Segunda opção HTTP: API do Brevo (porta 443 HTTPS)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const result = await sendViaBrevo({ to, subject, html, text });
+      console.log(`✅ [MAILER - BREVO] E-mail enviado com sucesso para ${to}. ID: ${result.id}`);
+      return { sent: true, simulated: false, messageId: result.id, provider: 'brevo' };
+    } catch (err) {
+      console.error(`❌ [MAILER - BREVO] Erro ao enviar para ${to}:`, err.message);
+    }
+  }
+
   const configured = isConfigured();
 
   if (!configured) {
@@ -222,7 +305,7 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
     console.log(`📧 [MAILER - SIMULAÇÃO] (${logType})`);
     console.log(`Para: ${to}`);
     console.log(`Assunto: ${subject}`);
-    console.log(`Status: SMTP não configurado (adicione SMTP_USER e SMTP_PASS no .env/Railway)`);
+    console.log(`Status: Nenhum provedor configurado (adicione RESEND_API_KEY ou SMTP_USER/PASS)`);
     console.log(`Texto:\n${text}`);
     if (linkUrl) console.log(`Link Direto: ${linkUrl}`);
     console.log(`==================================================\n`);
@@ -231,11 +314,11 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
       sent: false,
       simulated: true,
       previewUrl: linkUrl,
-      message: 'SMTP não configurado. Mensagem simulada no console do servidor.'
+      message: 'Serviço de e-mail não configurado. Mensagem simulada no console do servidor.'
     };
   }
 
-  // Tentativas: 1) Preset oficial Gmail ou configuração padrão; 2) Fallback para porta 465 direta
+  // 3. Tentativas via SMTP tradicional (Gmail, etc.)
   const attempts = [
     { name: 'Preset Oficial Gmail / SMTP', forceDirect: false },
     { name: 'Conexão Direta Porta 465 (SMTPS)', forceDirect: true, port: 465, secure: true }
@@ -263,22 +346,26 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
     }
   }
 
-  console.error(`❌ [MAILER] Todas as tentativas de envio para ${to} falharam:`, lastError ? lastError.message : 'Timeout');
+  console.error(`❌ [MAILER] Todas as tentativas SMTP para ${to} falharam:`, lastError ? lastError.message : 'Timeout');
+
+  const isTimeout = lastError && (String(lastError.message).toLowerCase().includes('timeout') || lastError.code === 'ETIMEDOUT');
+  const helpfulTip = isTimeout 
+    ? 'O Railway bloqueia conexões SMTP tradicionais (portas 25, 465, 587) no plano gratuito. Adicione a variável RESEND_API_KEY no Railway para envio 100% garantido via HTTPS (porta 443).'
+    : (lastError ? lastError.message : 'Falha na conexão de e-mail.');
 
   if (linkUrl) {
     console.log(`\n==================================================`);
     console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
     console.log(`Para: ${to}`);
     console.log(`Link de acesso: ${linkUrl}`);
-    console.log(`Causa da falha SMTP: ${lastError ? lastError.message : 'Timeout de conexão'}`);
-    console.log(`Dica: Verifique se sua conta Google gerou uma 'Senha de App' de 16 letras.`);
+    console.log(`Motivo: ${helpfulTip}`);
     console.log(`==================================================\n`);
   }
 
   return {
     sent: false,
     simulated: true,
-    error: lastError ? lastError.message : 'Tempo limite de conexão com o servidor de e-mail.',
+    error: helpfulTip,
     previewUrl: linkUrl
   };
 }
