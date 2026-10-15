@@ -238,6 +238,7 @@ async function sendViaResend({ to, subject, html, text }) {
   if (!apiKey) return null;
 
   const from = process.env.RESEND_FROM || process.env.SMTP_FROM || 'Placar Champions <onboarding@resend.dev>';
+  const replyTo = process.env.SMTP_USER || process.env.RESEND_REPLY_TO || 'placarchampions@gmail.com';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -247,6 +248,7 @@ async function sendViaResend({ to, subject, html, text }) {
     body: JSON.stringify({
       from,
       to: Array.isArray(to) ? to : [to],
+      reply_to: replyTo,
       subject,
       html,
       text
