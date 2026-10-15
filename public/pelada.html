@@ -2582,7 +2582,23 @@
               Média ponderada baseada em ATAQUE, DEFESA, PASSE e MOVIMENTAÇÃO (1 a 5 estrelas).
             </p>
           </div>
-          <div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div class="cards-sort-group">
+              <label for="selectPlayersTableSort" class="cards-sort-label">
+                <span>🔽</span>
+                <span>Ordenar:</span>
+              </label>
+              <select id="selectPlayersTableSort" class="cards-sort-select" title="Escolha a ordenação da tabela de ranking">
+                <option value="monthly_first" selected>⭐ Mensalistas 1º (A-Z), depois Diaristas (A-Z)</option>
+                <option value="name_asc">Ordem Alfabética (A-Z)</option>
+                <option value="name_desc">Ordem Alfabética (Z-A)</option>
+                <option value="overall_desc">Maior Overall (Média Ponderada)</option>
+                <option value="overall_asc">Menor Overall</option>
+                <option value="votes_desc">Mais Avaliados (Nº de Votos)</option>
+                <option value="position">Posição em Quadra</option>
+              </select>
+            </div>
+
             <button type="button" class="btn-pelada btn-pelada-primary admin-only" id="btnModalAddPlayer2" hidden>
               <span>➕</span>
               <span>Novo Jogador</span>

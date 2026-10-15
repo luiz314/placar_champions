@@ -505,10 +505,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
 
   let currentCardsSortOrder = localStorage.getItem('cardsSortOrder') || 'name_asc';
+  let currentTableSortOrder = localStorage.getItem('tableSortOrder') || 'monthly_first';
 
   function sortPlayers(list, sortOrder = currentCardsSortOrder) {
     const sorted = [...list];
     switch (sortOrder) {
+      case 'monthly_first':
+        return sorted.sort((a, b) => {
+          const aM = a.is_monthly !== false;
+          const bM = b.is_monthly !== false;
+          if (aM && !bM) return -1;
+          if (!aM && bM) return 1;
+          return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+        });
       case 'name_desc':
         return sorted.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'pt-BR', { sensitivity: 'base' }));
       case 'overall_desc':
@@ -836,6 +845,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const selectPlayersTableSort = document.getElementById('selectPlayersTableSort');
+  if (selectPlayersTableSort) {
+    selectPlayersTableSort.value = currentTableSortOrder;
+    selectPlayersTableSort.addEventListener('change', (e) => {
+      currentTableSortOrder = e.target.value;
+      localStorage.setItem('tableSortOrder', currentTableSortOrder);
+      renderPlayersTable();
+    });
+  }
+
   
   // Construtor de HTML das estrelinhas interativas (1 a 5 estrelas)
   function buildInlineStarPickerHtml(playerId, skill, value, hasMyVote) {
@@ -873,7 +892,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const isAdmin = canManageActive();
-    playersList.forEach(p => {
+    const sortedDisplayList = sortPlayers(playersList, currentTableSortOrder);
+    sortedDisplayList.forEach(p => {
       const tr = document.createElement('tr');
       const initial = (p.nickname || p.name).trim().charAt(0).toUpperCase();
 
