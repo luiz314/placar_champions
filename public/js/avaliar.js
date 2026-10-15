@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const voterPlayerNick = document.getElementById('voterPlayerNick');
   const voterPlayerOverall = document.getElementById('voterPlayerOverall');
   const voterPlayerVoteCount = document.getElementById('voterPlayerVoteCount');
+  const voterPlayerMonthlyBadge = document.getElementById('voterPlayerMonthlyBadge');
 
   // Recupera parâmetros da URL (prioriza sala ativa salva no localStorage)
   const urlParams = new URLSearchParams(window.location.search);
@@ -140,6 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       if (voterPlayerNick) voterPlayerNick.style.display = 'none';
+    }
+    if (voterPlayerMonthlyBadge) {
+      const isMonthly = player.is_monthly !== false;
+      voterPlayerMonthlyBadge.textContent = isMonthly ? '⭐ Mensalista' : '🏷️ Diarista';
+      if (isMonthly) {
+        voterPlayerMonthlyBadge.style.background = 'rgba(251, 191, 36, 0.15)';
+        voterPlayerMonthlyBadge.style.color = '#fbbf24';
+        voterPlayerMonthlyBadge.style.borderColor = 'rgba(251, 191, 36, 0.35)';
+      } else {
+        voterPlayerMonthlyBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+        voterPlayerMonthlyBadge.style.color = '#38bdf8';
+        voterPlayerMonthlyBadge.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+      }
     }
 
     const hasOverall = player.overall && Number(player.overall) > 0;
@@ -323,10 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const starStatus = p.overall && p.overall > 0 ? `★${Number(p.overall).toFixed(1)}` : 'Sem estrelas';
           const voteCount = Number(p.vote_count) || 0;
           const voteCountText = voteCount === 0 ? '0 votos' : (voteCount === 1 ? '1 voto' : `${voteCount} votos`);
+          const flagTag = p.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista';
           const myVoteTag = userRatingsMap[p.id] ? ` | Seu voto: ★${Number(userRatingsMap[p.id].overall).toFixed(1)}` : '';
           const opt = document.createElement('option');
           opt.value = p.id;
-          opt.textContent = `${p.name} (${p.position || 'Geral'}) — Média: ${starStatus} (${voteCountText})${myVoteTag}`;
+          opt.textContent = `${p.name} (${p.position || 'Geral'} • ${flagTag}) — Média: ${starStatus} (${voteCountText})${myVoteTag}`;
           
           if (targetPlayerId && String(p.id) === String(targetPlayerId)) {
             opt.selected = true;

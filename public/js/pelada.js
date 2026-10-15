@@ -629,8 +629,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="player-sub">
             <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
+            <span class="card-flag-badge ${player.is_monthly !== false ? 'mensalista' : 'diarista'}" title="Flag da Pelada: ${player.is_monthly !== false ? 'Mensalista Fixo' : 'Diarista/Convidado'}">
+              ${player.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
+            </span>
             <span class="player-stars-badge ${hasRatings ? '' : 'empty'}" title="Média Geral (${player.vote_count || 0} ${player.vote_count === 1 ? 'pessoa votou' : 'pessoas votaram'})">
-              ⭐ ${hasRatings ? Number(player.overall).toFixed(1) : '—'} <span style="font-size: 0.65rem; opacity: 0.85;">(${player.vote_count || 0} ${player.vote_count === 1 ? 'voto' : 'votos'})</span>
+              ⭐ ${hasRatings ? Number(player.overall).toFixed(1) : '—'} <span style="font-size: 0.65rem; opacity: 0.85;">(${player.vote_count || 0})</span>
             </span>
             ${myVote ? `
               <span class="player-myvote-pill btn-quick-rate-card" data-id="${player.id}" title="Sua avaliação individual (${Number(myVote.overall).toFixed(1)}★). Toque para alterar seu voto.">
@@ -868,9 +871,13 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td>
-          <span class="badge-category ${p.is_monthly !== false ? 'badge-monthly' : 'badge-diarista'} ${isAdmin ? 'badge-toggleable btn-toggle-category' : ''}" data-id="${p.id}" title="${isAdmin ? 'Clique para alternar entre Mensalista e Diarista' : ''}">
-            ${p.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
-          </span>
+          <label class="flag-mensalista-toggle ${isAdmin ? '' : 'disabled'}" title="${isAdmin ? 'Clique para alternar a Flag entre Mensalista e Diarista' : 'Status do atleta (Apenas administradores podem alternar a flag)'}">
+            <input type="checkbox" class="chk-toggle-mensalista" data-id="${p.id}" ${p.is_monthly !== false ? 'checked' : ''} ${isAdmin ? '' : 'disabled'}>
+            <span class="flag-slider"></span>
+            <span class="flag-label-text">
+              ${p.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
+            </span>
+          </label>
         </td>
         <td>
           <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; font-size: 0.8rem;">
@@ -908,7 +915,6 @@ document.addEventListener('DOMContentLoaded', () => {
           ` : '<span style="color: #475569; font-size: 0.8rem;">—</span>'}
         </td>
       `;
-
       playersTableBody.appendChild(tr);
     });
 
@@ -916,12 +922,12 @@ document.addEventListener('DOMContentLoaded', () => {
     attachInlineStarEvents();
 
     if (isAdmin) {
-      playersTableBody.querySelectorAll('.btn-toggle-category').forEach(badge => {
-        badge.addEventListener('click', async () => {
-          const id = badge.getAttribute('data-id');
+      playersTableBody.querySelectorAll('.chk-toggle-mensalista').forEach(chk => {
+        chk.addEventListener('change', async () => {
+          const id = chk.getAttribute('data-id');
           const player = playersList.find(pl => String(pl.id) === id);
           if (!player) return;
-          const nextIsMonthly = player.is_monthly === false;
+          const nextIsMonthly = chk.checked;
           try {
             const res = await fetch(`/api/players/${id}`, {
               method: 'PUT',
@@ -931,15 +937,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success) {
               player.is_monthly = nextIsMonthly;
-              showToast(`${player.name} agora é ${nextIsMonthly ? '⭐ Mensalista' : '🏷️ Diarista'}!`);
+              showToast(`🚩 ${player.name} agora é ${nextIsMonthly ? '⭐ Mensalista' : '🏷️ Diarista'}!`);
               renderPlayersTable();
               renderPlayerSelectionGrid();
             } else {
+              chk.checked = !nextIsMonthly;
               alert(data.error || 'Erro ao alterar categoria.');
             }
           } catch (err) {
-            console.error('Erro ao alternar categoria:', err);
-            showToast('Erro de conexão ao alterar categoria.');
+            chk.checked = !nextIsMonthly;
+            console.error('Erro ao alternar flag:', err);
+            showToast('Erro de conexão ao alterar flag.');
           }
         });
       });
@@ -1193,9 +1201,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       selectPlayerPosition.value = position;
     }
-    const selectPlayerCategory = document.getElementById('selectPlayerCategory');
-    if (selectPlayerCategory) {
-      selectPlayerCategory.value = (player && player.is_monthly === false) ? 'false' : 'true';
+    const chkPlayerIsMonthly = document.getElementById('chkPlayerIsMonthly');
+    if (chkPlayerIsMonthly) {
+      chkPlayerIsMonthly.checked = (player && player.is_monthly === false) ? false : true;
     }
     modalAddPlayer.classList.add('show');
     setTimeout(() => inputPlayerName.focus(), 100);
@@ -1217,8 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = inputPlayerName.value.trim();
       const nickname = inputPlayerNickname.value.trim();
       const position = selectPlayerPosition.value;
-      const selectPlayerCategory = document.getElementById('selectPlayerCategory');
-      const isMonthly = selectPlayerCategory ? (selectPlayerCategory.value === 'true') : true;
+      const chkPlayerIsMonthly = document.getElementById('chkPlayerIsMonthly');
+      const isMonthly = chkPlayerIsMonthly ? chkPlayerIsMonthly.checked : true;
       if (!name) return;
 
       const body = { name, nickname: nickname || name, position, isMonthly };
