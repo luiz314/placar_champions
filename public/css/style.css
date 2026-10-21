@@ -563,6 +563,8 @@ body {
 
 /* CONTAINER DE AÇÕES DA PARTIDA (PERFEITAMENTE ALINHADAS LADO A LADO) */
 .match-actions-bar {
+  position: relative;
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   justify-content: center;

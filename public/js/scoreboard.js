@@ -777,31 +777,44 @@ if (btnTimerRestart) {
 // ============================================================
 // ENCERRAMENTO DE PARTIDA (MODAL HTML - NÃO SAI DA TELA CHEIA)
 // ============================================================
+let endMatchModalOpenTime = 0;
+let isFinishingMatch = false;
+
 function openEndMatchModal() {
-  const ptsA = currentState.scoreA || 0;
-  const ptsB = currentState.scoreB || 0;
-  const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
+  try {
+    const ptsA = currentState.scoreA || 0;
+    const ptsB = currentState.scoreB || 0;
+    const timerSeconds = (currentState.timer && currentState.timer.seconds) || 0;
 
-  if (endMatchModalBackdrop) {
-    if (endMatchScoreA) endMatchScoreA.textContent = ptsA;
-    if (endMatchScoreB) endMatchScoreB.textContent = ptsB;
-    if (endMatchNameA) endMatchNameA.textContent = currentState.nameA || 'LADO A';
-    if (endMatchNameB) endMatchNameB.textContent = currentState.nameB || 'LADO B';
-    if (endMatchDurationText) endMatchDurationText.textContent = formatTime(timerSeconds);
+    if (endMatchModalBackdrop) {
+      if (endMatchScoreA) endMatchScoreA.textContent = ptsA;
+      if (endMatchScoreB) endMatchScoreB.textContent = ptsB;
+      if (endMatchNameA) endMatchNameA.textContent = currentState.nameA || 'LADO A';
+      if (endMatchNameB) endMatchNameB.textContent = currentState.nameB || 'LADO B';
+      if (endMatchDurationText) endMatchDurationText.textContent = formatTime(timerSeconds);
 
-    endMatchModalBackdrop.style.display = 'flex';
-    endMatchModalBackdrop.classList.add('show');
+      endMatchModalOpenTime = Date.now();
+      endMatchModalBackdrop.style.display = 'flex';
+      endMatchModalBackdrop.classList.add('show');
 
-    // Foca no botão de confirmação para ser imediatamente acionável (Enter ou clique)
-    if (btnConfirmEndMatch) {
-      setTimeout(() => {
-        try { btnConfirmEndMatch.focus(); } catch (_) {}
-      }, 60);
+      // Foca no botão de confirmação para ser imediatamente acionável (Enter ou clique)
+      if (btnConfirmEndMatch) {
+        setTimeout(() => {
+          try { btnConfirmEndMatch.focus(); } catch (_) {}
+        }, 100);
+      }
+    } else {
+      // Fallback nativo ultra-resiliente
+      const confirmMsg = `Deseja realmente encerrar esta partida?\n\n${currentState.nameA || 'LADO A'} ${ptsA} x ${ptsB} ${currentState.nameB || 'LADO B'}\n\nO resultado será salvo no histórico e o placar será reiniciado.`;
+      if (confirm(confirmMsg)) {
+        confirmFinishMatch();
+      }
     }
-  } else {
-    // Fallback nativo ultra-resiliente
-    const confirmMsg = `Deseja realmente encerrar esta partida?\n\n${currentState.nameA || 'LADO A'} ${ptsA} x ${ptsB} ${currentState.nameB || 'LADO B'}\n\nO resultado será salvo no histórico e o placar será reiniciado.`;
-    if (confirm(confirmMsg)) {
+  } catch (err) {
+    console.error('Erro ao abrir modal de encerramento:', err);
+    const ptsA = currentState.scoreA || 0;
+    const ptsB = currentState.scoreB || 0;
+    if (confirm(`Deseja encerrar a partida?\n\n${currentState.nameA || 'LADO A'} ${ptsA} x ${ptsB} ${currentState.nameB || 'LADO B'}`)) {
       confirmFinishMatch();
     }
   }
@@ -815,93 +828,126 @@ function closeEndMatchModal() {
 }
 
 function confirmFinishMatch() {
-  const wasFullscreen = !!document.fullscreenElement;
+  if (isFinishingMatch) return;
+  isFinishingMatch = true;
 
-  if (window.sound) window.sound.playFinalWhistle();
+  try {
+    const wasFullscreen = !!document.fullscreenElement;
 
-  let winner = 'Empate';
-  if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA || 'LADO A';
-  else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB || 'LADO B';
-
-  const matchRecord = {
-    id: Date.now(),
-    matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
-    nameA: currentState.nameA || 'LADO A',
-    scoreA: currentState.scoreA || 0,
-    nameB: currentState.nameB || 'LADO B',
-    scoreB: currentState.scoreB || 0,
-    winner: winner,
-    durationSeconds: (currentState.timer && currentState.timer.seconds) || 0,
-    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  };
-
-  if (!currentState.matchHistory) currentState.matchHistory = [];
-  currentState.matchHistory.unshift(matchRecord);
-
-  // Payload completo para sincronização imediata
-  const finishPayload = {
-    roomId: currentRoomId,
-    nameA: matchRecord.nameA,
-    scoreA: matchRecord.scoreA,
-    nameB: matchRecord.nameB,
-    scoreB: matchRecord.scoreB,
-    winner: matchRecord.winner,
-    durationSeconds: matchRecord.durationSeconds
-  };
-
-  currentState.scoreA = 0;
-  currentState.scoreB = 0;
-  if (!currentState.timer) currentState.timer = { seconds: 0, running: false };
-  currentState.timer.running = false;
-  currentState.timer.seconds = 0;
-
-  renderScoreUI();
-  updateTimerUI(currentState.timer);
-  if (timerDisplay) timerDisplay.textContent = '00:00';
-  renderHistory(currentState.matchHistory);
-  persistCurrentState();
-
-  if (socket && socket.connected) {
-    socket.emit('match:finish', finishPayload);
-  } else {
-    markOfflineChange();
-  }
-
-  closeEndMatchModal();
-  showToast('🏆 Partida finalizada e salva no histórico!', 'success', 3500);
-
-  // MANTER SEMPRE EM TELA CHEIA SE JÁ ESTAVA OU SE O USUÁRIO DESEJA
-  if (wasFullscreen || document.fullscreenElement) {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+    if (window.sound) {
+      try { window.sound.playFinalWhistle(); } catch (_) {}
     }
+
+    let winner = 'Empate';
+    if (currentState.scoreA > currentState.scoreB) winner = currentState.nameA || 'LADO A';
+    else if (currentState.scoreB > currentState.scoreA) winner = currentState.nameB || 'LADO B';
+
+    const matchRecord = {
+      id: Date.now(),
+      matchNumber: (currentState.matchHistory ? currentState.matchHistory.length : 0) + 1,
+      nameA: currentState.nameA || 'LADO A',
+      scoreA: currentState.scoreA || 0,
+      nameB: currentState.nameB || 'LADO B',
+      scoreB: currentState.scoreB || 0,
+      winner: winner,
+      durationSeconds: (currentState.timer && currentState.timer.seconds) || 0,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    if (!currentState.matchHistory) currentState.matchHistory = [];
+    currentState.matchHistory.unshift(matchRecord);
+
+    // Payload completo para sincronização imediata
+    const finishPayload = {
+      roomId: currentRoomId,
+      nameA: matchRecord.nameA,
+      scoreA: matchRecord.scoreA,
+      nameB: matchRecord.nameB,
+      scoreB: matchRecord.scoreB,
+      winner: matchRecord.winner,
+      durationSeconds: matchRecord.durationSeconds
+    };
+
+    currentState.scoreA = 0;
+    currentState.scoreB = 0;
+    if (!currentState.timer) currentState.timer = { seconds: 0, running: false };
+    currentState.timer.running = false;
+    currentState.timer.seconds = 0;
+
+    renderScoreUI();
+    updateTimerUI(currentState.timer);
+    if (timerDisplay) timerDisplay.textContent = '00:00';
+    renderHistory(currentState.matchHistory);
+    persistCurrentState();
+
+    if (socket && socket.connected) {
+      socket.emit('match:finish', finishPayload);
+    } else {
+      markOfflineChange();
+    }
+
+    closeEndMatchModal();
+    showToast('🏆 Partida finalizada e salva no histórico!', 'success', 3500);
+
+    // MANTER SEMPRE EM TELA CHEIA SE JÁ ESTAVA OU SE O USUÁRIO DESEJA
+    if (wasFullscreen || document.fullscreenElement) {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao encerrar partida:', err);
+    closeEndMatchModal();
+  } finally {
+    setTimeout(() => {
+      isFinishingMatch = false;
+    }, 600);
   }
 }
 
 if (btnFinishMatch) {
   btnFinishMatch.addEventListener('click', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     openEndMatchModal();
   });
-  btnFinishMatch.onclick = openEndMatchModal;
+  btnFinishMatch.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openEndMatchModal();
+  }, { passive: false });
 }
 if (btnCloseEndMatchModal) {
-  btnCloseEndMatchModal.addEventListener('click', closeEndMatchModal);
-  btnCloseEndMatchModal.onclick = closeEndMatchModal;
+  btnCloseEndMatchModal.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeEndMatchModal();
+  });
 }
 if (btnCancelEndMatch) {
-  btnCancelEndMatch.addEventListener('click', closeEndMatchModal);
-  btnCancelEndMatch.onclick = closeEndMatchModal;
+  btnCancelEndMatch.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeEndMatchModal();
+  });
 }
 if (btnConfirmEndMatch) {
   btnConfirmEndMatch.addEventListener('click', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     confirmFinishMatch();
   });
-  btnConfirmEndMatch.onclick = confirmFinishMatch;
 }
 if (endMatchModalBackdrop) {
+  const endMatchModalCard = endMatchModalBackdrop.querySelector('.modal-card');
+  if (endMatchModalCard) {
+    endMatchModalCard.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
   endMatchModalBackdrop.addEventListener('click', (e) => {
+    // Evita fechamento acidental por ghost-click ou propagação logo após abrir
+    if (Date.now() - endMatchModalOpenTime < 350) return;
     if (e.target === endMatchModalBackdrop) closeEndMatchModal();
   });
 }
@@ -1583,6 +1629,7 @@ document.addEventListener('keydown', (e) => {
     closeHistoryModal();
     closeShareModal();
     closeProModal();
+    closeEndMatchModal();
     if (menuDropdown) menuDropdown.classList.remove('show');
   }
 });
