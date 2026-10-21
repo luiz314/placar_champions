@@ -37,11 +37,10 @@ function createTransporter(opts = {}) {
       secure: opts.secure !== undefined ? opts.secure : (opts.port === 465),
       requireTLS: opts.requireTLS || false,
       auth: { user, pass },
-      tls: { rejectUnauthorized: false },
       family: 4, // Força IPv4 para contornar falha de roteamento IPv6 no Railway
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 10000
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000
     });
   }
 
@@ -51,9 +50,9 @@ function createTransporter(opts = {}) {
       service: 'gmail',
       auth: { user, pass },
       family: 4,
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 10000
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000
     });
   }
 
@@ -63,11 +62,10 @@ function createTransporter(opts = {}) {
     port: opts.port || port || 465,
     secure: opts.secure !== undefined ? opts.secure : (secure || port === 465),
     auth: { user, pass },
-    tls: { rejectUnauthorized: false },
     family: 4,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000
   });
 }
 
@@ -86,7 +84,7 @@ function wrapEmailHtml({ title, preheader, contentHtml }) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     body { margin: 0; padding: 0; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f8fafc; }
     .email-container { max-width: 580px; margin: 30px auto; background: #0f172a; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
@@ -108,7 +106,7 @@ function wrapEmailHtml({ title, preheader, contentHtml }) {
 </head>
 <body>
   <div style="display:none;font-size:1px;color:#333;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
-    ${preheader || title}
+    ${escapeHtml(preheader || title)}
   </div>
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #07090e; padding: 20px 0;">
     <tr>
@@ -136,7 +134,9 @@ function wrapEmailHtml({ title, preheader, contentHtml }) {
 // ==========================================
 // 1. E-MAIL DE CONVITE PARA A PELADA
 // ==========================================
-async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterName, role, inviteUrl, isRegistered = false }) {
+async function sendInviteEmail({ to, peladaName: rawPeladaName, peladaId, inviteCode, inviterName: rawInviterName, role, inviteUrl, isRegistered = false }) {
+  const peladaName = singleLine(rawPeladaName);
+  const inviterName = singleLine(rawInviterName);
   const roleName = role === 'admin' ? 'Administrador' : (role === 'espectador' ? 'Espectador' : 'Votante');
   const roleEmoji = role === 'admin' ? '⭐' : (role === 'espectador' ? '👁️' : '🏐');
 
@@ -183,14 +183,14 @@ async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterNa
     </p>
 
     <div style="text-align: center;">
-      <a href="${inviteUrl}" class="cta-button" target="_blank">
+      <a href="${escapeHtml(inviteUrl)}" class="cta-button" target="_blank">
         ${ctaText}
       </a>
     </div>
 
     <p class="email-text" style="font-size: 12px; color: #94a3b8; text-align: center;">
       Se o botão não funcionar, copie e cole este link no seu navegador:<br>
-      <a href="${inviteUrl}" style="color: #38bdf8; word-break: break-all;">${inviteUrl}</a>
+      <a href="${escapeHtml(inviteUrl)}" style="color: #38bdf8; word-break: break-all;">${escapeHtml(inviteUrl)}</a>
     </p>
   `;
 
@@ -209,7 +209,7 @@ async function sendInviteEmail({ to, peladaName, peladaId, inviteCode, inviterNa
     contentHtml
   });
 
-  return dispatchEmail({ to, subject, text, html, logType: 'CONVITE PELADA', linkUrl: inviteUrl });
+  return dispatchEmail({ to, subject, text, html, logType: 'CONVITE PELADA' });
 }
 
 // ==========================================
@@ -230,7 +230,7 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
     </p>
 
     <div style="text-align: center;">
-      <a href="${resetUrl}" class="cta-button cta-button-gold" target="_blank">
+      <a href="${escapeHtml(resetUrl)}" class="cta-button cta-button-gold" target="_blank">
         🔒 Redefinir Minha Senha
       </a>
     </div>
@@ -243,7 +243,7 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
 
     <p class="email-text" style="font-size: 12px; color: #94a3b8; text-align: center;">
       Se o botão não funcionar, copie este link no navegador:<br>
-      <a href="${resetUrl}" style="color: #38bdf8; word-break: break-all;">${resetUrl}</a>
+      <a href="${escapeHtml(resetUrl)}" style="color: #38bdf8; word-break: break-all;">${escapeHtml(resetUrl)}</a>
     </p>
   `;
 
@@ -256,7 +256,7 @@ async function sendPasswordResetEmail({ to, userName, resetUrl }) {
     contentHtml
   });
 
-  return dispatchEmail({ to, subject, text, html, logType: 'RECUPERAÇÃO DE SENHA', linkUrl: resetUrl });
+  return dispatchEmail({ to, subject, text, html, logType: 'RECUPERAÇÃO DE SENHA' });
 }
 
 // ==========================================
@@ -270,6 +270,7 @@ async function sendViaResend({ to, subject, html, text }) {
   const replyTo = (process.env.SMTP_USER || process.env.RESEND_REPLY_TO || 'placarchampions@gmail.com').replace(/['"]/g, '').trim();
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
@@ -302,6 +303,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     headers: {
       'api-key': apiKey,
       'Content-Type': 'application/json',
@@ -329,7 +331,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
 // ==========================================
 // DISPATCH GENÉRICO (ENVIA OU SIMULA SE SEM SMTP)
 // ==========================================
-async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
+async function dispatchEmail({ to, subject, text, html, logType }) {
   // 1. Prioridade #1: API HTTP do Brevo (porta 443 HTTPS - envia para qualquer destinatário usando placarchampions@gmail.com)
   const brevoKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || process.env.BREVO_KEY || '').replace(/['"\s]/g, '');
   if (brevoKey) {
@@ -339,20 +341,7 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
       return { sent: true, simulated: false, messageId: result.id, provider: 'brevo' };
     } catch (err) {
       console.error(`❌ [MAILER - BREVO] Erro ao enviar para ${to}:`, err.message);
-      if (linkUrl) {
-        console.log(`\n==================================================`);
-        console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
-        console.log(`Para: ${to}`);
-        console.log(`Link de acesso: ${linkUrl}`);
-        console.log(`Causa: ${err.message}`);
-        console.log(`==================================================\n`);
-      }
-      return {
-        sent: false,
-        simulated: true,
-        error: `Falha no Brevo: ${err.message}`,
-        previewUrl: linkUrl
-      };
+      return { sent: false, simulated: false, error: `Falha no Brevo: ${err.message}` };
     }
   }
 
@@ -371,21 +360,7 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
         userFriendlyMessage = `No modo de teste do Resend, e-mails só podem ser enviados para o e-mail que você cadastrou no Resend. Para enviar para qualquer endereço, verifique um domínio no painel do Resend. (${err.message})`;
       }
 
-      if (linkUrl) {
-        console.log(`\n==================================================`);
-        console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
-        console.log(`Para: ${to}`);
-        console.log(`Link de acesso: ${linkUrl}`);
-        console.log(`Causa: ${userFriendlyMessage}`);
-        console.log(`==================================================\n`);
-      }
-
-      return {
-        sent: false,
-        simulated: true,
-        error: `Falha no Resend: ${userFriendlyMessage}`,
-        previewUrl: linkUrl
-      };
+      return { sent: false, simulated: false, error: `Falha no Resend: ${userFriendlyMessage}` };
     }
   }
 
@@ -397,15 +372,12 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
     console.log(`Para: ${to}`);
     console.log(`Assunto: ${subject}`);
     console.log(`Status: Nenhum provedor configurado (adicione RESEND_API_KEY ou SMTP_USER/PASS)`);
-    console.log(`Texto:\n${text}`);
-    if (linkUrl) console.log(`Link Direto: ${linkUrl}`);
     console.log(`==================================================\n`);
 
     return {
       sent: false,
       simulated: true,
-      previewUrl: linkUrl,
-      message: 'Serviço de e-mail não configurado. Mensagem simulada no console do servidor.'
+      message: 'Serviço de e-mail não configurado. Mensagem não enviada.'
     };
   }
 
@@ -445,21 +417,14 @@ async function dispatchEmail({ to, subject, text, html, logType, linkUrl }) {
     ? 'O Railway bloqueia conexões SMTP tradicionais (portas 25, 465, 587) no plano gratuito. Adicione a variável RESEND_API_KEY no Railway para envio 100% garantido via HTTPS (porta 443).'
     : (lastError ? lastError.message : 'Falha na conexão de e-mail.');
 
-  if (linkUrl) {
-    console.log(`\n==================================================`);
-    console.log(`⚠️ [MAILER - CONTINGÊNCIA / LINK DISPONÍVEL] (${logType})`);
-    console.log(`Para: ${to}`);
-    console.log(`Link de acesso: ${linkUrl}`);
-    console.log(`Motivo: ${helpfulTip}`);
-    console.log(`==================================================\n`);
-  }
+  return { sent: false, simulated: false, error: helpfulTip };
+}
 
-  return {
-    sent: false,
-    simulated: true,
-    error: helpfulTip,
-    previewUrl: linkUrl
-  };
+const HTTP_TIMEOUT_MS = 10000;
+
+// Remove quebras de linha (usado em assuntos e textos curtos vindos de usuários)
+function singleLine(str) {
+  return String(str || '').replace(/[\r\n]+/g, ' ').trim();
 }
 
 function escapeHtml(str) {

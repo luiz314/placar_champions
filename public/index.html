@@ -1699,7 +1699,7 @@
           <span>🎟️</span> Entrar em Sala por Convite:
         </div>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="inputJoinSessionCode" class="form-input" placeholder="Código de convite (ex: V-733849...)" style="flex: 1; text-transform: uppercase;">
+          <input type="text" id="inputJoinSessionCode" class="form-input" placeholder="Código de convite (ex: 8CB46CC9)" style="flex: 1; text-transform: uppercase;">
           <button type="button" class="btn-card-action btn-gold" id="btnJoinSessionByCode" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem; white-space: nowrap;">
             Entrar
           </button>
@@ -1970,7 +1970,7 @@
                 </p>
 
                 <div style="display: flex; gap: 8px; max-width: 380px; margin: 0 auto 14px auto;">
-                  <input type="text" id="inputWelcomeJoinCode" class="form-input" placeholder="Código do convite (ex: V-733849...)" style="text-transform: uppercase; font-weight: 700; text-align: center; flex: 1;">
+                  <input type="text" id="inputWelcomeJoinCode" class="form-input" placeholder="Código do convite (ex: 8CB46CC9)" style="text-transform: uppercase; font-weight: 700; text-align: center; flex: 1;">
                   <button type="button" class="btn-card-action btn-gold" id="btnWelcomeJoinCode" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.88rem; white-space: nowrap;">
                     Entrar na Sala
                   </button>
@@ -2286,18 +2286,11 @@
                 body: JSON.stringify({ email })
               });
               const data = await res.json();
+              // O link de redefinição chega somente por e-mail ao dono da conta
               if (data.success) {
                 showFeedback('forgotFeedback', 'success', data.message);
-                if (data.previewUrl) {
-                  const box = document.getElementById('forgotFeedback');
-                  box.innerHTML += `<div style="margin-top: 10px;"><a href="${data.previewUrl}" class="btn-card-action btn-gold" style="display: inline-block; padding: 6px 14px; font-size: 0.8rem; text-decoration: none; color: #000; font-weight: 700;">Acessar Link de Redefinição Agora ➔</a></div>`;
-                }
               } else {
                 showFeedback('forgotFeedback', 'error', data.error || 'Erro ao processar solicitação.');
-                if (data.previewUrl) {
-                  const box = document.getElementById('forgotFeedback');
-                  box.innerHTML += `<div style="margin-top: 8px; font-size: 0.78rem; color: #cbd5e1;">Link de emergência: <a href="${data.previewUrl}" style="color: #38bdf8; text-decoration: underline; font-weight: 700;">Clique aqui para redefinir</a></div>`;
-                }
               }
             } catch (err) {
               showFeedback('forgotFeedback', 'error', 'Erro ao conectar ao servidor ou tempo limite excedido. Tente novamente.');

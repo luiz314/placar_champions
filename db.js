@@ -266,8 +266,9 @@ if (dbUrl) {
     }, {
       tableName: 'player_ratings',
       timestamps: true,
-      underscored: true,
-      indexes: [{ unique: true, fields: ['player_id', 'user_id'] }]
+      underscored: true
+      // Unicidade (1 voto por usuario/jogador) garantida pelo indice parcial criado em initDb,
+      // depois da limpeza de duplicados. Declarar aqui faria o sync falhar se houver duplicados.
     });
 
     // Modelo de Lista de Presenca (Attendance)
@@ -350,7 +351,7 @@ function createInitialFallbackData() {
   const now = new Date().toISOString();
   return {
     users: [],
-    peladas: [{ id: DEFAULT_PELADA_ID, name: 'Sala 733849', admin_name: 'Administrador', owner_id: null, invite_code: '733849', created_at: now }],
+    peladas: [{ id: DEFAULT_PELADA_ID, name: 'Sala 733849', admin_name: 'Administrador', owner_id: null, invite_code: generateInviteCode(), created_at: now }],
     pelada_admins: [],
     pelada_members: [],
     matches: [],
@@ -390,6 +391,12 @@ function getFallbackData() {
       if (!Array.isArray(parsed[k])) parsed[k] = defaults[k];
     });
     if (!parsed.settings || typeof parsed.settings !== 'object') parsed.settings = {};
+    // Salas antigas sem código de convite (ou com o próprio número como código) ganham um aleatório
+    const needCode = parsed.peladas.filter(p => !p.invite_code || String(p.invite_code) === String(p.id));
+    if (needCode.length > 0) {
+      needCode.forEach(p => { p.invite_code = generateInviteCode(); });
+      saveFallbackData(parsed);
+    }
     return parsed;
   } catch (err) {
     console.error('Erro ao ler fallback db, usando estrutura vazia:', err.message);
@@ -448,6 +455,16 @@ async function initDb() {
   // para nunca alternar silenciosamente para o JSON local (o que pareceria "apagar" os dados).
   isPostgres = true;
   try {
+    // Remove votos duplicados (mesmo usuario no mesmo jogador) antes de qualquer ajuste de esquema
+    await sequelize.query(`
+      DO $$ BEGIN
+        IF to_regclass('public.player_ratings') IS NOT NULL THEN
+          DELETE FROM player_ratings a USING player_ratings b
+          WHERE a.id < b.id AND a.player_id = b.player_id AND a.user_id = b.user_id AND a.user_id IS NOT NULL;
+        END IF;
+      END $$;
+    `);
+
     console.log('Executando sincronizacao autonoma do banco (Sequelize auto-alter)...');
     await sequelize.sync({ alter: true });
     console.log('Banco de dados PostgreSQL 100% sincronizado com sucesso!');
@@ -467,16 +484,28 @@ async function initDb() {
     }
 
     await migratePeladaOwners();
+    await backfillInviteCodes();
     await sequelize.query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_monthly BOOLEAN DEFAULT TRUE;').catch(() => {});
-    await sequelize.query(`
-      DELETE FROM player_ratings a USING player_ratings b
-      WHERE a.id < b.id AND a.player_id = b.player_id AND a.user_id = b.user_id AND a.user_id IS NOT NULL;
-    `).catch(() => {});
     await sequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS player_ratings_player_user_unique ON player_ratings (player_id, user_id) WHERE user_id IS NOT NULL;').catch(() => {});
   } catch (err) {
     dbConnectionError = err.message;
     console.error('ERRO na sincronizacao do esquema PostgreSQL (o app segue usando o PostgreSQL):', err.message);
   }
+}
+
+function generateInviteCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
+// Peladas antigas nao tinham codigo de convite; sem ele, o numero da sala virava o codigo
+// (facil de adivinhar). Gera um codigo aleatorio para cada uma.
+async function backfillInviteCodes() {
+  const missing = await Pelada.findAll({ where: { [Op.or]: [{ inviteCode: null }, { inviteCode: '' }] } });
+  for (const pelada of missing) {
+    pelada.inviteCode = generateInviteCode();
+    await pelada.save();
+  }
+  if (missing.length > 0) console.log(`Codigo de convite gerado para ${missing.length} pelada(s) antiga(s).`);
 }
 
 // Peladas criadas antes do controle de dono guardavam apenas o nome/e-mail do criador em adminName.
@@ -780,7 +809,7 @@ function toPublicPelada(raw, playerCount) {
     name: raw.name,
     admin_name: raw.adminName || raw.admin_name || 'Administrador',
     owner_id: raw.ownerId !== undefined ? raw.ownerId : (raw.owner_id || null),
-    invite_code: raw.inviteCode || raw.invite_code || String(raw.id),
+    invite_code: raw.inviteCode || raw.invite_code || null,
     player_count: playerCount || 0,
     created_at: raw.createdAt || raw.created_at
   };
@@ -882,7 +911,7 @@ async function createPelada(name, owner) {
   const cleanName = String(name || '').trim().slice(0, 150);
   if (!cleanName) throw new Error('O nome da pelada e obrigatorio.');
   const adminName = String(owner.name || owner.username).slice(0, 100);
-  const inviteCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+  const inviteCode = generateInviteCode();
 
   if (isPostgres) {
     const pelada = await Pelada.create({ name: cleanName, adminName, ownerId: owner.id, inviteCode });
@@ -1215,34 +1244,31 @@ async function removePeladaMember(peladaId, userId) {
 }
 
 async function joinPeladaByCode(userId, inviteCode) {
-  const cleanCode = String(inviteCode || '').trim();
-  if (!cleanCode) throw new Error('Código de convite inválido.');
+  // Somente o código de convite aleatório dá acesso (o número da sala é público e fácil de adivinhar)
+  const cleanCode = String(inviteCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!/^[A-Z0-9]{6,32}$/.test(cleanCode)) throw new Error('Código de convite inválido.');
 
-  let targetPelada = null;
-  if (isPostgres && Pelada) {
-    targetPelada = await Pelada.findOne({
-      where: {
-        [Op.or]: [
-          { inviteCode: cleanCode },
-          { id: parseInt(cleanCode, 10) || 0 }
-        ]
-      }
+  let peladaId = null;
+  if (isPostgres) {
+    const found = await Pelada.findOne({
+      where: sequelize.where(sequelize.fn('upper', sequelize.col('invite_code')), cleanCode),
+      attributes: ['id']
     });
+    peladaId = found ? Number(found.id) : null;
   } else {
     const data = getFallbackData();
-    targetPelada = data.peladas.find(p => 
-      (p.invite_code && p.invite_code.toUpperCase() === cleanCode.toUpperCase()) ||
-      String(p.id) === cleanCode
-    );
+    const found = data.peladas.find(p => p.invite_code && String(p.invite_code).toUpperCase() === cleanCode);
+    peladaId = found ? Number(found.id) : null;
   }
 
-  if (!targetPelada) {
+  if (!peladaId) {
     throw new Error('Nenhuma sala encontrada com este código de convite.');
   }
 
-  const peladaId = Number(targetPelada.id);
-  await addPeladaMember(peladaId, userId, 'votante');
-  return targetPelada;
+  // Quem já participa mantém o papel atual (ex: espectador não vira votante entrando de novo)
+  const currentRole = await getUserPeladaRole(userId, peladaId);
+  if (!currentRole) await addPeladaMember(peladaId, userId, 'votante');
+  return getPeladaById(peladaId);
 }
 
 // ==========================================

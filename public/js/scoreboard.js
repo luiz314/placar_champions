@@ -860,6 +860,7 @@ function confirmFinishMatch() {
     // Payload completo para sincronização imediata
     const finishPayload = {
       roomId: currentRoomId,
+      password: getSavedRoomPassword(currentRoomId),
       nameA: matchRecord.nameA,
       scoreA: matchRecord.scoreA,
       nameB: matchRecord.nameB,

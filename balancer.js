@@ -55,12 +55,26 @@ function calculateTeamStats(players) {
   };
 }
 
+// Força média do time para comparar equilíbrio: jogador sem nota conta como 3.0 (mesma suposição
+// usada na ordenação do sorteio) e o valor não é arredondado, para o otimizador enxergar pequenas melhorias.
+// A média exibida ao usuário continua sendo a de calculateTeamStats (apenas jogadores avaliados).
+function teamStrength(players, field) {
+  if (!players.length) return 0;
+  const sum = players.reduce((acc, p) => {
+    const value = field === 'pass'
+      ? Number(p.avg_set_pass !== undefined ? p.avg_set_pass : p.avg_pass)
+      : Number(p[field]);
+    return acc + (value > 0 ? value : 3.0);
+  }, 0);
+  return sum / players.length;
+}
+
 function evaluateFairness(teams) {
   if (teams.length < 2) return { cost: 0, overallDelta: 0 };
 
-  const overalls = teams.map(t => Number(calculateTeamStats(t.players).avgOverall) || 0);
-  const attacks = teams.map(t => Number(calculateTeamStats(t.players).avgAttack) || 0);
-  const passes = teams.map(t => Number(calculateTeamStats(t.players).avgSetPass) || 0);
+  const overalls = teams.map(t => teamStrength(t.players, 'overall'));
+  const attacks = teams.map(t => teamStrength(t.players, 'avg_attack'));
+  const passes = teams.map(t => teamStrength(t.players, 'pass'));
 
   const maxOverall = Math.max(...overalls);
   const minOverall = Math.min(...overalls);

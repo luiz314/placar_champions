@@ -57,29 +57,44 @@ function sign(data) {
   return crypto.createHmac('sha256', tokenSecret).update(data).digest('base64url');
 }
 
-function issueToken(userId) {
-  const payload = Buffer.from(JSON.stringify({ uid: Number(userId), exp: Date.now() + TOKEN_TTL_MS })).toString('base64url');
+// Todo token assinado carrega "typ" (session, reset ou invite) para que um tipo
+// nunca possa ser usado no lugar de outro (ex: link de redefinicao como login).
+function signTyped(typ, data) {
+  const payload = Buffer.from(JSON.stringify({ ...data, typ })).toString('base64url');
   return `${payload}.${sign(payload)}`;
 }
 
-// Retorna o id do usuario se o token for valido e nao expirado; caso contrario, null.
-function verifyToken(token) {
+// Valida assinatura e expiracao e devolve o conteudo do token (ou null)
+function readSigned(token) {
   if (!token || typeof token !== 'string' || !tokenSecret) return null;
   const [payload, signature] = token.split('.');
   if (!payload || !signature) return null;
 
-  const expected = sign(payload);
   const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
+  const expBuf = Buffer.from(sign(payload));
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
 
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (!data.uid || !data.exp || data.exp < Date.now()) return null;
-    return Number(data.uid);
+    if (!data || !data.exp || data.exp < Date.now()) return null;
+    return data;
   } catch (e) {
     return null;
   }
+}
+
+function issueToken(userId) {
+  return signTyped('session', { uid: Number(userId), exp: Date.now() + TOKEN_TTL_MS });
+}
+
+// Retorna o id do usuario se o token de SESSAO for valido e nao expirado; caso contrario, null.
+// Sessoes emitidas antes do campo "typ" continuam aceitas, mas tokens de reset/convite
+// antigos (que tem email/fp/pid) sao recusados.
+function verifyToken(token) {
+  const data = readSigned(token);
+  if (!data || !data.uid) return null;
+  const isSession = data.typ === 'session' || (!data.typ && !data.email && !data.fp && !data.pid);
+  return isSession ? Number(data.uid) : null;
 }
 
 // ==========================================
@@ -87,39 +102,28 @@ function verifyToken(token) {
 // ==========================================
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
-function issuePasswordResetToken(user) {
-  const passFingerprint = String(user.passwordHash || user.password_hash || 'no-pass').slice(-16);
-  const payload = Buffer.from(JSON.stringify({
-    uid: Number(user.id),
-    email: String(user.username).toLowerCase(),
-    fp: passFingerprint,
-    exp: Date.now() + RESET_TOKEN_TTL_MS
-  })).toString('base64url');
-  return `${payload}.${sign(payload)}`;
+function passwordFingerprint(user) {
+  return String(user.passwordHash || user.password_hash || 'no-pass').slice(-16);
 }
 
+function issuePasswordResetToken(user) {
+  return signTyped('reset', {
+    uid: Number(user.id),
+    email: String(user.username).toLowerCase(),
+    fp: passwordFingerprint(user),
+    exp: Date.now() + RESET_TOKEN_TTL_MS
+  });
+}
+
+// Com "user", confirma tambem que o token e dele e que a senha nao mudou desde a emissao (uso unico)
 function verifyPasswordResetToken(token, user) {
-  if (!token || typeof token !== 'string' || !tokenSecret) return null;
-  const [payload, signature] = token.split('.');
-  if (!payload || !signature) return null;
-
-  const expected = sign(payload);
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
-
-  try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (!data.uid || !data.exp || data.exp < Date.now()) return null;
-    if (user) {
-      if (Number(user.id) !== Number(data.uid)) return null;
-      const currentFp = String(user.passwordHash || user.password_hash || 'no-pass').slice(-16);
-      if (data.fp !== currentFp) return null; // Senha já foi redefinida com este token
-    }
-    return data;
-  } catch (e) {
-    return null;
+  const data = readSigned(token);
+  if (!data || data.typ !== 'reset' || !data.uid) return null;
+  if (user) {
+    if (Number(user.id) !== Number(data.uid)) return null;
+    if (data.fp !== passwordFingerprint(user)) return null;
   }
+  return data;
 }
 
 // ==========================================
@@ -128,33 +132,21 @@ function verifyPasswordResetToken(token, user) {
 const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function issuePeladaInviteToken({ peladaId, email, role, inviterId }) {
-  const payload = Buffer.from(JSON.stringify({
+  return signTyped('invite', {
     pid: Number(peladaId),
     email: String(email).toLowerCase().trim(),
     role: role || 'votante',
     inviter: Number(inviterId || 0),
     exp: Date.now() + INVITE_TOKEN_TTL_MS
-  })).toString('base64url');
-  return `${payload}.${sign(payload)}`;
+  });
 }
 
-function verifyPeladaInviteToken(token) {
-  if (!token || typeof token !== 'string' || !tokenSecret) return null;
-  const [payload, signature] = token.split('.');
-  if (!payload || !signature) return null;
-
-  const expected = sign(payload);
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
-
-  try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (!data.pid || !data.email || !data.exp || data.exp < Date.now()) return null;
-    return data;
-  } catch (e) {
-    return null;
-  }
+// Convite so vale para a conta com o mesmo e-mail para o qual foi enviado
+function verifyPeladaInviteToken(token, user) {
+  const data = readSigned(token);
+  if (!data || data.typ !== 'invite' || !data.pid || !data.email) return null;
+  if (user && String(user.username || '').toLowerCase() !== data.email) return null;
+  return data;
 }
 
 // ==========================================

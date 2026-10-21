@@ -2210,7 +2210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     adminsModalPeladaId = pelada.id;
     adminsModalPeladaName.textContent = `${pelada.name} (#${pelada.id})`;
 
-    const inviteCode = pelada.invite_code || String(pelada.id);
+    const inviteCode = pelada.invite_code || '';
     if (displayPeladaInviteCode) displayPeladaInviteCode.textContent = inviteCode;
 
     if (btnCopyInviteLink) {

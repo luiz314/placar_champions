@@ -15,11 +15,12 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 
+// Endereço público usado nos links enviados por e-mail. Nunca vem de cabeçalhos controlados
+// pelo cliente (X-Forwarded-Host), senão um atacante desviaria links de redefinição de senha.
 function getBaseUrl(req) {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/+$/, '');
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const host = req.headers['x-forwarded-host'] || req.get('host');
-  return `${proto}://${host}`;
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  return `${req.protocol}://${req.get('host')}`;
 }
 
 const PORT = process.env.PORT || 3000;
@@ -237,6 +238,11 @@ app.get('/termos-de-uso', (req, res) => res.sendFile(path.join(__dirname, 'publi
 // ==========================================
 
 // Erro com status HTTP e mensagem que pode ser exibida ao usuário
+// Endereço de e-mail único (bloqueia separadores que fariam a mensagem ir para vários destinatários)
+function isValidEmail(email) {
+  return typeof email === 'string' && email.length <= 254 && /^[^\s@,;<>"'()]+@[^\s@,;<>"'()]+\.[^\s@,;<>"'()]+$/.test(email);
+}
+
 function httpError(status, message) {
   const err = new Error(message);
   err.status = status;
@@ -294,6 +300,18 @@ async function requirePeladaAdmin(req, peladaId, { ownerOnly = false } = {}) {
   return { ...role, isSuper: false };
 }
 
+// Aplica um convite assinado à conta do usuário. O convite só vale para o e-mail convidado,
+// para que um link repassado não dê acesso (ou papel de admin) a outra pessoa.
+async function applyPeladaInvite(inviteToken, user) {
+  const payload = auth.verifyPeladaInviteToken(inviteToken, user);
+  if (!payload) return null;
+  const pelada = await db.getPeladaById(payload.pid);
+  if (!pelada) return null;
+  if (payload.role === 'admin') await db.addPeladaAdmin(pelada.id, user.id);
+  else await db.addPeladaMember(pelada.id, user.id, payload.role || 'votante');
+  return { pelada, role: payload.role || 'votante' };
+}
+
 function sessionResponse(user) {
   return { success: true, user, token: auth.issueToken(user.id) };
 }
@@ -310,17 +328,9 @@ app.post('/api/auth/register', route(async (req, res) => {
   const { username, password, name, inviteToken } = req.body || {};
   const user = await db.createUser(username, password, name);
 
-  // Se veio por um convite assinado, aceita automaticamente na pelada correspondente
+  // Se veio por um convite assinado para este e-mail, entra automaticamente na pelada
   if (inviteToken) {
-    const payload = auth.verifyPeladaInviteToken(inviteToken);
-    if (payload && payload.pid) {
-      try {
-        if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
-        else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
-      } catch (e) {
-        console.warn('Aviso: Falha ao associar membro pós-registro com token de convite:', e.message);
-      }
-    }
+    await applyPeladaInvite(inviteToken, user).catch(e => console.warn('Aviso: convite não aplicado no cadastro:', e.message));
   }
 
   res.status(201).json(sessionResponse(user));
@@ -337,13 +347,7 @@ app.post('/api/auth/login', route(async (req, res) => {
     auth.clearLoginFailures(req.ip, email);
 
     if (inviteToken) {
-      const payload = auth.verifyPeladaInviteToken(inviteToken);
-      if (payload && payload.pid) {
-        try {
-          if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
-          else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
-        } catch (e) {}
-      }
+      await applyPeladaInvite(inviteToken, user).catch(e => console.warn('Aviso: convite não aplicado no login:', e.message));
     }
 
     res.json(sessionResponse(user));
@@ -360,13 +364,7 @@ app.post('/api/auth/google', route(async (req, res) => {
   const user = await db.findOrCreateGoogleUser(profile);
 
   if (inviteToken) {
-    const payload = auth.verifyPeladaInviteToken(inviteToken);
-    if (payload && payload.pid) {
-      try {
-        if (payload.role === 'admin') await db.addPeladaAdmin(payload.pid, user.id);
-        else await db.addPeladaMember(payload.pid, user.id, payload.role || 'votante');
-      } catch (e) {}
-    }
+    await applyPeladaInvite(inviteToken, user).catch(e => console.warn('Aviso: convite não aplicado no login Google:', e.message));
   }
 
   res.json(sessionResponse(user));
@@ -382,40 +380,27 @@ app.post('/api/auth/forgot-password', route(async (req, res) => {
   const cleanEmail = String(email || '').trim().toLowerCase();
   if (!cleanEmail) throw httpError(400, 'Informe o e-mail cadastrado na sua conta.');
 
+  const neutralMessage = 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes. Verifique também a caixa de spam.';
   const user = await db.getUserWithHashByEmail(cleanEmail);
   if (!user) {
-    // Retorno neutro seguro para evitar enumeração de contas
-    return res.json({
-      success: true,
-      message: 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em instantes.'
-    });
+    return res.json({ success: true, message: neutralMessage });
   }
 
   const token = auth.issuePasswordResetToken(user);
   const resetUrl = `${getBaseUrl(req)}/?resetToken=${token}`;
 
-  const mailResult = await mailer.sendPasswordResetEmail({
-    to: cleanEmail,
-    userName: user.name || cleanEmail,
-    resetUrl
-  });
+  // O link só pode chegar ao dono da conta, pelo e-mail. Nunca é devolvido na resposta (quem pede
+  // pode ser outra pessoa) e a resposta é a mesma com ou sem conta cadastrada (evita enumeração).
+  // Envio em segundo plano: a resposta sai na hora e leva o mesmo tempo com ou sem conta cadastrada
+  mailer.sendPasswordResetEmail({ to: cleanEmail, userName: user.name || cleanEmail, resetUrl })
+    .then(result => {
+      if (!result.sent) {
+        console.error(`Recuperação de senha: e-mail não enviado para o usuário #${user.id}:`, result.error || 'nenhum provedor de e-mail configurado');
+      }
+    })
+    .catch(err => console.error(`Recuperação de senha: falha ao enviar para o usuário #${user.id}:`, err.message));
 
-  if (mailResult.error) {
-    return res.status(500).json({
-      success: false,
-      error: `Não foi possível enviar o e-mail: ${mailResult.error}. Verifique se gerou uma Senha de App no Google para a variável SMTP_PASS no Railway.`,
-      previewUrl: resetUrl
-    });
-  }
-
-  res.json({
-    success: true,
-    message: mailResult.simulated
-      ? 'Link de redefinição gerado com sucesso (modo contingência / log ativo).'
-      : 'E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada e spam.',
-    simulated: mailResult.simulated,
-    previewUrl: mailResult.simulated ? resetUrl : undefined
-  });
+  res.json({ success: true, message: neutralMessage });
 }));
 
 // Redefinir senha usando token assinado recebido por e-mail
@@ -456,12 +441,17 @@ async function withPermissions(req, peladas) {
   const user = req.user;
   const isSuper = auth.isSuperAdmin(user);
   const managed = user ? await db.getManagedPeladaIds(user.id) : new Set();
-  return peladas.map(p => ({
-    ...p,
-    is_owner: Boolean(user && Number(p.owner_id) === Number(user.id)),
-    can_manage: isSuper || managed.has(Number(p.id)),
-    can_delete: isSuper || Boolean(user && Number(p.owner_id) === Number(user.id))
-  }));
+  return peladas.map(p => {
+    const canManage = isSuper || managed.has(Number(p.id));
+    return {
+      ...p,
+      // O código de convite dá acesso à sala: só quem administra pode vê-lo para compartilhar
+      invite_code: canManage ? p.invite_code : undefined,
+      is_owner: Boolean(user && Number(p.owner_id) === Number(user.id)),
+      can_manage: canManage,
+      can_delete: isSuper || Boolean(user && Number(p.owner_id) === Number(user.id))
+    };
+  });
 }
 
 app.get('/api/peladas', route(async (req, res) => {
@@ -505,6 +495,9 @@ app.get('/api/peladas/:id/members', route(async (req, res) => {
   const role = await db.getPeladaRole(req.params.id, user.id);
   const isSuper = auth.isSuperAdmin(user);
   if (!role.exists) throw httpError(404, 'Pelada não encontrada.');
+  if (!role.isAdmin && !isSuper && !(await db.getUserPeladaRole(user.id, req.params.id))) {
+    throw httpError(403, 'Apenas membros desta pelada podem ver a lista de participantes.');
+  }
   const membersData = await db.getPeladaMembers(req.params.id);
   res.json({ success: true, ...membersData, can_edit: role.isAdmin || isSuper });
 }));
@@ -515,25 +508,19 @@ app.post('/api/peladas/accept-invite', route(async (req, res) => {
   const { inviteToken } = req.body || {};
   if (!inviteToken) throw httpError(400, 'Token de convite não fornecido.');
 
-  const payload = auth.verifyPeladaInviteToken(inviteToken);
-  if (!payload || !payload.pid) {
+  if (!auth.verifyPeladaInviteToken(inviteToken)) {
     throw httpError(400, 'Convite inválido ou expirado.');
   }
-
-  const pelada = await db.getPeladaById(payload.pid);
-  if (!pelada) throw httpError(404, 'Pelada não encontrada.');
-
-  if (payload.role === 'admin') {
-    await db.addPeladaAdmin(pelada.id, user.id);
-  } else {
-    await db.addPeladaMember(pelada.id, user.id, payload.role || 'votante');
+  const accepted = await applyPeladaInvite(inviteToken, user);
+  if (!accepted) {
+    throw httpError(403, 'Este convite foi enviado para outro e-mail. Entre com a conta do e-mail convidado.');
   }
 
-  const [withPerms] = await withPermissions(req, [pelada]);
+  const [withPerms] = await withPermissions(req, [accepted.pelada]);
   res.json({
     success: true,
     pelada: withPerms,
-    message: `Você agora faz parte da sala "${pelada.name}" como ${payload.role || 'votante'}!`
+    message: `Você agora faz parte da sala "${accepted.pelada.name}" como ${accepted.role}!`
   });
 }));
 
@@ -542,7 +529,7 @@ app.post('/api/peladas/:id/members', route(async (req, res) => {
   const adminRole = await requirePeladaAdmin(req, req.params.id);
   const { email, role = 'votante' } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
-  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  if (!isValidEmail(cleanEmail)) {
     throw httpError(400, 'Informe um endereço de e-mail válido.');
   }
 
@@ -554,7 +541,7 @@ app.post('/api/peladas/:id/members', route(async (req, res) => {
   }
 
   const inviter = req.user;
-  const inviteCode = pelada.invite_code || String(pelada.id);
+  const inviteCode = pelada.invite_code || '';
   const target = await db.getUserByEmail(cleanEmail);
 
   if (target) {
@@ -679,7 +666,7 @@ app.post('/api/peladas/:id/admins', route(async (req, res) => {
   await requirePeladaAdmin(req, req.params.id, { ownerOnly: true });
   const { email } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
-  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  if (!isValidEmail(cleanEmail)) {
     throw httpError(400, 'Informe um endereço de e-mail válido.');
   }
 
@@ -687,7 +674,7 @@ app.post('/api/peladas/:id/admins', route(async (req, res) => {
   if (!pelada) throw httpError(404, 'Pelada não encontrada.');
 
   const inviter = req.user;
-  const inviteCode = pelada.invite_code || String(pelada.id);
+  const inviteCode = pelada.invite_code || '';
   const target = await db.getUserByEmail(cleanEmail);
 
   if (target) {
@@ -1152,46 +1139,33 @@ io.on('connection', (socket) => {
   on('match:finish', (payload) => {
     let room = getRoom();
     if (!room && payload && payload.roomId) {
+      // Reconexão: o aparelho volta para a sala informando o código, com as mesmas regras do room:join
+      // (senha obrigatória em sala protegida; sala inexistente, ex. após deploy, é recriada sem senha)
       const cleanRoomId = String(payload.roomId).replace(/\D/g, '');
-      if (cleanRoomId.length === 6) {
-        room = rooms.get(cleanRoomId);
-        if (room) {
-          joinSocketRoom(cleanRoomId);
-        }
+      if (cleanRoomId.length !== 6) return;
+      room = rooms.get(cleanRoomId);
+      if (room && room.passwordHash) {
+        const providedPwd = typeof payload.password === 'string' ? payload.password.trim() : '';
+        if (!providedPwd || !checkRoomPassword(providedPwd, room.passwordHash)) return;
       }
-    }
-
-    if (!room) {
-      // Caso de segurança: se a sala não estiver mapeada, mas vieram dados de pontuação, salva diretamente no banco
-      if (payload && (payload.scoreA > 0 || payload.scoreB > 0)) {
-        let fallbackWinner = 'Empate';
-        if (payload.scoreA > payload.scoreB) fallbackWinner = payload.nameA || 'LADO A';
-        else if (payload.scoreB > payload.scoreA) fallbackWinner = payload.nameB || 'LADO B';
-        db.saveMatch({
-          roomId: (payload && payload.roomId) || 'DEFAULT',
-          teamA: (payload && payload.nameA) || 'LADO A',
-          scoreA: (payload && payload.scoreA) || 0,
-          teamB: (payload && payload.nameB) || 'LADO B',
-          scoreB: (payload && payload.scoreB) || 0,
-          winner: fallbackWinner,
-          durationSeconds: (payload && payload.durationSeconds) || 0,
-          matchNumber: 1
-        }).catch(err => {
-          console.warn('Aviso: Falha ao salvar partida no banco de dados:', err.message);
-        });
+      if (!room) {
+        if (rooms.size >= MAX_ROOMS) return;
+        room = createDefaultRoomState(cleanRoomId, null);
+        rooms.set(cleanRoomId, room);
       }
-      return;
+      joinSocketRoom(cleanRoomId);
     }
+    if (!room) return;
 
     if (!Array.isArray(room.matchHistory)) room.matchHistory = [];
     if (!room.timer || typeof room.timer !== 'object') room.timer = { seconds: 0, running: false };
 
-    // Usa dados enviados pelo cliente caso disponíveis, senão usa os da memória do servidor
-    const scoreA = (payload && typeof payload.scoreA === 'number') ? payload.scoreA : (room.scoreA || 0);
-    const scoreB = (payload && typeof payload.scoreB === 'number') ? payload.scoreB : (room.scoreB || 0);
+    // Usa dados enviados pelo cliente caso disponíveis (já validados), senão usa os da memória do servidor
+    const scoreA = (payload && typeof payload.scoreA === 'number') ? toNonNegativeInt(payload.scoreA, 1000) : (room.scoreA || 0);
+    const scoreB = (payload && typeof payload.scoreB === 'number') ? toNonNegativeInt(payload.scoreB, 1000) : (room.scoreB || 0);
     const nameA = (payload && payload.nameA) ? cleanTeamName(payload.nameA, room.nameA) : (room.nameA || 'LADO A');
     const nameB = (payload && payload.nameB) ? cleanTeamName(payload.nameB, room.nameB) : (room.nameB || 'LADO B');
-    const durationSeconds = (payload && typeof payload.durationSeconds === 'number') ? payload.durationSeconds : (room.timer.seconds || 0);
+    const durationSeconds = (payload && typeof payload.durationSeconds === 'number') ? toNonNegativeInt(payload.durationSeconds) : (room.timer.seconds || 0);
 
     let winner = 'Empate';
     if (scoreA > scoreB) winner = nameA;
