@@ -7,3 +7,5 @@ yarn-error.log*
 Thumbs.db
 data/rooms.json
 data/db_fallback.json
+scratch/
+.claude/

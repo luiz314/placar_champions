@@ -1136,26 +1136,28 @@ io.on('connection', (socket) => {
   });
 
   // Encerrar partida e salvar no histórico da sala
-  on('match:finish', (payload) => {
+  on('match:finish', (payload, callback) => {
     let room = getRoom();
     if (!room && payload && payload.roomId) {
       // Reconexão: o aparelho volta para a sala informando o código, com as mesmas regras do room:join
       // (senha obrigatória em sala protegida; sala inexistente, ex. após deploy, é recriada sem senha)
       const cleanRoomId = String(payload.roomId).replace(/\D/g, '');
-      if (cleanRoomId.length !== 6) return;
+      if (cleanRoomId.length !== 6) return reply(callback, { success: false, error: 'Código de sala inválido.' });
       room = rooms.get(cleanRoomId);
       if (room && room.passwordHash) {
         const providedPwd = typeof payload.password === 'string' ? payload.password.trim() : '';
-        if (!providedPwd || !checkRoomPassword(providedPwd, room.passwordHash)) return;
+        if (!providedPwd || !checkRoomPassword(providedPwd, room.passwordHash)) {
+          return reply(callback, { success: false, error: 'Senha incorreta.' });
+        }
       }
       if (!room) {
-        if (rooms.size >= MAX_ROOMS) return;
+        if (rooms.size >= MAX_ROOMS) return reply(callback, { success: false, error: 'Limite de salas atingido.' });
         room = createDefaultRoomState(cleanRoomId, null);
         rooms.set(cleanRoomId, room);
       }
       joinSocketRoom(cleanRoomId);
     }
-    if (!room) return;
+    if (!room) return reply(callback, { success: false, error: 'Sala não encontrada.' });
 
     if (!Array.isArray(room.matchHistory)) room.matchHistory = [];
     if (!room.timer || typeof room.timer !== 'object') room.timer = { seconds: 0, running: false };
@@ -1185,8 +1187,10 @@ io.on('connection', (socket) => {
     room.matchHistory.unshift(matchRecord);
     room.matchHistory = room.matchHistory.slice(0, 200);
 
+    const targetRoomId = currentRoomId || room.roomId;
     db.saveMatch({
-      roomId: currentRoomId || room.roomId,
+      roomId: targetRoomId,
+      peladaId: (payload && payload.peladaId) || targetRoomId,
       teamA: nameA,
       scoreA,
       teamB: nameB,
@@ -1206,6 +1210,7 @@ io.on('connection', (socket) => {
     socket.to(room.roomId).emit('sound:play', { type: 'whistle_final' });
     io.to(room.roomId).emit('timer:tick', { seconds: 0, running: false });
     broadcastRoomState(room.roomId);
+    reply(callback, { success: true, matchNumber: matchRecord.matchNumber });
   });
 
   on('history:clear', () => {

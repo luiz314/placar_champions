@@ -860,6 +860,7 @@ function confirmFinishMatch() {
     // Payload completo para sincronização imediata
     const finishPayload = {
       roomId: currentRoomId,
+      peladaId: currentRoomId,
       password: getSavedRoomPassword(currentRoomId),
       nameA: matchRecord.nameA,
       scoreA: matchRecord.scoreA,
@@ -882,7 +883,11 @@ function confirmFinishMatch() {
     persistCurrentState();
 
     if (socket && socket.connected) {
-      socket.emit('match:finish', finishPayload);
+      socket.emit('match:finish', finishPayload, (res) => {
+        if (res && res.success) {
+          console.log('Partida finalizada e confirmada pelo servidor.');
+        }
+      });
     } else {
       markOfflineChange();
     }
@@ -912,11 +917,6 @@ if (btnFinishMatch) {
     e.stopPropagation();
     openEndMatchModal();
   });
-  btnFinishMatch.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openEndMatchModal();
-  }, { passive: false });
 }
 if (btnCloseEndMatchModal) {
   btnCloseEndMatchModal.addEventListener('click', (e) => {
@@ -947,8 +947,8 @@ if (endMatchModalBackdrop) {
     });
   }
   endMatchModalBackdrop.addEventListener('click', (e) => {
-    // Evita fechamento acidental por ghost-click ou propagação logo após abrir
-    if (Date.now() - endMatchModalOpenTime < 350) return;
+    // Só fecha se o clique for no backdrop escuro e após pelo menos 500ms de aberto
+    if (Date.now() - endMatchModalOpenTime < 500) return;
     if (e.target === endMatchModalBackdrop) closeEndMatchModal();
   });
 }

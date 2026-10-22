@@ -1278,7 +1278,9 @@ async function saveMatch(matchData) {
   const { roomId, teamA, scoreA, teamB, scoreB, winner, durationSeconds, matchNumber, teamAPlayers, teamBPlayers, peladaId } = matchData;
   const teamAStr = Array.isArray(teamAPlayers) ? JSON.stringify(teamAPlayers) : (teamAPlayers || null);
   const teamBStr = Array.isArray(teamBPlayers) ? JSON.stringify(teamBPlayers) : (teamBPlayers || null);
-  const numPelada = peladaId ? parseInt(peladaId, 10) : DEFAULT_PELADA_ID;
+  const numPelada = (peladaId && !isNaN(parseInt(peladaId, 10)) && parseInt(peladaId, 10) > 0)
+    ? parseInt(peladaId, 10)
+    : (roomId && !isNaN(parseInt(roomId, 10)) && parseInt(roomId, 10) > 0 ? parseInt(roomId, 10) : DEFAULT_PELADA_ID);
 
   if (isPostgres && Match) {
     try {
