@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const benchContainer = document.getElementById('benchContainer');
   const benchRoster = document.getElementById('benchRoster');
   const btnCopyWhatsappLineup = document.getElementById('btnCopyWhatsappLineup');
+  const btnCopyWhatsappNoRatings = document.getElementById('btnCopyWhatsappNoRatings');
 
   // Elementos DOM - Tabela de Peladas & Modais de Pelada
   const peladasTableBody = document.getElementById('peladasTableBody');
@@ -659,6 +660,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="player-sub">
             <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
+            <span class="card-gender-badge ${player.gender === 'F' ? 'feminino' : 'masculino'}" title="Sexo: ${player.gender === 'F' ? 'Feminino' : 'Masculino'}">
+              ${player.gender === 'F' ? '♀️ Fem' : '♂️ Masc'}
+            </span>
             <span class="card-flag-badge ${player.is_monthly !== false ? 'mensalista' : 'diarista'}" title="Flag da Pelada: ${player.is_monthly !== false ? 'Mensalista Fixo' : 'Diarista/Convidado'}">
               ${player.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
             </span>
@@ -936,6 +940,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; font-size: 0.8rem;">
             ${escapeHtml(p.position || 'Geral')}
           </span>
+          <span class="card-gender-badge ${p.gender === 'F' ? 'feminino' : 'masculino'}" style="margin-left: 4px;" title="Sexo: ${p.gender === 'F' ? 'Feminino' : 'Masculino'}">
+            ${p.gender === 'F' ? '♀️ Fem' : '♂️ Masc'}
+          </span>
         </td>
         <td>
           <div class="player-overall-pill" id="overall-pill-${p.id}" style="display: inline-flex;">
@@ -1037,6 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminPlayerHeroName = document.getElementById('adminPlayerHeroName');
   const adminPlayerHeroNick = document.getElementById('adminPlayerHeroNick');
   const adminPlayerHeroPos = document.getElementById('adminPlayerHeroPos');
+  const adminPlayerHeroGender = document.getElementById('adminPlayerHeroGender');
   const adminPlayerHeroCategory = document.getElementById('adminPlayerHeroCategory');
   const adminPlayerHeroOverall = document.getElementById('adminPlayerHeroOverall');
   const adminPlayerHeroVotes = document.getElementById('adminPlayerHeroVotes');
@@ -1065,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     if (adminPlayerHeroPos) adminPlayerHeroPos.textContent = `🏐 ${p.position || 'Geral'}`;
+    if (adminPlayerHeroGender) adminPlayerHeroGender.textContent = p.gender === 'F' ? '♀️ Feminino' : '♂️ Masculino';
     const isMonthly = p.is_monthly !== false;
     if (adminPlayerHeroCategory) {
       adminPlayerHeroCategory.textContent = isMonthly ? '⭐ Mensalista' : '🏷️ Diarista';
@@ -1395,6 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputPlayerName = document.getElementById('inputPlayerName');
   const inputPlayerNickname = document.getElementById('inputPlayerNickname');
   const selectPlayerPosition = document.getElementById('selectPlayerPosition');
+  const selectPlayerGender = document.getElementById('selectPlayerGender');
   const inputAddPlayerPhotoFile = document.getElementById('inputAddPlayerPhotoFile');
   const labelAddPlayerPhoto = document.getElementById('labelAddPlayerPhoto');
   const btnSubmitPlayer = document.getElementById('btnSubmitPlayer');
@@ -1420,6 +1430,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       selectPlayerPosition.value = position;
     }
+    if (selectPlayerGender) {
+      selectPlayerGender.value = (player && player.gender === 'F') ? 'F' : 'M';
+    }
     const chkPlayerIsMonthly = document.getElementById('chkPlayerIsMonthly');
     if (chkPlayerIsMonthly) {
       chkPlayerIsMonthly.checked = (player && player.is_monthly === false) ? false : true;
@@ -1444,11 +1457,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = inputPlayerName.value.trim();
       const nickname = inputPlayerNickname.value.trim();
       const position = selectPlayerPosition.value;
-      const chkPlayerIsMonthly = document.getElementById('chkPlayerIsMonthly');
+      const gender = selectPlayerGender ? selectPlayerGender.value : 'M';
+    const chkPlayerIsMonthly = document.getElementById('chkPlayerIsMonthly');
       const isMonthly = chkPlayerIsMonthly ? chkPlayerIsMonthly.checked : true;
       if (!name) return;
 
-      const body = { name, nickname: nickname || name, position, isMonthly };
+      const body = { name, nickname: nickname || name, position, gender, isMonthly };
       btnSubmitPlayer.disabled = true;
 
       try {
@@ -1668,41 +1682,64 @@ document.addEventListener('DOMContentLoaded', () => {
     balanceResultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  // Copiar Escalação para WhatsApp
-  if (btnCopyWhatsappLineup) {
-    btnCopyWhatsappLineup.addEventListener('click', () => {
-      if (!lastBalancedResult || !lastBalancedResult.teams) return;
+  // Copiar Escalação para WhatsApp (com ou sem notas individuais dos participantes)
+  function copyWhatsappLineup(includeIndividualRatings = true) {
+    if (!lastBalancedResult || !lastBalancedResult.teams) return;
 
-      const peladaName = getActivePeladaName();
-      let text = `🏐 *ESCALAÇÃO EQUILIBRADA - ${peladaName.toUpperCase()}*\n`;
-      text += `⚖️ *Índice de Equilíbrio:* ${lastBalancedResult.fairnessScore}%\n`;
-      text += `📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+    const peladaName = getActivePeladaName();
+    let text = `🏐 *ESCALAÇÃO EQUILIBRADA - ${peladaName.toUpperCase()}*\n`;
+    text += `⚖️ *Índice de Equilíbrio:* ${lastBalancedResult.fairnessScore}%\n`;
+    text += `📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}\n\n`;
 
-      lastBalancedResult.teams.forEach(t => {
-        const overallStr = t.avgOverall || (t.stats && t.stats.avgOverall) || '0.0';
-        text += `*${t.name.toUpperCase()}* (★ Overall: ${overallStr})\n`;
-        t.players.forEach((p, idx) => {
+    lastBalancedResult.teams.forEach(t => {
+      const teamPlayers = t.players || [];
+      const ratedOverall = teamPlayers.filter(p => Number(p.overall) > 0);
+      const computedOverall = ratedOverall.length > 0
+        ? (ratedOverall.reduce((sum, p) => sum + Number(p.overall), 0) / ratedOverall.length).toFixed(1)
+        : '0.0';
+      const overallStr = t.avgOverall || (t.stats && t.stats.avgOverall) || computedOverall;
+
+      text += `*${t.name.toUpperCase()}* (★ Overall: ${overallStr})\n`;
+      teamPlayers.forEach((p, idx) => {
+        if (includeIndividualRatings) {
           text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'}) - ★ ${Number(p.overall || 0).toFixed(1)}\n`;
-        });
-        text += '\n';
+        } else {
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'})\n`;
+        }
       });
-
-      if (lastBalancedResult.bench && lastBalancedResult.bench.length > 0) {
-        text += `*BANCO DE RESERVAS / PRÓXIMA RODADA:*\n`;
-        lastBalancedResult.bench.forEach((p, idx) => {
-          text += `  ${idx + 1}. ${p.nickname || p.name} (★ ${Number(p.overall || 0).toFixed(1)})\n`;
-        });
-        text += '\n';
-      }
-
-      text += `⭐ Avalie suas notas e confira o placar no link da pelada!`;
-
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Escalação copiada para colar no WhatsApp!');
-      }).catch(() => {
-        showToast('Escalação gerada!');
-      });
+      text += '\n';
     });
+
+    if (lastBalancedResult.bench && lastBalancedResult.bench.length > 0) {
+      text += `*BANCO DE RESERVAS / PRÓXIMA RODADA:*\n`;
+      lastBalancedResult.bench.forEach((p, idx) => {
+        if (includeIndividualRatings) {
+          text += `  ${idx + 1}. ${p.nickname || p.name} (★ ${Number(p.overall || 0).toFixed(1)})\n`;
+        } else {
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'})\n`;
+        }
+      });
+      text += '\n';
+    }
+
+    text += `⭐ Avalie suas notas e confira o placar no link da pelada!`;
+
+    const toastMsg = includeIndividualRatings
+      ? 'Escalação (com notas) copiada para colar no WhatsApp!'
+      : 'Escalação (apenas Overall do time) copiada para o WhatsApp!';
+
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(toastMsg);
+    }).catch(() => {
+      showToast('Escalação gerada!');
+    });
+  }
+
+  if (btnCopyWhatsappNoRatings) {
+    btnCopyWhatsappNoRatings.addEventListener('click', () => copyWhatsappLineup(false));
+  }
+  if (btnCopyWhatsappLineup) {
+    btnCopyWhatsappLineup.addEventListener('click', () => copyWhatsappLineup(true));
   }
 
   // ==========================================

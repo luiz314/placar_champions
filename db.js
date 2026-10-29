@@ -233,6 +233,7 @@ if (dbUrl) {
       name: { type: DataTypes.STRING(100), allowNull: false },
       nickname: { type: DataTypes.STRING(50) },
       position: { type: DataTypes.STRING(50), defaultValue: 'Geral' },
+      gender: { type: DataTypes.STRING(20), defaultValue: 'M' },
       photoUrl: { type: DataTypes.TEXT },
       isMonthly: { type: DataTypes.BOOLEAN, defaultValue: true },
       active: { type: DataTypes.BOOLEAN, defaultValue: true }
@@ -486,6 +487,7 @@ async function initDb() {
     await migratePeladaOwners();
     await backfillInviteCodes();
     await sequelize.query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_monthly BOOLEAN DEFAULT TRUE;').catch(() => {});
+    await sequelize.query("ALTER TABLE players ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'M';").catch(() => {});
     await sequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS player_ratings_player_user_unique ON player_ratings (player_id, user_id) WHERE user_id IS NOT NULL;').catch(() => {});
   } catch (err) {
     dbConnectionError = err.message;
@@ -1442,6 +1444,7 @@ async function getPlayersWithRatings(peladaId = null) {
           name: raw.name,
           nickname: raw.nickname,
           position: raw.position,
+          gender: normalizeGender(raw.gender),
           is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : (raw.is_monthly !== undefined ? Boolean(raw.is_monthly) : true),
           photo_url: raw.photoUrl,
           active: raw.active,
@@ -1477,6 +1480,7 @@ async function getPlayersWithRatings(peladaId = null) {
 
     return {
       ...p,
+      gender: normalizeGender(p.gender),
       is_monthly: p.is_monthly !== undefined ? Boolean(p.is_monthly) : (p.isMonthly !== undefined ? Boolean(p.isMonthly) : true),
       pelada_id: p.pelada_id || 1,
       ...computed
@@ -1496,6 +1500,12 @@ function sanitizePhotoUrl(value) {
   throw new Error('Formato de foto invalido. Envie uma imagem ou um link http(s).');
 }
 
+function normalizeGender(value) {
+  const v = String(value || '').trim().toUpperCase();
+  if (v === 'F' || v === 'FEMININO' || v === 'FEMALE') return 'F';
+  return 'M';
+}
+
 function cleanPlayerFields(fields) {
   const result = {};
   if (fields.name !== undefined) {
@@ -1504,6 +1514,7 @@ function cleanPlayerFields(fields) {
   }
   if (fields.nickname !== undefined) result.nickname = String(fields.nickname).trim().slice(0, 50);
   if (fields.position !== undefined) result.position = String(fields.position).trim().slice(0, 50) || 'Geral';
+  if (fields.gender !== undefined) result.gender = normalizeGender(fields.gender);
   const photo = fields.photoUrl !== undefined ? fields.photoUrl : fields.photo_url;
   if (photo !== undefined) result.photoUrl = sanitizePhotoUrl(photo);
   const monthly = fields.isMonthly !== undefined ? fields.isMonthly : fields.is_monthly;
@@ -1526,6 +1537,7 @@ async function getPlayerById(id) {
       ...raw,
       pelada_id: raw.peladaId,
       photo_url: raw.photoUrl,
+      gender: normalizeGender(raw.gender),
       is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
     };
   }
@@ -1535,6 +1547,7 @@ async function getPlayerById(id) {
   if (!player) return null;
   return {
     ...player,
+    gender: normalizeGender(player.gender),
     is_monthly: player.is_monthly !== undefined ? Boolean(player.is_monthly) : true
   };
 }
@@ -1545,6 +1558,7 @@ async function addPlayer(fields, peladaId) {
   const clean = cleanPlayerFields({ name: '', ...fields });
   const nickname = clean.nickname || clean.name;
   const position = clean.position || 'Geral';
+  const gender = clean.gender || 'M';
   const isMonthly = clean.isMonthly !== undefined ? clean.isMonthly : true;
 
   if (isPostgres) {
@@ -1554,6 +1568,7 @@ async function addPlayer(fields, peladaId) {
       nickname,
       position,
       photoUrl: clean.photoUrl || null,
+      gender,
       isMonthly,
       active: true
     });
@@ -1562,6 +1577,7 @@ async function addPlayer(fields, peladaId) {
       ...raw,
       pelada_id: raw.peladaId,
       photo_url: raw.photoUrl,
+      gender: normalizeGender(raw.gender),
       is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
     };
   }
@@ -1574,6 +1590,7 @@ async function addPlayer(fields, peladaId) {
     nickname,
     position,
     photo_url: clean.photoUrl || '',
+    gender,
     is_monthly: isMonthly,
     active: true,
     created_at: new Date().toISOString()
@@ -1602,6 +1619,7 @@ async function updatePlayer(id, updates = {}) {
       ...raw,
       photo_url: raw.photoUrl,
       pelada_id: raw.peladaId,
+      gender: normalizeGender(raw.gender),
       is_monthly: raw.isMonthly !== undefined ? Boolean(raw.isMonthly) : true
     };
   }

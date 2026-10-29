@@ -638,6 +638,28 @@
       border: 1px solid rgba(56, 189, 248, 0.3);
     }
 
+    .card-gender-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .card-gender-badge.masculino {
+      background: rgba(59, 130, 246, 0.14);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .card-gender-badge.feminino {
+      background: rgba(244, 114, 182, 0.14);
+      color: #f472b6;
+      border: 1px solid rgba(244, 114, 182, 0.35);
+    }
+
     /* BLOCOS SEPARADOS DE MENSALISTAS E DIARISTAS NO SORTEIO */
     .player-category-section {
       background: rgba(15, 23, 42, 0.55);
@@ -2543,9 +2565,13 @@
               </div>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-pelada btn-pelada-share" id="btnCopyWhatsappLineup">
+              <button type="button" class="btn-pelada btn-pelada-share" id="btnCopyWhatsappNoRatings" title="Copia a escalação exibindo apenas o Overall de cada time, sem mostrar a nota individual de cada participante">
+                <span>🔒</span>
+                <span>Copiar p/ WhatsApp (Só Overall do Time)</span>
+              </button>
+              <button type="button" class="btn-pelada btn-pelada-share" id="btnCopyWhatsappLineup" title="Copia a escalação completa com as notas individuais de cada participante">
                 <span>📲</span>
-                <span>Copiar Escalação para WhatsApp</span>
+                <span>Copiar p/ WhatsApp (Com Notas)</span>
               </button>
               <button type="button" class="btn-pelada" id="btnOpenInstagramCardModal">
                 <span>🖼️</span>
@@ -2757,6 +2783,13 @@
           <input type="text" id="inputPlayerNickname" class="form-input" placeholder="Ex: Lucão">
         </div>
         <div class="form-group">
+          <label for="selectPlayerGender">Sexo / Categoria *</label>
+          <select id="selectPlayerGender" class="form-input" required>
+            <option value="M" selected>♂️ Masculino</option>
+            <option value="F">♀️ Feminino</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label for="selectPlayerPosition">Posição Principal</label>
           <select id="selectPlayerPosition" class="form-input">
             <option value="Geral" selected>Geral / Completo</option>
@@ -2853,6 +2886,7 @@
           <div class="admin-player-nick" id="adminPlayerHeroNick"></div>
           <div class="admin-player-badges">
             <span class="admin-player-badge admin-badge-pos" id="adminPlayerHeroPos">Geral</span>
+            <span class="admin-player-badge admin-badge-pos" id="adminPlayerHeroGender">♂️ Masculino</span>
             <span class="admin-player-badge admin-badge-monthly" id="adminPlayerHeroCategory">⭐ Mensalista</span>
             <span class="admin-player-badge admin-badge-overall" id="adminPlayerHeroOverall">⭐ 0.0</span>
             <span class="admin-player-badge" id="adminPlayerHeroVotes" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">👥 0 votos</span>
@@ -2873,7 +2907,7 @@
           </div>
           <div class="admin-action-texts">
             <div class="admin-action-title">Editar Dados do Jogador</div>
-            <div class="admin-action-desc">Alterar nome completo, apelido e posição preferida</div>
+            <div class="admin-action-desc">Alterar nome completo, apelido, sexo e posição preferida</div>
           </div>
           <span class="admin-action-arrow">›</span>
         </button>
