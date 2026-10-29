@@ -507,6 +507,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentCardsSortOrder = localStorage.getItem('cardsSortOrder') || 'name_asc';
   let currentTableSortOrder = localStorage.getItem('tableSortOrder') || 'monthly_first';
+  if (currentCardsSortOrder === 'position') currentCardsSortOrder = 'name_asc';
+  if (currentTableSortOrder === 'position') currentTableSortOrder = 'monthly_first';
+
+  function getGenderLabel(gender) {
+    return String(gender || '').toUpperCase() === 'F' ? 'Feminino' : 'Masculino';
+  }
+
+  function getGenderBadgeHtml(gender) {
+    const isFem = String(gender || '').toUpperCase() === 'F';
+    return `<span class="card-gender-badge ${isFem ? 'feminino' : 'masculino'}" title="Sexo: ${isFem ? 'Feminino' : 'Masculino'}">${isFem ? '♀️ Feminino' : '♂️ Masculino'}</span>`;
+  }
 
   function sortPlayers(list, sortOrder = currentCardsSortOrder) {
     const sorted = [...list];
@@ -657,12 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="player-name-row">
             <span class="player-name" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</span>
             ${hasNickname ? `<span class="player-nickname-tag">"${escapeHtml(player.nickname)}"</span>` : ''}
+            ${getGenderBadgeHtml(player.gender)}
           </div>
           <div class="player-sub">
-            <span class="player-pos-badge">${escapeHtml(player.position || 'Geral')}</span>
-            <span class="card-gender-badge ${player.gender === 'F' ? 'feminino' : 'masculino'}" title="Sexo: ${player.gender === 'F' ? 'Feminino' : 'Masculino'}">
-              ${player.gender === 'F' ? '♀️ Fem' : '♂️ Masc'}
-            </span>
             <span class="card-flag-badge ${player.is_monthly !== false ? 'mensalista' : 'diarista'}" title="Flag da Pelada: ${player.is_monthly !== false ? 'Mensalista Fixo' : 'Diarista/Convidado'}">
               ${player.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
             </span>
@@ -887,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (playersList.length === 0) {
       playersTableBody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; color: #94a3b8; padding: 30px;">
+          <td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">
             Nenhum jogador cadastrado nesta pelada (${escapeHtml(getActivePeladaName())}).
           </td>
         </tr>
@@ -920,6 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="min-width: 0;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <strong class="player-name-text" style="color: #ffffff; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
+                ${getGenderBadgeHtml(p.gender)}
                 <span class="player-admin-gear-indicator" title="Opções e Ações Administrativas">⚙️</span>
               </div>
               ${p.nickname && p.nickname !== p.name ? `<div style="font-size: 0.75rem; color: #94a3b8;">"${escapeHtml(p.nickname)}"</div>` : ''}
@@ -935,14 +944,6 @@ document.addEventListener('DOMContentLoaded', () => {
               ${p.is_monthly !== false ? '⭐ Mensalista' : '🏷️ Diarista'}
             </span>
           </label>
-        </td>
-        <td>
-          <span style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; font-size: 0.8rem;">
-            ${escapeHtml(p.position || 'Geral')}
-          </span>
-          <span class="card-gender-badge ${p.gender === 'F' ? 'feminino' : 'masculino'}" style="margin-left: 4px;" title="Sexo: ${p.gender === 'F' ? 'Feminino' : 'Masculino'}">
-            ${p.gender === 'F' ? '♀️ Fem' : '♂️ Masc'}
-          </span>
         </td>
         <td>
           <div class="player-overall-pill" id="overall-pill-${p.id}" style="display: inline-flex;">
@@ -1063,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateAdminModalHero(p) {
     if (!p) return;
     const initial = (p.nickname || p.name).trim().charAt(0).toUpperCase();
-    if (adminPlayerHeroName) adminPlayerHeroName.textContent = p.name || 'Jogador';
+    if (adminPlayerHeroName) adminPlayerHeroName.innerHTML = `${escapeHtml(p.name || 'Jogador')} ${getGenderBadgeHtml(p.gender)}`;
     if (adminPlayerHeroNick) {
       if (p.nickname && p.nickname !== p.name) {
         adminPlayerHeroNick.textContent = `"${p.nickname}"`;
@@ -1589,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span style="color: #94a3b8; font-size: 0.8rem;">#${p.id}</span>
             <strong style="color: #ffffff;">${escapeHtml(fullName)}</strong>
             ${hasNick ? `<span style="font-size: 0.75rem; color: #94a3b8;">("${escapeHtml(p.nickname)}")</span>` : ''}
-            <span style="font-size: 0.75rem; color: #64748b;">(${escapeHtml(p.position || 'Geral')})</span>
+            ${getGenderBadgeHtml(p.gender)}
           </span>
           <span class="player-overall-pill" style="font-size: 0.75rem; padding: 2px 6px;">
             ★ ${Number(p.overall || 0).toFixed(1)}
@@ -1671,6 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         benchRoster.innerHTML = result.bench.map(p => `
           <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: 600;">${escapeHtml(p.nickname || p.name)}</span>
+            ${getGenderBadgeHtml(p.gender)}
             <span style="color: var(--pelada-gold); font-size: 0.75rem;">★ ${Number(p.overall || 0).toFixed(1)}</span>
           </div>
         `).join('');
@@ -1702,9 +1704,9 @@ document.addEventListener('DOMContentLoaded', () => {
       text += `*${t.name.toUpperCase()}* (★ Overall: ${overallStr})\n`;
       teamPlayers.forEach((p, idx) => {
         if (includeIndividualRatings) {
-          text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'}) - ★ ${Number(p.overall || 0).toFixed(1)}\n`;
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${getGenderLabel(p.gender)}) - ★ ${Number(p.overall || 0).toFixed(1)}\n`;
         } else {
-          text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'})\n`;
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${getGenderLabel(p.gender)})\n`;
         }
       });
       text += '\n';
@@ -1714,9 +1716,9 @@ document.addEventListener('DOMContentLoaded', () => {
       text += `*BANCO DE RESERVAS / PRÓXIMA RODADA:*\n`;
       lastBalancedResult.bench.forEach((p, idx) => {
         if (includeIndividualRatings) {
-          text += `  ${idx + 1}. ${p.nickname || p.name} (★ ${Number(p.overall || 0).toFixed(1)})\n`;
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${getGenderLabel(p.gender)}) - ★ ${Number(p.overall || 0).toFixed(1)}\n`;
         } else {
-          text += `  ${idx + 1}. ${p.nickname || p.name} (${p.position || 'Geral'})\n`;
+          text += `  ${idx + 1}. ${p.nickname || p.name} (${getGenderLabel(p.gender)})\n`;
         }
       });
       text += '\n';
@@ -2393,8 +2395,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function openDirectRateModal(player) {
     const playerId = Number(player.id);
     if (directRatePlayerId) directRatePlayerId.value = playerId;
-    if (directRatePlayerName) directRatePlayerName.textContent = player.name;
-    if (directRatePlayerPos) directRatePlayerPos.textContent = player.position || 'Geral';
+    if (directRatePlayerName) directRatePlayerName.innerHTML = `${escapeHtml(player.name)} ${getGenderBadgeHtml(player.gender)}`;
+
     
     if (btnDeleteDirectRate) {
       btnDeleteDirectRate.style.display = userRatingsMap[playerId] ? 'inline-block' : 'none';
@@ -2724,7 +2726,7 @@ document.addEventListener('DOMContentLoaded', () => {
     playersList.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.name} (${p.position || 'Geral'})`;
+      opt.textContent = `${p.name} (${getGenderLabel(p.gender)})`;
       selectAdminAddAttendance.appendChild(opt);
     });
   }
@@ -2837,7 +2839,7 @@ document.addEventListener('DOMContentLoaded', () => {
               ${escapeHtml(initial)}
             </div>
           `}
-          <strong style="color: #fff; font-size: 1.1rem;">${escapeHtml(s.name)}</strong>
+          <strong style="color: #fff; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;">${escapeHtml(s.name)} ${getGenderBadgeHtml(s.gender)}</strong>
           <div style="font-size: 0.85rem; color: #34d399; font-weight: 800;">
             ${s.wins} vitória${s.wins === 1 ? '' : 's'} (${s.winRate}%)
           </div>
@@ -2878,10 +2880,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   ${escapeHtml(initial)}
                 </div>
               `}
-              <strong style="color: #fff;">${escapeHtml(s.name)}</strong>
+              <strong style="color: #fff;">${escapeHtml(s.name)}</strong> ${getGenderBadgeHtml(s.gender)}
             </div>
           </td>
-          <td><span style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${escapeHtml(s.position || 'Geral')}</span></td>
+
           <td style="text-align: center; color: #cbd5e1;">${s.matchesPlayed}</td>
           <td style="text-align: center; font-weight: 800; color: #34d399;">${s.wins}</td>
           <td style="text-align: center; color: #f87171;">${s.losses}</td>
@@ -3089,7 +3091,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.textAlign = 'right';
       ctx.fillStyle = '#94a3b8';
       ctx.font = '24px sans-serif';
-      ctx.fillText(p.position || 'Geral', x + w - 30, startY);
+      ctx.fillText(getGenderLabel(p.gender), x + w - 30, startY);
 
       startY += lineHeight;
     });
@@ -3162,7 +3164,7 @@ document.addEventListener('DOMContentLoaded', () => {
       playersList.forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.id;
-        opt.textContent = `${p.name} (${p.position || 'Geral'})`;
+        opt.textContent = `${p.name} (${getGenderLabel(p.gender)})`;
         sel.appendChild(opt);
       });
       if (cur) sel.value = cur;

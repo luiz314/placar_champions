@@ -1945,6 +1945,7 @@ async function getPlayerStats(peladaId) {
       name: p.name,
       nickname: p.nickname,
       photo_url: p.photo_url,
+      gender: normalizeGender(p.gender),
       position: p.position,
       overall: p.overall,
       matchesPlayed: 0,

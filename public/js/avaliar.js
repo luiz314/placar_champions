@@ -131,8 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullName = player.name || player.nickname || 'Jogador';
     const initial = fullName.trim().charAt(0).toUpperCase();
 
-    if (voterPlayerName) voterPlayerName.textContent = fullName;
-    if (voterPlayerPos) voterPlayerPos.textContent = player.position || 'Geral';
+    const isFem = String(player.gender || '').toUpperCase() === 'F';
+    const genderBadge = `<span style="font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; margin-left: 6px; background: ${isFem ? 'rgba(244, 114, 182, 0.14)' : 'rgba(59, 130, 246, 0.14)'}; color: ${isFem ? '#f472b6' : '#60a5fa'}; border: 1px solid ${isFem ? 'rgba(244, 114, 182, 0.35)' : 'rgba(59, 130, 246, 0.3)'};">${isFem ? '♀️ Feminino' : '♂️ Masculino'}</span>`;
+    if (voterPlayerName) voterPlayerName.innerHTML = `${Auth.escapeHtml(fullName)} ${genderBadge}`;
+
 
     if (player.nickname && player.nickname.trim() !== '' && player.nickname.toLowerCase() !== fullName.toLowerCase()) {
       if (voterPlayerNick) {
@@ -341,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const myVoteTag = userRatingsMap[p.id] ? ` | Seu voto: ★${Number(userRatingsMap[p.id].overall).toFixed(1)}` : '';
           const opt = document.createElement('option');
           opt.value = p.id;
-          opt.textContent = `${p.name} (${p.position || 'Geral'} • ${flagTag}) — Média: ${starStatus} (${voteCountText})${myVoteTag}`;
+          const genderTag = String(p.gender || '').toUpperCase() === 'F' ? '♀️ Feminino' : '♂️ Masculino';
+          opt.textContent = `${p.name} (${genderTag} • ${flagTag}) — Média: ${starStatus} (${voteCountText})${myVoteTag}`;
           
           if (targetPlayerId && String(p.id) === String(targetPlayerId)) {
             opt.selected = true;

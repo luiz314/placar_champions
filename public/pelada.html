@@ -2541,7 +2541,7 @@
               <option value="overall_desc">Maior Nota / Estrelas (★)</option>
               <option value="overall_asc">Menor Nota / Estrelas (★)</option>
               <option value="votes_desc">Mais Votados (👥 Avaliações)</option>
-              <option value="position">Posição em Quadra</option>
+
             </select>
           </div>
         </div>
@@ -2621,7 +2621,7 @@
                 <option value="overall_desc">Maior Overall (Média Ponderada)</option>
                 <option value="overall_asc">Menor Overall</option>
                 <option value="votes_desc">Mais Avaliados (Nº de Votos)</option>
-                <option value="position">Posição em Quadra</option>
+  
               </select>
             </div>
 
@@ -2638,7 +2638,7 @@
               <tr>
                 <th>Jogador</th>
                 <th>🚩 Flag Mensalista</th>
-                <th>Posição</th>
+
                 <th>Overall (Ponderado)</th>
                 <th>💥 Ataque</th>
                 <th>🛡️ Defesa</th>
@@ -2649,7 +2649,7 @@
             </thead>
             <tbody id="playersTableBody">
               <tr>
-                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">
+                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">
                   Carregando jogadores...
                 </td>
               </tr>
@@ -2790,8 +2790,8 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="selectPlayerPosition">Posição Principal</label>
-          <select id="selectPlayerPosition" class="form-input">
+          <label for="selectPlayerPosition" hidden>Posição Principal</label>
+          <select id="selectPlayerPosition" class="form-input" hidden>
             <option value="Geral" selected>Geral / Completo</option>
             <option value="Ponteiro">Ponteiro</option>
             <option value="Levantador">Levantador</option>
@@ -2885,8 +2885,8 @@
           <div class="admin-player-name" id="adminPlayerHeroName">-</div>
           <div class="admin-player-nick" id="adminPlayerHeroNick"></div>
           <div class="admin-player-badges">
-            <span class="admin-player-badge admin-badge-pos" id="adminPlayerHeroPos">Geral</span>
-            <span class="admin-player-badge admin-badge-pos" id="adminPlayerHeroGender">♂️ Masculino</span>
+
+
             <span class="admin-player-badge admin-badge-monthly" id="adminPlayerHeroCategory">⭐ Mensalista</span>
             <span class="admin-player-badge admin-badge-overall" id="adminPlayerHeroOverall">⭐ 0.0</span>
             <span class="admin-player-badge" id="adminPlayerHeroVotes" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">👥 0 votos</span>
@@ -2907,7 +2907,7 @@
           </div>
           <div class="admin-action-texts">
             <div class="admin-action-title">Editar Dados do Jogador</div>
-            <div class="admin-action-desc">Alterar nome completo, apelido, sexo e posição preferida</div>
+            <div class="admin-action-desc">Alterar nome completo, apelido e sexo</div>
           </div>
           <span class="admin-action-arrow">›</span>
         </button>
@@ -3038,7 +3038,7 @@
         <div style="flex: 1; min-width: 0;">
           <h4 id="directRatePlayerName" style="margin: 0 0 2px 0; font-size: 1.1rem; color: #ffffff;">Nome do Jogador</h4>
           <div style="font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
-            <span id="directRatePlayerPos" class="player-pos-badge">Geral</span>
+
             <span id="directRatePlayerNick"></span>
           </div>
         </div>

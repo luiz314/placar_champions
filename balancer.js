@@ -98,7 +98,7 @@ function evaluateFairness(teams) {
   }
 
   // Custo total: quanto menor, mais equilibrado
-  const cost = (overallDelta * 3.0) + (attackDelta * 1.0) + (passDelta * 1.0) + positionPenalty;
+  const cost = (overallDelta * 3.0) + (attackDelta * 1.0) + (passDelta * 1.0);
   return { cost, overallDelta };
 }
 
